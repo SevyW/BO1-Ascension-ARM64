@@ -6,9 +6,12 @@
 #   docker run -p 8080:8080 bo1-web                                          # http://localhost:8080/bo1/
 #
 # BUILD_ENGINE=1 runs `cmake --preset web && cmake --build --preset web` in the Emscripten SDK image (docs/web-port.md)
-# and ships web/engine/bo1.{js,wasm} + build.json. With the default 0 the image has no engine: the site, lobby and
-# relay work, /bo1/api/config reports engine.available = false. Stage selection by build argument needs BuildKit
-# (Railway and current Docker use it), which also skips the engine stage when it is not selected.
+# and ships web/engine/bo1.{js,wasm} + build.json. BUILD_ENGINE=prebuilt ships the web/engine/ the build context
+# already holds (built on the developer's machine; web/scripts/deploy.sh stages it, as .dockerignore and .gitignore
+# keep web/engine out of a plain repository context). With the default 0 the image has no engine: the site, lobby and
+# relay work, /bo1/api/config reports engine.available = false. Railway passes the service variable BUILD_ENGINE in as
+# the build argument. Stage selection by build argument needs BuildKit (Railway and current Docker use it), which also
+# skips the engine stages that are not selected.
 
 ARG BUILD_ENGINE=0
 ARG BUN_VERSION=1.3
@@ -48,6 +51,11 @@ RUN cmake --preset web \
 # ----- no engine (BUILD_ENGINE=0) -----
 FROM build AS engine-0
 RUN mkdir -p /out/engine
+
+# ----- engine built beforehand (BUILD_ENGINE=prebuilt) -----
+FROM build AS engine-prebuilt
+COPY web/engine/ /out/engine/
+RUN test -f /out/engine/bo1.js && test -f /out/engine/bo1.wasm
 
 FROM engine-${BUILD_ENGINE} AS engine
 

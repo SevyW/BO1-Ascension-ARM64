@@ -31,5 +31,6 @@ export const icons = {
   lock: () => svg(["M6 11h12v9H6z", "M8 11V8a4 4 0 0 1 8 0v3"], "icon-lock"),
   globe: () => svg(["M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18z", "M3 12h18", "M12 3c3 3 3 15 0 18c-3-3-3-15 0-18z"], "icon-globe"),
   folder: () => svg(["M3 6h6l2 2h10v11H3z"], "icon-folder"),
+  download: () => svg(["M12 4v11", "M7 10l5 5l5-5", "M5 20h14"], "icon-download"),
   shield: () => svg(["M12 3l8 3v6c0 5-3.5 8-8 9c-4.5-1-8-4-8-9V6z", "M8.5 12l2.5 2.5L16 9.5"], "icon-shield"),
 };

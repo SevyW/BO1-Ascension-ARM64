@@ -4,7 +4,7 @@
 // had for a long time). Fallback: FileSystemFileHandle.createWritable() + Blob.stream().pipeTo() on the main
 // thread. Writes are serialized (one file at a time).
 
-import { getDir, splitPath } from "./opfs";
+import { getDir, ROOT_DIR, splitPath } from "./opfs";
 
 declare const __BO1_COPY_WORKER__: string | undefined;
 
@@ -129,7 +129,7 @@ export function writeBlob(path: string, blob: Blob, onProgress?: (written: numbe
     const w = getWorker();
     if (w) {
       try {
-        return await viaWorker(w, segs, name, blob, onProgress, signal);
+        return await viaWorker(w, [ROOT_DIR, ...segs], name, blob, onProgress, signal); // the worker starts at the OPFS root
       } catch (e) {
         if (e instanceof CopyCancelled) throw e;
         const msg = e instanceof Error ? e.message : String(e);

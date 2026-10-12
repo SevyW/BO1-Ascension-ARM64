@@ -5,12 +5,17 @@
 // 2. Each pick is matched against manifest.ts (root detection, case-insensitive); the page shows what was found.
 // 3. run() streams every needed file into OPFS (copy.ts), skipping files already present with the same size
 //    (resume), with overall and per-file progress and cancel; then writes bo1/import.json.
+//
+// Game file packages (web/shared/gamepack.ts, made by bo1-pack from the player's own install) are read in place: the
+// tar index gives each file's offset, and the import copies Blob slices of the .tar. Each package is its own batch.
 
+import { looksLikePackageName, readPackage, type PackageManifest, type ReadAt } from "../../../shared/gamepack";
 import { MAPS } from "../../../shared/roster";
 import { writeBlob, writeText, CopyCancelled } from "./copy";
 import {
   classifyGamePath,
   computeAvailability,
+  findLanguage,
   matchSelection,
   parseLocalizationLanguage,
   planImport,
@@ -72,6 +77,25 @@ export async function rebuildIndex(): Promise<ImportedState> {
   return { index, language, availability };
 }
 
+/** Bytes per map of the imported map zones (zone/Common/<map>(_patch).ff and the localized copies). */
+export function importedMapBytes(index: ImportIndex): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const [path, size] of Object.entries(index.files)) {
+    const info = classifyGamePath(path);
+    if (info?.kind === "map-zone" && info.map) out[info.map] = (out[info.map] ?? 0) + size;
+  }
+  return out;
+}
+
+/** Removes one map's zones from OPFS and rebuilds the index; the base files and the other maps stay. */
+export async function removeImportedMap(mapId: string): Promise<ImportedState> {
+  for (const f of await listFiles(GAME_DIR)) {
+    const info = classifyGamePath(f.path);
+    if (info?.kind === "map-zone" && info.map === mapId) await removeEntry(`${GAME_DIR}/${f.path}`);
+  }
+  return rebuildIndex();
+}
+
 /** Removes the imported files, the synced data and both indexes (bo1/home, the engine's settings, stays). */
 export async function deleteAllImported(): Promise<void> {
   await removeEntry(GAME_DIR);
@@ -82,9 +106,9 @@ export async function deleteAllImported(): Promise<void> {
 // ----- picking -----
 
 export interface SourceFile {
-  path: string; // relative to the selection, starting with the picked folder's name
+  path: string; // relative to the selection, starting with the picked folder's name (packages: the game root)
   size: number;
-  file: () => Promise<File>;
+  file: () => Promise<Blob>; // a File, or a slice of a package
 }
 
 const RELEVANT = /\.(ff|iwd|bik)$/i;
@@ -92,7 +116,7 @@ const SKIP_DIRS = new Set(["$recycle.bin", "system volume information", ".git", 
 const MAX_DEPTH = 8;
 
 function relevant(name: string): boolean {
-  return RELEVANT.test(name) || name.toLowerCase() === "localization.txt";
+  return RELEVANT.test(name) || name.toLowerCase() === "localization.txt" || looksLikePackageName(name);
 }
 
 export function supportsDirectoryPicker(): boolean {
@@ -151,6 +175,36 @@ export function sourcesFromFileList(list: FileList | File[]): SourceFile[] {
   return out;
 }
 
+// ----- packages -----
+
+export interface OpenedPackage {
+  name: string; // the .tar's file name
+  manifest: PackageManifest;
+  bytes: number; // the whole archive
+  sources: SourceFile[]; // manifest paths (from the game root), each a slice of the archive
+}
+
+export interface PackageFailure {
+  name: string;
+  message: string;
+}
+
+/** Reads a package's tar index and manifest (one block per entry); the data stays in the Blob until the import. */
+export async function openPackage(blob: Blob, name = (blob as Partial<File>).name ?? "package.tar"): Promise<OpenedPackage> {
+  const read: ReadAt = async (offset, length) => new Uint8Array(await blob.slice(offset, offset + length).arrayBuffer());
+  const pkg = await readPackage(read, blob.size);
+  return {
+    name,
+    manifest: pkg.manifest,
+    bytes: blob.size,
+    sources: pkg.files.map((f) => ({ path: f.path, size: f.size, file: async () => blob.slice(f.offset, f.offset + f.size) })),
+  };
+}
+
+function baseName(path: string): string {
+  return path.split("/").pop() || path;
+}
+
 // ----- the import session -----
 
 export interface ImportProgress {
@@ -176,12 +230,24 @@ interface Selected extends MatchedFile {
   src: SourceFile;
 }
 
+/** A map found in the picks: its zones' bytes, and what is still to copy. */
+export interface MapChoice {
+  id: string;
+  bytes: number;
+  copyBytes: number; // 0 when the map is imported already
+  selected: boolean;
+  missing: string[]; // the map's required files that are neither picked nor imported (it would not be playable)
+}
+
 export class ImportSession {
-  private batches: SourceFile[][] = [];
+  private batches: { files: SourceFile[]; pkg: OpenedPackage | null }[] = [];
   includeVideo = false;
   existing = new Map<string, number>();
   ignored = 0;
-  roots: (string | null)[] = [];
+  roots: (string | null)[] = []; // per folder pick (packages hold paths from the game root)
+  packages: OpenedPackage[] = [];
+  packageErrors: PackageFailure[] = []; // .tar files of the last add that could not be opened as packages
+  excludedMaps = new Set<string>(); // maps the player unchecked: their zones are not copied
 
   async init(): Promise<void> {
     this.existing = await existingGameFiles();
@@ -192,23 +258,94 @@ export class ImportSession {
   }
 
   add(files: SourceFile[]): void {
-    this.batches.push(files);
+    this.batches.push({ files, pkg: null });
+  }
+
+  /** A folder pick: loose files are one batch, every .tar in it is opened as a package (its own batch). */
+  async addPicked(files: SourceFile[]): Promise<void> {
+    const tars = files.filter((f) => looksLikePackageName(f.path));
+    const loose = files.filter((f) => !looksLikePackageName(f.path));
+    if (loose.length > 0 || tars.length === 0) this.add(loose);
+    await this.addPackages(tars);
+  }
+
+  /**
+   * Opens each file as a package and adds it as its own batch (the same name and size twice is added once). Files
+   * that are not packages land in packageErrors and do not stop the others. Returns how many packages were added.
+   */
+  async addPackages(files: SourceFile[]): Promise<number> {
+    this.packageErrors = [];
+    let added = 0;
+    for (const f of files) {
+      const name = baseName(f.path);
+      try {
+        const pkg = await openPackage(await f.file(), name);
+        if (this.packages.some((p) => p.name === pkg.name && p.bytes === pkg.bytes)) continue;
+        this.packages.push(pkg);
+        this.batches.push({ files: pkg.sources, pkg });
+        added++;
+      } catch (e) {
+        this.packageErrors.push({ name, message: e instanceof Error ? e.message : String(e) });
+      }
+    }
+    return added;
+  }
+
+  /** Packages made from an install in another language than `language` (the picked or imported localization.txt). */
+  languageConflicts(language: string | null): OpenedPackage[] {
+    if (!language) return [];
+    const want = findLanguage(language)?.name ?? language;
+    return this.packages.filter((p) => (findLanguage(p.manifest.language)?.name ?? p.manifest.language) !== want);
   }
 
   clear(): void {
     this.batches = [];
+    this.packages = [];
+    this.packageErrors = [];
+    this.excludedMaps.clear();
+  }
+
+  /** Matched files of every pick, without the maps the player unchecked. */
+  selected(): Selected[] {
+    return this.matched().filter((f) => !(f.info.kind === "map-zone" && f.info.map && this.excludedMaps.has(f.info.map)));
+  }
+
+  /** The maps in the picks, in roster order, with their sizes and whether they are checked. */
+  mapChoices(language: string | null = null): MapChoice[] {
+    const matched = this.matched();
+    const av = this.projected(language, matched);
+    const byMap = new Map<string, MapChoice>();
+    for (const f of matched) {
+      if (f.info.kind !== "map-zone" || !f.info.map) continue;
+      const c = byMap.get(f.info.map) ?? {
+        id: f.info.map,
+        bytes: 0,
+        copyBytes: 0,
+        selected: !this.excludedMaps.has(f.info.map),
+        missing: av.maps[f.info.map]?.missing ?? [],
+      };
+      c.bytes += f.size;
+      if (this.existing.get(f.dest.toLowerCase()) !== f.size) c.copyBytes += f.size;
+      byMap.set(f.info.map, c);
+    }
+    return MAPS.filter((m) => byMap.has(m.id)).map((m) => byMap.get(m.id)!);
+  }
+
+  setMapSelected(mapId: string, on: boolean): void {
+    if (on) this.excludedMaps.delete(mapId);
+    else this.excludedMaps.add(mapId);
   }
 
   /** Matched files of every pick (each pick has its own root), de-duplicated by destination. */
-  selected(): Selected[] {
+  private matched(): Selected[] {
     const seen = new Set<string>();
     const out: Selected[] = [];
     this.ignored = 0;
     this.roots = [];
-    for (const batch of this.batches) {
+    for (const { files: batch, pkg } of this.batches) {
       const bySource = new Map(batch.map((s) => [s.path, s]));
       const m = matchSelection(batch, { includeVideo: this.includeVideo });
-      this.roots.push(m.root);
+      if (!pkg) this.roots.push(m.root);
       this.ignored += m.ignored;
       for (const f of m.matched) {
         const key = f.dest.toLowerCase();

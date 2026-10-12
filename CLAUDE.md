@@ -20,6 +20,8 @@ Workstreams in flight. Each has its own doc; read it before working in that area
 
 - **No game assets in the repo or on the server.** No `.ff`, `.iwd`, `.bik`, dumped retail scripts or textures. The web build
   imports the player's own files into their browser (OPFS); the server only serves our code, `mods/` and `data/main/`.
+  Per-map packages are built by each player from their own install (`bo1-pack`, `web/packer/`) and never hosted. Disc
+  images or installers in the working tree (e.g. `sr-codbo.iso`, gitignored) are not a source for anything we ship.
 - **Keep the MSVC build identical** when changing shared code for other platforms: guard with `#ifdef BO1_WEB` (web
   build) or use constructs MSVC also accepts. Never reformat decompiled code; edit the smallest region.
 - **Tag non-original engine code**: `// mod: ...` or `// mod (<topic>): ...` (`// mod (coop):`, `// mod (gpad):`);
@@ -59,7 +61,7 @@ Workstreams in flight. Each has its own doc; read it before working in that area
 | `mods/` | script mods (GSC/CSC), copied next to the exe by the build; see "Mods" |
 | `data/main/` | base-game data the install lacks (`playlists_sp.info`), copied to `main/` by the build |
 | `tools/` | `headless.ps1` (windowless runs + checks), `mod-launcher.hta`, `*_flags.js`, `mapkit/*.mjs` (layout doctor), `syntax-check.sh` |
-| `web/` | Bun server (static, lobby, WebRTC signaling, relay) + TypeScript client; `web/shared/` = lobby protocol, map/character roster, launch command builder |
+| `web/` | Bun server (static, lobby, WebRTC signaling, relay) + TypeScript client; `web/shared/` = lobby protocol, map/character roster, launch command builder, game file package format (`gamepack.ts`); `web/packer/` = `bo1-pack`, the player's local tool that packages their own install per map |
 | `docs/` | design + status docs for the workstreams above |
 | `CMakeLists.txt`, `cmake_files.cmake` | MSVC build; `cmake_files.cmake` is the single list of every source file |
 
@@ -171,9 +173,20 @@ not in the repo; `bo1_dumpscript <name>` writes one from the loaded fastfiles to
 
 ## Web distribution, multiplayer, controllers (summaries; details in the docs)
 
-- **Hosting**: one Railway service (`.railway/railway.ts`, Dockerfile `web/Dockerfile`, build context = repo root) owns
-  `spacemandev.games`, serves the site under `BASE_PATH=/bo1`, health check `/bo1/healthz`. Lobby state is in memory:
-  keep **1 replica**. COOP/COEP headers are mandatory (SharedArrayBuffer for wasm threads).
+- **Hosting**: Railway project `spacemandev-games`, service `bo1-web` (`.railway/railway.ts`, `web/Dockerfile`), custom
+  domain `spacemandev.games` + `bo1-web-production.up.railway.app`, site under `BASE_PATH=/bo1`, health check
+  `/bo1/healthz`. Deploy = `web/scripts/deploy.sh` (uploads a staged folder with the prebuilt `web/engine/`;
+  `BUILD_ENGINE=prebuilt`), never a git push. Lobby state is in memory: keep **1 replica**. COOP/COEP headers are
+  mandatory (SharedArrayBuffer for wasm threads). Ask the user before deploying.
+- **Game file packages**: `bo1-pack` (`web/packer/`, served as `<BASE_PATH>tools/bo1-pack.mjs`, Node 18+ or Bun) writes
+  `bo1-zombies-base-<language>.tar` + `bo1-zombies-<map>-<language>.tar` from the player's install using the importer's
+  rules (`client/src/assets/manifest.ts`); the page's "Add packages" imports them. Format: `web/shared/gamepack.ts`.
+  The Game files screen's "Make packages" writes the same packages in the page (`client/src/assets/pack.ts`: Chromium
+  into a picked folder, other browsers as downloads). The importer copies the base plus the maps the player checks;
+  "In this browser" removes single maps.
+- **Browser storage limit**: Chrome's `navigator.storage.estimate()` reports `usage + 10 GiB` whatever the real limit
+  (12 GiB written fine, measured 2026-10-10, Chrome 151); a private window reports `+5 GiB` and fails near 2 GiB. Do
+  not treat `quota - usage` as a hard ceiling; tell players to import in a normal window.
 - **Engine ↔ page contract**: `docs/web-engine-interface.md` (OPFS layout `/opfs/bo1/{game,home}`, network rings,
   gamepad struct, command line). Change it there first, then both sides.
 - **Multiplayer model**: star topology; the host's tab/process is the listen server. Every player has a fake LAN

@@ -426,3 +426,6 @@ FodyWeavers.xsd
 .idea/*
 Debug/*
 __BO1Zombies
+
+# Local disc image (never commit or upload game files)
+sr-codbo.iso

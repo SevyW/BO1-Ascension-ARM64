@@ -1,41 +1,38 @@
 // filesview.ts - the "Game files" screen: import the player's own files into the browser, see what is there,
 // delete everything. Nothing is uploaded: files are copied into this site's private browser storage (OPFS).
 
+import { looksLikePackageName, PACKER_PATH } from "../../../shared/gamepack";
 import { MAPS } from "../../../shared/roster";
 import type { App } from "../app";
 import { nav } from "../input/nav";
 import { clear, confirmDialog, h, put, toast } from "../ui/dom";
 import { icons } from "../ui/icons";
+import { bar, duration } from "../ui/progress";
 import { Disposer, type ScreenInstance } from "../ui/screen";
 import {
   deleteAllImported,
+  importedMapBytes,
   ImportSession,
   pickWithDirectoryPicker,
   rebuildIndex,
+  removeImportedMap,
   sourcesFromFileList,
   supportsDirectoryPicker,
   type ImportProgress,
+  type OpenedPackage,
 } from "./import";
 import { formatBytes, type Availability } from "./manifest";
-import { opfsAvailable, storageInfo, type StorageInfo } from "./opfs";
+import { opfsAvailable, requestPersist, storageInfo, type StorageInfo } from "./opfs";
+import { packCard } from "./packview";
 
-function duration(sec: number): string {
-  if (!Number.isFinite(sec) || sec <= 0) return "";
-  if (sec < 60) return `${Math.ceil(sec)} s`;
-  if (sec < 3600) return `${Math.ceil(sec / 60)} min`;
-  return `${(sec / 3600).toFixed(1)} h`;
+export interface AvailabilityOptions {
+  title?: string;
+  mapBytes?: Record<string, number>; // imported bytes per map: with onRemove, each imported map gets a Remove button
+  onRemove?: (mapId: string) => void;
+  busy?: boolean;
 }
 
-function bar(fraction: number, testid?: string): HTMLElement {
-  const pct = Math.max(0, Math.min(1, fraction)) * 100;
-  return h(
-    "div",
-    { class: "bar", role: "progressbar", "aria-valuemin": "0", "aria-valuemax": "100", "aria-valuenow": pct.toFixed(0), "data-testid": testid },
-    h("div", { class: "bar-fill", style: `width:${pct.toFixed(1)}%` }),
-  );
-}
-
-export function availabilityView(av: Availability | null, opts: { title?: string } = {}): HTMLElement {
+export function availabilityView(av: Availability | null, opts: AvailabilityOptions = {}): HTMLElement {
   const box = h("div", { class: "availability" });
   if (opts.title) put(box, h("h3", null, opts.title));
   if (!av || av.files === 0) {
@@ -62,12 +59,24 @@ export function availabilityView(av: Availability | null, opts: { title?: string
       MAPS.map((m) => {
         const a = av.maps[m.id];
         const playable = av.core.complete && !!a?.available;
+        const bytes = opts.mapBytes?.[m.id] ?? 0;
+        const remove = opts.onRemove;
         return h(
           "li",
           { class: playable ? "ok" : a?.available ? "warn" : "muted", "data-map": m.id },
           playable ? icons.check() : icons.cross(),
           h("span", null, m.name),
           !a?.available ? h("span", { class: "small muted" }, " · map files missing") : !playable ? h("span", { class: "small" }, " · needs the core files") : null,
+          remove && bytes > 0
+            ? [
+                h("span", { class: "small muted" }, ` · ${formatBytes(bytes)}`),
+                h(
+                  "button",
+                  { class: "btn small map-remove", "data-testid": `remove-map-${m.id}`, "data-nav-id": `remove-map-${m.id}`, disabled: opts.busy, onclick: () => remove(m.id) },
+                  "Remove",
+                ),
+              ]
+            : null,
         );
       }),
     ),
@@ -93,17 +102,64 @@ export function mountFiles(host: HTMLElement, app: App): ScreenInstance {
 
   const manageBox = h("div", { class: "card", "data-testid": "imported-files" });
   const importBox = h("div", { class: "card", "data-testid": "importer" });
-  const storageBox = h("div", { class: "card" });
+  const storageBox = h("div", { class: "card", "data-testid": "browser-storage" });
+  const pack = packCard();
 
   const fileInput = h("input", { type: "file", multiple: true, hidden: true, "data-testid": "folder-input" });
   fileInput.setAttribute("webkitdirectory", "");
   fileInput.setAttribute("directory", "");
   fileInput.addEventListener("change", () => {
     if (!fileInput.files || fileInput.files.length === 0) return;
-    session.add(sourcesFromFileList(fileInput.files));
+    const files = sourcesFromFileList(fileInput.files);
     fileInput.value = "";
     lastResult = null;
+    void session.addPicked(files).then(() => {
+      packageErrorToast();
+      void renderImport();
+    });
+  });
+
+  // game file packages (.tar from bo1-pack): the "Add packages" dialog or a drop onto the importer card
+  const packageInput = h("input", { type: "file", multiple: true, accept: ".tar", hidden: true, "data-testid": "package-input" });
+  packageInput.addEventListener("change", () => {
+    if (!packageInput.files || packageInput.files.length === 0) return;
+    const files = Array.from(packageInput.files);
+    packageInput.value = "";
+    void addPackageFiles(files);
+  });
+
+  const packageErrorToast = () => {
+    const bad = session.packageErrors;
+    if (bad.length > 0) toast(`Not a usable package: ${bad.map((e) => e.name).join(", ")}`, "warn", 6000);
+  };
+
+  const addPackageFiles = async (files: File[]) => {
+    if (running) return;
+    await session.addPackages(files.map((f) => ({ path: f.name, size: f.size, file: async () => f })));
+    lastResult = null;
+    packageErrorToast();
     void renderImport();
+  };
+
+  importBox.addEventListener("dragover", (e) => {
+    if (!e.dataTransfer?.types.includes("Files")) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = running ? "none" : "copy";
+    importBox.classList.add("drop-target");
+  });
+  importBox.addEventListener("dragleave", (e) => {
+    if (e.relatedTarget instanceof Node && importBox.contains(e.relatedTarget)) return;
+    importBox.classList.remove("drop-target");
+  });
+  importBox.addEventListener("drop", (e) => {
+    importBox.classList.remove("drop-target");
+    if (!e.dataTransfer?.types.includes("Files")) return;
+    e.preventDefault();
+    if (running) return;
+    const files = Array.from(e.dataTransfer.files);
+    const tars = files.filter((f) => looksLikePackageName(f.name));
+    if (tars.length < files.length) toast("Only .tar packages can be dropped here. Use the folder button for an install folder.", "warn");
+    if (tars.length > 0) void addPackageFiles(tars);
   });
 
   const pick = async () => {
@@ -120,8 +176,9 @@ export function mountFiles(host: HTMLElement, app: App): ScreenInstance {
       });
       scanning = null;
       if (files) {
-        session.add(files);
+        await session.addPicked(files);
         lastResult = null;
+        packageErrorToast();
       }
     } catch (e) {
       scanning = null;
@@ -146,7 +203,7 @@ export function mountFiles(host: HTMLElement, app: App): ScreenInstance {
       lastResult = `Import stopped: ${outcome.error}`;
       toast(lastResult, "error", 8000);
     } else if (outcome.cancelled) {
-      lastResult = `Import cancelled after ${outcome.copied} file(s). Pick the same folder again to resume.`;
+      lastResult = `Import cancelled after ${outcome.copied} file(s). Start it again, or pick the same folder or packages again, to resume.`;
       toast("Import cancelled.", "warn");
     } else {
       lastResult = `Imported ${outcome.copied} file(s)${outcome.skipped ? `, ${outcome.skipped} already there` : ""}.`;
@@ -163,7 +220,22 @@ export function mountFiles(host: HTMLElement, app: App): ScreenInstance {
     const av = app.files?.availability ?? null;
     put(manageBox,
       h("h2", null, "In this browser"),
-      availabilityView(av),
+      availabilityView(av, {
+        mapBytes: app.files ? importedMapBytes(app.files.index) : undefined,
+        busy: !!running,
+        onRemove: async (mapId) => {
+          const name = MAPS.find((m) => m.id === mapId)?.name ?? mapId;
+          if (!(await confirmDialog(`Remove ${name}?`, "This deletes the map's files from this browser to free space. The files every map needs and the other maps stay. You can import it again later.", "Remove", "Keep"))) return;
+          if (running) return;
+          app.setFiles(await removeImportedMap(mapId));
+          await session.init();
+          storage = await storageInfo();
+          renderStorage();
+          renderManage();
+          void renderImport();
+          toast(`${name} removed.`, "info");
+        },
+      }),
       av && av.files > 0 ? h("p", { class: "muted small" }, `${av.files} files, ${formatBytes(av.bytes)}`) : null,
       h(
         "div",
@@ -239,7 +311,7 @@ export function mountFiles(host: HTMLElement, app: App): ScreenInstance {
     if (seq !== renderSeq) return;
     const focusKey = nav.focusKey();
     clear(importBox);
-    put(importBox, h("h2", null, "Import from your Black Ops install"), fileInput);
+    put(importBox, h("h2", null, "Import from your Black Ops install"), fileInput, packageInput);
     if (!opfsAvailable()) {
       put(importBox, h("p", { class: "warn" }, "This browser has no private file storage (OPFS), so game files cannot be imported. Private windows often disable it."));
       return;
@@ -259,7 +331,7 @@ export function mountFiles(host: HTMLElement, app: App): ScreenInstance {
           },
           "Cancel",
         ),
-        h("p", { class: "muted small" }, "You can cancel at any time; picking the same folder again resumes where it stopped."),
+        h("p", { class: "muted small" }, "You can cancel at any time; picking the same folder or packages again resumes where it stopped."),
       );
       nav.restoreFocus(focusKey);
       if (nav.mode !== "mouse" && !nav.current()) nav.focusFirst(importBox);
@@ -285,11 +357,66 @@ export function mountFiles(host: HTMLElement, app: App): ScreenInstance {
         ? null
         : h("p", { class: "muted small" }, "Your browser will ask to \"upload\" the folder: that is its name for reading files. Nothing is sent anywhere; the files are copied into this browser only."),
     );
+    // the language the import uses: a picked localization.txt (base package or folder), else the imported one
+    const language = pickedLanguage ?? app.files?.language ?? null;
+    const conflicts = new Set(session.languageConflicts(language));
+    const packageName = (p: OpenedPackage) =>
+      p.manifest.kind === "base" ? "Base files" : MAPS.find((m) => m.id === p.manifest.map)?.name ?? p.manifest.id;
+    put(importBox,
+      h(
+        "div",
+        { class: "packages", "data-testid": "packages" },
+        h("h3", null, "Or add game file packages"),
+        h(
+          "p",
+          { class: "muted small" },
+          "A package is a .tar file made from your own install: ",
+          h("code", null, "bo1-zombies-base-<language>.tar"),
+          " with the files every map needs, and ",
+          h("code", null, "bo1-zombies-<map>-<language>.tar"),
+          " per map. Make them with \"Make packages\" on this screen, or on your computer with ",
+          h("a", { href: PACKER_PATH, download: "bo1-pack.mjs", "data-nav-id": "packer-download", "data-testid": "packer-download" }, "bo1-pack.mjs"),
+          " (",
+          h("code", null, "node bo1-pack.mjs \"<your Black Ops folder>\""),
+          "; ",
+          h("code", null, "bun"),
+          " works too). Add the base package and the maps you want, or drop them onto this card. A folder that holds packages can be picked as well.",
+        ),
+        h(
+          "div",
+          { class: "row" },
+          h("button", { class: "btn", "data-testid": "pick-packages", "data-nav-id": "pick-packages", onclick: () => packageInput.click() }, icons.folder(), "Add packages"),
+        ),
+        session.packages.length > 0
+          ? h(
+              "ul",
+              { class: "package-list", "data-testid": "package-list" },
+              session.packages.map((p) =>
+                h(
+                  "li",
+                  { "data-package": p.manifest.id },
+                  h("span", null, packageName(p)),
+                  h("span", { class: "small muted" }, ` · ${p.manifest.language} · ${formatBytes(p.bytes)} · `, h("code", null, p.name)),
+                  conflicts.has(p)
+                    ? h("span", { class: "small warn" }, ` · made from a ${p.manifest.language} install, but the import uses ${language}: its localized files will not count`)
+                    : null,
+                ),
+              ),
+            )
+          : null,
+        session.packageErrors.length > 0
+          ? h(
+              "ul",
+              { class: "missing-list", "data-testid": "package-errors" },
+              session.packageErrors.map((e) => h("li", { class: "warn" }, h("code", null, e.name), `: ${e.message}`)),
+            )
+          : null,
+      ),
+    );
     if (scanning) put(importBox, h("p", { class: "muted" }, scanning));
     if (lastResult) put(importBox, h("p", { class: "small" }, lastResult));
     if (!session.empty) {
       const plan = session.plan();
-      const language = pickedLanguage ?? app.files?.language ?? null;
       const projected = session.projected(language, plan.selected);
       const free = storage.quota !== null && storage.usage !== null ? storage.quota - storage.usage : null;
       const videoCb = h("input", { type: "checkbox", id: "include-video", checked: session.includeVideo });
@@ -298,18 +425,62 @@ export function mountFiles(host: HTMLElement, app: App): ScreenInstance {
         void renderImport();
       });
       const roots = session.roots.map((r) => (r === null ? "(no zone/ or main/ folder found)" : r === "" ? "(the folder you picked)" : r));
+      // maps can be left out to fit the browser's storage limit; the files every map needs always come along
+      const choices = session.mapChoices(language);
+      const baseCopy = plan.copy.filter((f) => f.info.kind !== "map-zone" && f.info.kind !== "video").reduce((n, f) => n + f.size, 0);
+      const mapChoices =
+        choices.length > 0
+          ? h(
+              "div",
+              { class: "map-choices", "data-testid": "import-maps" },
+              h("h3", null, "Maps to import"),
+              baseCopy > 0 ? h("p", { class: "small muted" }, `The files every map needs come along: ${formatBytes(baseCopy)}.`) : null,
+              choices.map((c) => {
+                const id = `import-map-${c.id}`;
+                const cb = h("input", { type: "checkbox", id, checked: c.selected, "data-testid": id });
+                cb.addEventListener("change", () => {
+                  session.setMapSelected(c.id, cb.checked);
+                  void renderImport();
+                });
+                return h(
+                  "label",
+                  { class: "toggle", for: id },
+                  cb,
+                  h(
+                    "span",
+                    null,
+                    MAPS.find((m) => m.id === c.id)?.name ?? c.id,
+                    h("span", { class: "small muted" }, c.copyBytes === 0 ? " · in this browser already" : ` · ${formatBytes(c.copyBytes)}`),
+                    c.missing.length > 0 ? h("span", { class: "small warn" }, ` · not playable, missing ${c.missing.join(", ")}`) : null,
+                  ),
+                );
+              }),
+              h("p", { class: "muted small" }, "Unchecked maps are not copied. Import them later by picking the folder or package again; remove maps you are done with under \"In this browser\"."),
+            )
+          : null;
       put(importBox,
         h(
           "div",
           { class: "scan-result", "data-testid": "scan-result" },
           h("p", null, `Found ${plan.selected.length} game file${plan.selected.length === 1 ? "" : "s"}: `, h("strong", null, `${plan.copy.length} to copy (${formatBytes(plan.copyBytes)})`), plan.skip.length ? `, ${plan.skip.length} already imported (${formatBytes(plan.skipBytes)})` : "", "."),
-          h("p", { class: "muted small" }, `Game folder: ${roots.join("; ")} · ${session.ignored} other files ignored (multiplayer, campaign, executables).`),
+          h(
+            "p",
+            { class: "muted small" },
+            roots.length > 0 ? `Game folder: ${roots.join("; ")} · ` : "",
+            session.packages.length > 0 ? `${session.packages.length} package${session.packages.length === 1 ? "" : "s"} · ` : "",
+            `${session.ignored} other files ignored (multiplayer, campaign, executables).`,
+          ),
           plan.selected.length === 0
             ? h("p", { class: "warn" }, "No Zombies files in that folder. Pick the folder that contains zone/ and main/.")
             : null,
           free !== null && plan.copyBytes > free
-            ? h("p", { class: "warn" }, `This needs ${formatBytes(plan.copyBytes)} but the browser offers about ${formatBytes(free)}. Free disk space or import fewer maps.`)
+            ? h(
+                "p",
+                { class: "warn", "data-testid": "import-too-big" },
+                `This needs ${formatBytes(plan.copyBytes)}; the browser reports ${formatBytes(free)} more for this site. Chrome and Edge always report 10 GB more than the site uses and often allow more. If storage runs out, the import stops with a message and keeps what it copied. To import less, uncheck maps below and import them later.`,
+              )
             : null,
+          mapChoices,
           availabilityView(projected, { title: "After the import" }),
           h("label", { class: "toggle", for: "include-video" }, videoCb, h("span", null, "Also import the cinematics (main/video, large, not used yet)")),
           h(
@@ -352,7 +523,7 @@ export function mountFiles(host: HTMLElement, app: App): ScreenInstance {
     put(storageBox,
       h("h2", null, "Browser storage"),
       used !== null && quota !== null
-        ? [h("p", null, `${formatBytes(used)} used of about ${formatBytes(quota)} available to this site.`), bar(quota ? used / quota : 0)]
+        ? [h("p", null, `${formatBytes(used)} used; the browser reports ${formatBytes(Math.max(0, quota - used))} more for this site.`), bar(quota ? used / quota : 0)]
         : h("p", { class: "muted" }, "This browser does not report its storage quota."),
       h(
         "p",
@@ -361,6 +532,29 @@ export function mountFiles(host: HTMLElement, app: App): ScreenInstance {
           ? "Storage is persistent: the browser will not clear it on its own."
           : "Storage is not marked persistent yet; the import asks the browser to keep it. Clearing site data removes the files.",
       ),
+      h(
+        "p",
+        { class: "small muted" },
+        "The browser sets the limit; the site cannot raise it. Chrome and Edge report the space used plus 10 GB whatever the real limit, which in a normal window is a share of the disk and usually larger. Private windows keep the files in memory and run out after about 2 GB while reporting 5 GB: import in a normal window. Firefox allows 10 GB or 10% of the disk, whichever is smaller, until you allow persistent storage, then up to half the disk.",
+      ),
+      storage.persisted === false
+        ? h(
+            "button",
+            {
+              class: "btn small",
+              "data-testid": "persist-storage",
+              "data-nav-id": "persist-storage",
+              onclick: async () => {
+                const ok = await requestPersist();
+                storage = await storageInfo();
+                renderStorage();
+                void renderImport();
+                toast(ok ? "Storage is persistent now." : "The browser did not make storage persistent.", ok ? "success" : "warn");
+              },
+            },
+            "Ask for persistent storage",
+          )
+        : null,
     );
   };
 
@@ -380,7 +574,7 @@ export function mountFiles(host: HTMLElement, app: App): ScreenInstance {
           "They are copied into this site's private browser storage (the Origin Private File System) and read from there by the game. Nothing you import is uploaded, and the server never sees it.",
         ),
       ),
-      h("div", { class: "grid two" }, importBox, h("div", { class: "col" }, manageBox, storageBox)),
+      h("div", { class: "grid two" }, h("div", { class: "col" }, importBox, pack.el), h("div", { class: "col" }, manageBox, storageBox)),
     ),
   );
 
@@ -412,6 +606,7 @@ export function mountFiles(host: HTMLElement, app: App): ScreenInstance {
   return {
     unmount() {
       d.dispose();
+      pack.unmount();
       mounted = null; // an import keeps running in the background
     },
   };

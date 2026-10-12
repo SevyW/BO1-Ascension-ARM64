@@ -5,12 +5,14 @@
 //
 // Steps: bundle the copy worker, then the app (main.ts) and the stylesheet with minification, linked external
 // source maps and content-hashed names under assets/; write index.html with <base href="BASE_PATH"> and the hashed
-// asset names; copy client/public/*; write .gz and .br next to every compressible file larger than 1 KB.
+// asset names; copy client/public/*; bundle the packer (packer/main.ts) for Node into tools/bo1-pack.mjs, unminified
+// so players can read what they run; write .gz and .br next to every compressible file larger than 1 KB.
 
 import { brotliCompressSync, constants, gzipSync } from "node:zlib";
 import { cp, mkdir, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
+import { PACKER_PATH } from "../shared/gamepack";
 
 const WEB = path.resolve(import.meta.dir, "..");
 const CLIENT = path.join(WEB, "client");
@@ -100,7 +102,20 @@ async function main(): Promise<void> {
   const pub = path.join(CLIENT, "public");
   if (existsSync(pub)) await cp(pub, OUT, { recursive: true });
 
-  // 5. precompressed siblings
+  // 5. the packer (a stable name: the page links to it)
+  const packer = await Bun.build({
+    entrypoints: [path.join(WEB, "packer/main.ts")],
+    target: "node",
+    format: "esm",
+    minify: false,
+    outdir: path.join(OUT, path.dirname(PACKER_PATH)),
+    naming: { entry: path.basename(PACKER_PATH) },
+  });
+  if (!packer.success) fail("packer", packer.logs);
+  const packerFile = path.join(OUT, PACKER_PATH);
+  await writeFile(packerFile, `#!/usr/bin/env node\n${await readFile(packerFile, "utf8")}`);
+
+  // 6. precompressed siblings
   let files = 0;
   let bytes = 0;
   let compressed = 0;
@@ -130,6 +145,7 @@ async function main(): Promise<void> {
   console.log(`  app      ${rel(js.path)} (${(js.size / 1024).toFixed(1)} KB)`);
   console.log(`  styles   ${rel(css.path)}`);
   console.log(`  worker   ${workerPath}`);
+  console.log(`  packer   ${PACKER_PATH}`);
   console.log(`  ${files} files, ${(bytes / 1024).toFixed(1)} KB, ${compressed} precompressed (.gz + .br)`);
 }
 

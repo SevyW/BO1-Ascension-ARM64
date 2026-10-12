@@ -21,7 +21,9 @@ client/
     style.css
     assets/
       manifest.ts         which files Zombies needs; root detection; availability per map (pure)
-      import.ts           folder picking, the import session, import.json
+      import.ts           folder picking, game file packages (openPackage), the import session (map choice), import.json
+      pack.ts             makes game file packages in the page: plan, sha256, folder writer or downloads
+      packview.ts         the "Make packages" card on the Game files screen
       copy.ts             streams Blobs into OPFS (worker with sync access handles, createWritable fallback)
       copyworker.ts       the OPFS writer worker
       datasync.ts         copies <base>/data/ (repo mods/ and data/main) into OPFS before a game
@@ -51,7 +53,7 @@ client/
       uipad.ts            controllers for the UI (repeat 400 ms, then 120 ms)
       osk.ts              on-screen keyboard
       hints.ts            hint bar (controller glyphs or keys)
-    ui/                   dom helpers, dialogs, toasts, icons, portraits, capability check, system view, net panel
+    ui/                   dom helpers, dialogs, toasts, icons, progress bars, portraits, capability check, system view, net panel
 ```
 
 ## Screens
@@ -94,6 +96,68 @@ Imported (from `manifest.ts`):
 
 Everything else (multiplayer and campaign zones, executables, Redist) is ignored. The language is the first line of
 `localization.txt`; prefixes follow the engine's table (`en_`, `fr_`, `ge_`, ...).
+
+Game file packages (format in `web/shared/gamepack.ts`, packer in `web/packer/README.md`) are the other way in. The
+player runs `node bo1-pack.mjs "<Black Ops folder>"` (or `bun`) on their own machine; the importer card links the
+packer (`<base>tools/bo1-pack.mjs`, `download` attribute). The result is `bo1-zombies-base-<language>.tar`
+(`localization.txt`, core zones and their localized copies, IWDs) and one `bo1-zombies-<map>-<language>.tar` per map.
+"Add packages" (`<input type=file multiple accept=".tar">`), a drop of `.tar` files onto the importer card, or a picked
+folder that holds `.tar` files adds them.
+
+- `openPackage()` (`import.ts`) reads the tar headers and the manifest through `Blob.slice()`, 512 bytes per entry.
+  File data is read only when the import copies it, each file as a slice of the `.tar`.
+- Each package is its own batch rooted at the game root; the manifest paths are the destinations. Loose files and
+  packages mix across picks; a destination that is already selected keeps the first file. The same package (name and
+  size) is added once.
+- The import's language is that of a picked `localization.txt` (the base package carries one), else the imported one.
+  A package made for another language is flagged in the list; its localized zones do not count.
+- A `.tar` that is not a usable package is listed with its `PackageError` message (no `bo1-package.json` first,
+  damaged header, truncated, a listed file missing or with another size, unlisted files, a newer format version) and
+  shown in a toast. The other files of the pick are still added. The list shows the problems of the last add.
+- The page does not check the sha256 list; `bo1-pack --verify <file>` does.
+
+Maps to import: after a pick, the scan lists every map found in it with the bytes still to copy and a checkbox
+(`ImportSession.mapChoices()`, `setMapSelected()`). An unchecked map's zones are not copied; the files every map
+needs always are. A map already in OPFS shows "in this browser already"; a map that lacks a required file (no
+localized zone, say) shows "not playable, missing ...". "In this browser" lists each imported map's size with a
+Remove button: `removeImportedMap()` deletes the map's zones (`zone/Common/<map>(_patch).ff` and the localized
+copies) and rebuilds `import.json`. Together they keep an import inside a small storage limit: base plus the maps the
+player wants now.
+
+Storage limit: the "Browser storage" card shows `navigator.storage.estimate()`. The number is the browser's report,
+not always its limit. Measured on 2026-10-10 with headless Chrome 151 on macOS (Apple M4, 24 GB RAM, 200 GB free):
+- A normal profile reports `quota = usage + 10 GiB` at every usage and wrote 12 GiB without an error.
+- An off-the-record context (a private window) reports `usage + 5 GiB` and failed with `QuotaExceededError`
+  between 1.5 and 2 GiB.
+
+The import warns when the selection is larger than the reported free space but does not block it; a quota error
+stops the import with "Not enough storage space for <file>" and keeps what was copied. "Ask for persistent storage"
+calls `navigator.storage.persist()`. Firefox asks the player and then raises its limit (10 GB or 10% of the disk
+before, half the disk after).
+
+## Making packages
+
+The "Make packages" card (`packview.ts`, logic in `pack.ts`) makes the packages `bo1-pack` makes, in the page, for
+importing in another browser or on another computer:
+
+1. The player picks the install with the importer's pickers; `planFromSources()` runs `packer/plan.ts` and reads the
+   root `localization.txt` for the language (a select appears when several languages are found).
+2. The card lists the base package and every complete map with its size, all checked. A base package without its
+   required files is left out, as `bo1-pack` refuses it too; incomplete maps are listed as left out.
+3. `makePackages()` hashes every file of a package with `shared/sha256.ts` (incremental, 286 MiB/s in Chrome 151 on
+   an Apple M4) and assembles the package as a `Blob` of tar headers, padding and the picked `File`s themselves, so
+   no game data is copied into memory.
+4. Output:
+   - **Chromium** (`showDirectoryPicker` and `createWritable`): the player picks a folder (`id: "bo1-packages"`,
+     read-write). Packages already there with the same files, sizes and language are skipped. The others are written
+     in 16 MB slices. Chromium replaces the target only on `close()`; a failed or cancelled write removes a file that
+     did not exist before.
+   - **Other browsers**: each package becomes an object URL behind a "Save <name>" link (`download` attribute), which
+     the player clicks; the links work while the page is open.
+
+Each file is read once to hash it, then again to write or download the package. The manifest's `tool` is
+`bo1-pack 1 (web)`; everything else matches `bo1-pack`'s output, and `bo1-pack --verify` accepts the packages. Like
+the import, the job outlives the screen. Cancel stops after the current chunk.
 
 Files are streamed into OPFS `bo1/game/<path>` with the retail directory names and the file's own name. The worker
 writes with synchronous access handles; browsers without them use `createWritable()`. Progress is shown per file and
@@ -179,7 +243,9 @@ Output in `web/dist/public`: `index.html`, `assets/*-[hash].{js,css}` with linke
 bun test web/test/client*.test.ts
 ```
 
-Pure modules are covered: manifest matching, ring buffers (layout, wraparound, full ring), gamepad encoding, command
+Pure modules are covered: manifest matching, package opening and import sessions with packages
+(`client-package.test.ts`), making packages, sha256 and the import's map choice (`client-pack.test.ts`: the page's
+packages list the same entries and checksums as `bo1-pack`'s and pass `bo1-pack --verify`), ring buffers (layout, wraparound, full ring), gamepad encoding, command
 lines, URL helpers, probes, spatial navigation, lobby rules.
 
 Multiplayer on one machine:

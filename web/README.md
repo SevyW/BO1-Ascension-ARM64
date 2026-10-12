@@ -13,7 +13,10 @@ production: https://spacemandev.games/bo1):
   channel to the host does not open. All three share one WebSocket per tab.
 
 The player's own Black Ops files never reach the server: the page imports them into the browser's private storage
-(OPFS) and the engine reads them there.
+(OPFS) and the engine reads them there. The page imports either the install folder or packages the player builds
+from it with `bo1-pack` (`packer/README.md`) or with the page's "Make packages": one with the files every map needs,
+one per map. The player chooses which maps to import and can remove them again. The site serves the packer
+(`tools/bo1-pack.mjs`), never the packages.
 
 | path | what |
 | --- | --- |
@@ -24,7 +27,8 @@ The player's own Black Ops files never reach the server: the page imports them i
 | `server/static.ts` | path checks, MIME types, cache policy, precompressed files, ranges, ETags |
 | `server/manifest.ts` | the data manifest |
 | `server/precompress.ts` | writes `.gz` / `.br` next to large files (the Dockerfile runs it on the engine) |
-| `shared/` | the protocol, map / character roster and launch command builder, used by server and client |
+| `shared/` | the protocol, map / character roster and launch command builder, used by server and client; `gamepack.ts` = the game file package format |
+| `packer/` | `bo1-pack`, the player's local tool that packages their own install (`packer/README.md`); bundled to `dist/public/tools/bo1-pack.mjs` |
 | `Dockerfile` | the production image (build context: the repository root) |
 
 ## Run it locally
@@ -128,6 +132,9 @@ bun test              # everything
 bun test server       # the server only: test/server.*.test.ts
 ```
 
+`test/packer.test.ts` runs `bo1-pack` on a fake install (random bytes under retail names) and checks the tar
+format, the manifest rules, up-to-date detection, `--verify` and that the system `tar` reads the packages.
+`test/client-pack.test.ts` makes the same packages the page's way and compares them with `bo1-pack`'s.
 `test/server.lobby.test.ts` drives the lobby directly with a fake clock: rooms, characters, settings, start and the
 launch config, resume, kicks, host changes, relay, rate limits and message validation.
 `test/server.http.test.ts` starts the real server on a free port with temporary directories and checks the
@@ -149,26 +156,45 @@ engine (compiled in the `emscripten/emsdk` image, which is slow: plan for a long
 
 ## Deploy to Railway
 
-The site runs as one Railway service, `bo1-web`, in the project `spacemandev-games`. `.railway/railway.ts` describes
-it as code: built from `web/Dockerfile` on every push to `main` that touches `web/`, `mods/`, `data/` or `.railway/`;
-health check `/bo1/healthz`; custom domain `spacemandev.games` on port 8080; `BASE_PATH=/bo1`, `PORT=8080`; one
-replica.
+The site runs as one Railway service, `bo1-web`, in the project `spacemandev-games` (workspace `spacemandev`),
+environment `production`. URLs: https://spacemandev.games/bo1 (custom domain) and
+https://bo1-web-production.up.railway.app/bo1 (Railway domain). `.railway/railway.ts` describes the service as code:
+Dockerfile build from `web/Dockerfile`, health check `/bo1/healthz`, `BASE_PATH=/bo1`, `PORT=8080`,
+`BUILD_ENGINE=prebuilt`, one replica. The service has no repository source: deployments are uploads of a staged
+folder.
 
-1. Update the Railway CLI: infrastructure as code needs 5.42.1 or newer (`railway --version`; `railway upgrade`).
-2. Install the SDK the file imports: `cd .railway && bun install`.
-3. From the repository root, linked to the project (`railway link`, once), preview the changes with
-   `railway config plan`, then apply them with `railway config apply`.
-4. DNS: `spacemandev.games` already points (CNAME) at Railway's edge. After the apply, the service's networking
-   settings show the DNS record Railway expects for the custom domain; Railway issues the certificate once that
-   record verifies.
+Deploy (Railway CLI 5.42.1 or newer, logged in, the repository root linked to the project with
+`railway link --project spacemandev-games` once):
+
+1. Build the engine: `cmake --preset web && cmake --build --preset web` (docs/web-port.md), which writes `web/engine/`.
+2. `web/scripts/deploy.sh -m "what changed"`: stages `web/` (without `node_modules`, `dist`), `mods/`, `data/` and the
+   built engine in a temporary folder outside the repository (`.gitignore` keeps `web/engine` out of a plain
+   `railway up`) and runs `railway up <stage> --path-as-root --service bo1-web --detach`. The image builds the client,
+   ships the engine as uploaded (`BUILD_ENGINE=prebuilt`) and writes `.gz` / `.br` copies of it.
+3. Follow the deployment: `railway deployment list --service bo1-web --json` (status `SUCCESS`), then
+   `curl https://spacemandev.games/bo1/healthz` (`"engine": true`).
+
+Service settings: change `.railway/railway.ts`, then `cd .railway && bun install` (once), `railway config plan`,
+`railway config apply`. Railway configuration cannot register custom domains; the domain was attached with
+`railway domain spacemandev.games --service bo1-web --port 8080`, and `railway domain status spacemandev.games
+--service bo1-web` shows its DNS and certificate state.
+
+DNS (Namecheap, `dns1/dns2.registrar-servers.com`) for the custom domain:
+
+| type | host | value |
+| --- | --- | --- |
+| CNAME (or ALIAS) | `@` | `raxqxhp0.up.railway.app` |
+| TXT | `_railway-verify` | `railway-verify=b265b28f030374ce02cf6abb8941fa1908e1a2462a99a0cf9110c14e10a732e1` |
+
+Railway issues the certificate once both records resolve.
 
 Keep the service at one replica. Rooms, players, resume tokens and the relay live in the server's memory; a second
 replica would split players into separate lobbies. A restart or deploy ends every room (clients see close code 1012).
 
-`BUILD_ENGINE` can be set as a service variable: Railway passes service variables to the Docker build as build
-arguments. With `BUILD_ENGINE=1` the deploy also compiles the engine; add `src/**`, `cmake/**`, `tl/**`,
-`DemonWare/**`, `CMakeLists.txt`, `cmake_files.cmake` and `CMakePresets.json` to the watch patterns then, so engine
-changes trigger a deploy.
+`BUILD_ENGINE` is a service variable that Railway passes to the Docker build as a build argument: `prebuilt` (the
+uploaded `web/engine/`), `1` (compile the engine in the image: slow; needs `src/`, `tl/`, `DemonWare/`, `cmake/`,
+`CMakeLists.txt`, `cmake_files.cmake`, `CMakePresets.json` in the build context) or `0` (no engine). To deploy from
+GitHub instead of uploads, give the service a repository source (`.railway/railway.ts` comment) and use `1` or `0`.
 
 ### NAT and TURN
 

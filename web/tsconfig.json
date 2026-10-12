@@ -14,5 +14,5 @@
     "verbatimModuleSyntax": true,
     "resolveJsonModule": true
   },
-  "include": ["server", "client", "shared", "scripts", "test"]
+  "include": ["server", "client", "shared", "packer", "scripts", "test"]
 }

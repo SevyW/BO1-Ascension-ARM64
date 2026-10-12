@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "bun run build && bun --watch server/index.ts",
     "build": "bun run scripts/build.ts",
+    "packer": "bun packer/main.ts",
     "start": "bun server/index.ts",
     "test": "bun test",
     "typecheck": "tsc --noEmit"

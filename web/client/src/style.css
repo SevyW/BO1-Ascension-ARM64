@@ -808,6 +808,42 @@ ul.plain li,
   padding-top: 0.6rem;
   border-top: 1px solid var(--line);
 }
+.packages {
+  margin-top: 1rem;
+  padding-top: 0.2rem;
+  border-top: 1px solid var(--line);
+}
+.package-list {
+  list-style: none;
+  padding: 0;
+  margin: 0.4rem 0;
+}
+.package-list li {
+  padding: 0.15rem 0;
+  overflow-wrap: anywhere;
+}
+.map-choices {
+  margin: 0.8rem 0;
+}
+.map-list li > span {
+  white-space: pre-wrap; /* keep the leading space of " · ..." inside the flex row */
+}
+.map-list .map-remove {
+  margin-left: auto;
+}
+a.btn {
+  text-decoration: none;
+}
+.inline-select {
+  display: inline-block;
+  width: auto;
+  min-height: 2rem;
+  padding: 0.25rem 0.5rem;
+}
+.card.drop-target {
+  outline: 2px dashed var(--accent);
+  outline-offset: -6px;
+}
 .availability .icon-check {
   color: var(--ok);
 }

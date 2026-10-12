@@ -52,6 +52,10 @@ engine's threads). Layout, all under the OPFS directory `bo1/`:
 | `bo1/home/` | `/opfs/bo1/home` (`fs_h`) | engine | `players/config.cfg`, logs |
 | `bo1/import.json` | - | page importer | what was imported: `{ "files": { "<path>": <size> }, "maps": ["zombie_theater", ...] }` |
 
+The page importer takes the player's install folder or game file packages the player built from it with `bo1-pack`
+or the page's "Make packages" (`web/packer/README.md`, format in `web/shared/gamepack.ts`); both produce the same
+files at the same paths. The player picks which maps to import, so `import.json` `maps` can be any subset.
+
 The engine resolves paths case-insensitively and with `\` or `/` (Windows installs and the engine's own code
 mix `English` / `english`, `zone\Common`). `<exeDir>` (`Sys_DefaultInstallPath`) is `/opfs/bo1/game`.
 
