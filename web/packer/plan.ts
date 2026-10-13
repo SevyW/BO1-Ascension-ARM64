@@ -3,7 +3,7 @@
 // The rules are the importer's (client/src/assets/manifest.ts): the same root detection and classification, so a
 // package holds exactly what the folder importer would have copied for that part of the game.
 //   base      localization.txt, every core and optional zone (zone/Common), their localized copies in the chosen
-//             language, main/iw_*.iwd, main/localized_<language>_iwd*.iwd
+//             language, main/iw_*.iwd, main/localized_<language>_*.iwd
 //   <map>     zone/Common/<map>.ff and <map>_patch.ff, their localized copies in the chosen language
 // Files of other languages, cinematics and everything Zombies does not use are left out.
 

@@ -585,6 +585,10 @@ ul.plain li,
   padding: 0.1rem 0;
   font-size: 0.85rem;
 }
+.ignored-files ul {
+  max-height: 14rem;
+  overflow: auto;
+}
 .blockers li {
   color: var(--warn);
   font-size: 0.9rem;

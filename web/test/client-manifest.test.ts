@@ -86,6 +86,10 @@ describe("classifyGamePath", () => {
   test("iwds, localization.txt and optional video", () => {
     expect(classifyGamePath("Main/IW_03.iwd")).toMatchObject({ kind: "iwd", dest: "main/IW_03.iwd" });
     expect(classifyGamePath("main/localized_english_iwd00.iwd")).toMatchObject({ kind: "localized-iwd", language: "english" });
+    // retail names (the engine takes the letters after "localized_" as the language)
+    expect(classifyGamePath("main/localized_english_iw00.iwd")).toMatchObject({ kind: "localized-iwd", language: "english", dest: "main/localized_english_iw00.iwd" });
+    expect(classifyGamePath("main/Localized_French_IW03.iwd")).toMatchObject({ kind: "localized-iwd", language: "french" });
+    expect(classifyGamePath("main/localized_.iwd")).toBeNull();
     expect(classifyGamePath("Localization.TXT")).toMatchObject({ kind: "localization", dest: "Localization.TXT" });
     expect(classifyGamePath("main/video/zombie_intro.bik")).toBeNull();
     expect(classifyGamePath("main/video/zombie_intro.bik", { includeVideo: true })).toMatchObject({ kind: "video" });
@@ -179,6 +183,28 @@ describe("computeAvailability", () => {
     expect(av.maps.zombie_theater?.available).toBe(false);
     const noPatch = dests(install("BO", ["zombie_theater"])).filter((f) => !/_patch\.ff$/.test(f.path) || /common_zombie_patch/.test(f.path));
     expect(computeAvailability(noPatch, "english").maps.zombie_theater?.available).toBe(true);
+  });
+
+  test("the core needs no patch zone and takes retail localized iwd names", () => {
+    const files = dests(install("BO", ["zombie_theater"]))
+      .filter((f) => !/^zone\/Common\/.+_patch\.ff$/.test(f.path))
+      .map((f) => (/localized_english_/.test(f.path) ? { ...f, path: "main/localized_english_iw00.iwd" } : f));
+    expect(files.some((f) => /common_zombie_patch/.test(f.path))).toBe(false);
+    const av = computeAvailability(files, "english");
+    expect(av.core.missing).toEqual([]);
+    expect(canPlayMap(av, "zombie_theater")).toBe(true);
+    expect(classifyGamePath("zone/Common/common_zombie_patch.ff")).toMatchObject({ kind: "optional-zone" });
+  });
+
+  test("files that are not game files are listed by path", () => {
+    const m = matchSelection([
+      { path: "BO/zone/Common/patch.ff", size: 1 },
+      { path: "BO/main/iw_00.iwd", size: 1 },
+      { path: "BO/main/oddly_named.iwd", size: 1 },
+      { path: "BO/BlackOps.exe", size: 1 },
+    ]);
+    expect(m.ignored).toBe(2);
+    expect(m.ignoredPaths).toEqual(["BO/main/oddly_named.iwd", "BO/BlackOps.exe"]);
   });
 
   test("missing core pieces are listed and block every map", () => {

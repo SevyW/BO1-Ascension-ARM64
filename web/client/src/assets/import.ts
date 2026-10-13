@@ -244,6 +244,7 @@ export class ImportSession {
   includeVideo = false;
   existing = new Map<string, number>();
   ignored = 0;
+  ignoredPaths: string[] = []; // of the folder picks: what the scan shows under "Files not imported"
   roots: (string | null)[] = []; // per folder pick (packages hold paths from the game root)
   packages: OpenedPackage[] = [];
   packageErrors: PackageFailure[] = []; // .tar files of the last add that could not be opened as packages
@@ -341,12 +342,14 @@ export class ImportSession {
     const seen = new Set<string>();
     const out: Selected[] = [];
     this.ignored = 0;
+    this.ignoredPaths = [];
     this.roots = [];
     for (const { files: batch, pkg } of this.batches) {
       const bySource = new Map(batch.map((s) => [s.path, s]));
       const m = matchSelection(batch, { includeVideo: this.includeVideo });
       if (!pkg) this.roots.push(m.root);
       this.ignored += m.ignored;
+      if (!pkg) this.ignoredPaths.push(...m.ignoredPaths);
       for (const f of m.matched) {
         const key = f.dest.toLowerCase();
         const src = bySource.get(f.source);

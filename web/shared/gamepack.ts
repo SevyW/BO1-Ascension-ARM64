@@ -9,7 +9,7 @@
 //   bo1-package.json       the manifest (PackageManifest), always the first entry
 //   <game files>           paths relative to the game root with the retail directory names, exactly as the importer
 //                          stores them: localization.txt, zone/Common/<zone>.ff, zone/<Language>/<prefix><zone>.ff,
-//                          main/iw_*.iwd, main/localized_<language>_iwd*.iwd
+//                          main/iw_*.iwd, main/localized_<language>_*.iwd
 //   bo1-package.sha256     "<sha256>  <path>" per game file (sha256sum -c format), always the last entry
 // Extracting one with any tar tool gives a partial install that the folder importer accepts as well.
 

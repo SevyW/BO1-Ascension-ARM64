@@ -55,7 +55,7 @@ The rules are the importer's (`web/client/src/assets/manifest.ts`); `plan.ts` ap
 
 | package | files |
 | --- | --- |
-| `base` | `localization.txt`; `zone/Common/{code_pre_gfx_mp, code_post_gfx_mp, code_post_gfx, patch_mp, patch, ui_mp, frontend, common_zombie, common_zombie_patch}.ff`; `patch_ui`, `patch_ui_mp`, `dev_mp` when present; the localized copies of these in the chosen language (`zone/English/en_*.ff`); `main/iw_*.iwd`; `main/localized_<language>_iwd*.iwd` |
+| `base` | `localization.txt`; `zone/Common/{code_pre_gfx_mp, code_post_gfx_mp, code_post_gfx, patch_mp, patch, ui_mp, frontend, common_zombie}.ff`; `common_zombie_patch`, `patch_ui`, `patch_ui_mp`, `dev_mp` when present; the localized copies of these in the chosen language (`zone/English/en_*.ff`); `main/iw_*.iwd`; `main/localized_<language>_*.iwd` (retail: `localized_english_iw00.iwd`) |
 | `<map>` | `zone/Common/<map>.ff`, `zone/Common/<map>_patch.ff` (when present), `zone/<Language>/<prefix><map>.ff` |
 
 A map is packaged only when its zone and its localized zone are both present. Otherwise the packer prints

@@ -470,6 +470,19 @@ export function mountFiles(host: HTMLElement, app: App): ScreenInstance {
             session.packages.length > 0 ? `${session.packages.length} package${session.packages.length === 1 ? "" : "s"} · ` : "",
             `${session.ignored} other files ignored (multiplayer, campaign, executables).`,
           ),
+          session.ignoredPaths.length > 0
+            ? h(
+                "details",
+                { class: "ignored-files", "data-testid": "ignored-files" },
+                h("summary", { class: "small muted" }, `Files not imported (${session.ignoredPaths.length})`),
+                h(
+                  "ul",
+                  { class: "missing-list" },
+                  session.ignoredPaths.slice(0, 300).map((p) => h("li", null, h("code", null, p))),
+                  session.ignoredPaths.length > 300 ? h("li", { class: "muted" }, `…and ${session.ignoredPaths.length - 300} more`) : null,
+                ),
+              )
+            : null,
           plan.selected.length === 0
             ? h("p", { class: "warn" }, "No Zombies files in that folder. Pick the folder that contains zone/ and main/.")
             : null,

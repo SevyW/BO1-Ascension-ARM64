@@ -86,15 +86,16 @@ Imported (from `manifest.ts`):
 | files | required |
 | --- | --- |
 | `localization.txt` | yes |
-| `zone/Common/{code_pre_gfx_mp, code_post_gfx_mp, code_post_gfx, patch_mp, patch, ui_mp, frontend, common_zombie, common_zombie_patch}.ff` | yes |
+| `zone/Common/{code_pre_gfx_mp, code_post_gfx_mp, code_post_gfx, patch_mp, patch, ui_mp, frontend, common_zombie}.ff` | yes |
 | `zone/<Language>/<prefix>{code_pre_gfx_mp, code_post_gfx_mp, code_post_gfx, patch_mp, patch, common_zombie}.ff` | yes |
-| other localized core zones, `patch_ui`, `patch_ui_mp`, `dev_mp` | when present |
-| `main/iw_*.iwd`, `main/localized_<language>_iwd*.iwd` | at least one of each |
+| other localized core zones, `common_zombie_patch`, `patch_ui`, `patch_ui_mp`, `dev_mp` | when present (the engine loads a missing `*_patch` zone with a warning) |
+| `main/iw_*.iwd`, `main/localized_<language>_*.iwd` (retail: `localized_english_iw00.iwd`) | at least one of each |
 | per map: `zone/Common/<map>.ff`, `zone/<Language>/<prefix><map>.ff` | for that map |
 | per map: `zone/Common/<map>_patch.ff` | when present |
 | `main/video/*.bik` | opt-in, not used yet |
 
-Everything else (multiplayer and campaign zones, executables, Redist) is ignored. The language is the first line of
+Everything else (multiplayer and campaign zones, executables, Redist) is ignored; the scan lists those files under
+"Files not imported", so a file the rules do not recognize can be spotted. The language is the first line of
 `localization.txt`; prefixes follow the engine's table (`en_`, `fr_`, `ge_`, ...).
 
 Game file packages (format in `web/shared/gamepack.ts`, packer in `web/packer/README.md`) are the other way in. The

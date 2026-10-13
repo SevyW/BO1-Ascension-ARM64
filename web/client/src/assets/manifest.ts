@@ -6,7 +6,8 @@
 //   localization.txt                         first line = the install's language ("english")
 //   zone/Common/<zone>.ff                    unlocalized zones
 //   zone/<Language>/<prefix><zone>.ff        localized zones, e.g. zone/English/en_patch_mp.ff
-//   main/iw_*.iwd, main/localized_<language>_iwd*.iwd
+//   main/iw_*.iwd, main/localized_<language>_*.iwd (retail: localized_english_iw00.iwd; the engine reads the
+//                                            language from the letters after "localized_", com_files.cpp IwdFileLanguage)
 //   main/video/*.bik                         cinematics (not used by the web build yet)
 //
 // Files are copied to OPFS bo1/game/<dest>, where dest uses the retail directory names (zone, Common, English, main,
@@ -53,7 +54,6 @@ export const CORE_ZONES = [
   "ui_mp",
   "frontend",
   "common_zombie",
-  "common_zombie_patch",
 ] as const;
 
 /**
@@ -70,8 +70,11 @@ export const CORE_LOCALIZED_REQUIRED = [
   "common_zombie",
 ] as const;
 
-/** Zones imported when present but never required. */
-export const OPTIONAL_ZONES = ["patch_ui", "patch_ui_mp", "dev_mp"] as const;
+/**
+ * Zones imported when present but never required. The engine loads a missing "*_patch" zone with a warning only
+ * (src/database/db_registry.cpp, "WARNING: Could not find zone").
+ */
+export const OPTIONAL_ZONES = ["common_zombie_patch", "patch_ui", "patch_ui_mp", "dev_mp"] as const;
 
 export type FileKind = "core-zone" | "map-zone" | "optional-zone" | "iwd" | "localized-iwd" | "localization" | "video";
 
@@ -136,7 +139,7 @@ export function classifyGamePath(rel: string, opts: ClassifyOptions = {}): GameF
   }
   if (l0 === "main" && segs.length === 2 && l1 && s1) {
     if (/^iw_[^/]*\.iwd$/.test(l1)) return { dest: `main/${s1}`, kind: "iwd" };
-    const m = /^localized_([a-z]+)_iwd[^/]*\.iwd$/.exec(l1);
+    const m = /^localized_([a-z]+)[^/]*\.iwd$/.exec(l1); // the engine's rule: the letters after "localized_"
     if (m && m[1]) return { dest: `main/${s1}`, kind: "localized-iwd", language: m[1], localized: true };
     return null;
   }
@@ -221,6 +224,7 @@ export interface SelectionMatch {
   root: string | null;
   matched: MatchedFile[];
   ignored: number;
+  ignoredPaths: string[]; // picked files that are not Zombies game files (duplicates are counted, not listed)
 }
 
 /** Maps a picked selection onto game files. Duplicate destinations keep the first file. */
@@ -229,6 +233,7 @@ export function matchSelection(files: PickedFile[], opts: ClassifyOptions = {}):
   const rootLower = root?.toLowerCase() ?? null;
   const seen = new Set<string>();
   const matched: MatchedFile[] = [];
+  const ignoredPaths: string[] = [];
   let ignored = 0;
   for (const f of files) {
     const p = normalizePath(f.path);
@@ -249,6 +254,7 @@ export function matchSelection(files: PickedFile[], opts: ClassifyOptions = {}):
     }
     if (!info) {
       ignored++;
+      ignoredPaths.push(f.path);
       continue;
     }
     const key = info.dest.toLowerCase();
@@ -259,7 +265,7 @@ export function matchSelection(files: PickedFile[], opts: ClassifyOptions = {}):
     seen.add(key);
     matched.push({ source: f.path, dest: info.dest, size: f.size, info });
   }
-  return { root, matched, ignored };
+  return { root, matched, ignored, ignoredPaths };
 }
 
 /** The language the install runs in: localization.txt's first line. */
@@ -322,7 +328,7 @@ export function computeAvailability(
     if (!has(p)) missing.push(p);
   }
   if (iwds === 0) missing.push("main/iw_*.iwd");
-  if ((localizedIwds.get(lang.name) ?? 0) === 0) missing.push(`main/localized_${lang.name}_iwd*.iwd`);
+  if ((localizedIwds.get(lang.name) ?? 0) === 0) missing.push(`main/localized_${lang.name}_*.iwd`);
   if (!has("localization.txt")) missing.push("localization.txt");
   const maps: Record<string, MapAvailability> = {};
   for (const m of MAPS) {
