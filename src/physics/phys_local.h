@@ -434,8 +434,9 @@ struct phys_link_list_base // sizeof=0x4
 template <typename T>
 struct phys_link_list // sizeof=0xC
 { 
+    typedef T *T_ptr;   // a typedef'd pointee: the form clang 21 can instantiate with 32-bit pointers (tools/p32)
     T *m_first;
-    T **m_last_next_ptr;
+    T_ptr *m_last_next_ptr;
     volatile unsigned int m_alloc_count;
 
     phys_link_list() // INLINED
@@ -475,7 +476,7 @@ struct phys_link_list // sizeof=0xC
 
         InterlockedIncrement(reinterpret_cast<volatile LONG *>(&m_alloc_count));
 
-        T **prev = (T **)InterlockedExchangePointer(
+        T_ptr *prev = (T_ptr *)InterlockedExchangePointer(
             (PVOID *)&m_last_next_ptr,
             &p->m_next_link
         );
@@ -895,6 +896,30 @@ public:
 
 #define PTR_LIST_SIZE 256
 
+// web: the phys_free_list<T>::T_internal that holds *p, as a char *. The decompiler wrote this as
+// `&p[-1].<member>`: the address of a member near the end of the element before p, which is the list node only
+// when sizeof(T) - offsetof(T, member) happens to equal the node header's size. That holds for MSVC's class
+// layout and not for the Itanium C++ ABI (clang: wasm, Linux, Android), which puts derived-class members into
+// the base's tail padding (broad_phase_info: m_gjk_geom at 92 of 112 there). Freeing a ragdoll's bodies then
+// failed PMM_VALIDATE ("slot does not belong to this slot_pool"). MSVC keeps the original expression.
+#ifdef BO1_WEB
+#include <cstddef>
+#include <type_traits>
+// The node header is two list pointers, then padding up to the element's alignment; that is offsetof(T_internal,
+// m_data) without naming T (the pointee type of a 32-bit pointer carries its address space, tools/p32).
+struct phys_free_list_node_header
+{
+    void *prev;
+    void *next;
+};
+#define PHYS_T_INTERNAL(p, member) \
+    ((char *)(p) - (sizeof(phys_free_list_node_header) + alignof(std::remove_reference<decltype(*(p))>::type) - 1) / \
+                       alignof(std::remove_reference<decltype(*(p))>::type) * \
+                       alignof(std::remove_reference<decltype(*(p))>::type))
+#else
+#define PHYS_T_INTERNAL(p, member) ((char *)&(p)[-1].member)
+#endif
+
 // whoever wrote this class is a crackhead
 template <typename T>
 struct phys_free_list
@@ -922,8 +947,13 @@ public:
         iterator()                             : m_ptr(NULL) {}
         iterator(T_internal_base *p)           : m_ptr(p)    {}
 
-        T   *operator*()  const { return &((T_internal *)m_ptr)->m_data; }
-        T   *operator->() const { return &((T_internal *)m_ptr)->m_data; }
+        // web: the downcast goes through a parameter. Written `&((T_internal *)m_ptr)->m_data`, the 32-bit-pointer
+        // build (tools/p32) got the address of a member through a downcast of a 32-bit pointer object, which clang
+        // leaves 32 bits wide inside a 64-bit result (Ragdoll_ExplosionEvent walked the pool with garbage in the
+        // upper half).
+        static T_internal *node(T_internal_base *p) { return (T_internal *)p; }
+        T   *operator*()  const { return &node(m_ptr)->m_data; }
+        T   *operator->() const { return &node(m_ptr)->m_data; }
         iterator &operator++() { m_ptr = m_ptr->m_next_T_internal; return *this; }
         bool operator==(const iterator &rhs) const { return m_ptr == rhs.m_ptr; }
         bool operator!=(const iterator &rhs) const { return m_ptr != rhs.m_ptr; }
@@ -1087,7 +1117,12 @@ public:
         if (ptr_array_size > 0)
         {
             v4 = ptr_array;
+#ifdef BO1_WEB
+            // web: the node that holds **ptr_array (see PHYS_T_INTERNAL above)
+            p_m_avl_key = (T_internal_base *)((char *)*ptr_array - offsetof(T_internal, m_data));
+#else
             p_m_avl_key = (T_internal_base *) & (*ptr_array)[-1].m_avl_key;
+#endif
             v6 = &ptr_array[ptr_array_size - 1];
             p_m_avl_key->m_prev_T_internal = &this->m_dummy_head;
             this->m_dummy_head.m_next_T_internal = p_m_avl_key;
@@ -1140,9 +1175,10 @@ struct phys_avl_node_accessor
 template<typename T1, typename T2, typename Accessor>
 struct phys_inplace_avl_tree
 {
+    typedef T2 *T2_ptr;   // a typedef'd pointee: the form clang 21 can instantiate with 32-bit pointers (tools/p32)
     struct stack_item
     {
-        T2 **m_node;
+        T2_ptr *m_node;
         int  m_child;
     };
 

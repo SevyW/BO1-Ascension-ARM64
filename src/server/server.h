@@ -128,10 +128,10 @@ struct client_t // sizeof=0x84D00
     int voicePacketCount;
     bool muteList[32];
     bool sendVoice;
-    unsigned __int8 stats[40168];
+    unsigned __int8 stats[BO1_STATS_SIZE];
     unsigned __int8 purchasedItems[32];
-    unsigned __int8 globalStats[40168];
-    unsigned __int8 globalStatsStable[40168];
+    unsigned __int8 globalStats[BO1_STATS_SIZE];
+    unsigned __int8 globalStatsStable[BO1_STATS_SIZE];
     unsigned __int8 modifiedStatBytes[5021];
     // padding byte
     // padding byte
@@ -160,4 +160,12 @@ struct client_t // sizeof=0x84D00
 };
 // zombies: connectState sits in padding; the KB size (544120, before and after) must not change.
 // Note: SV_AllocateClientMemory allocates 544000 (the "sizeof=0x84D00" above) per client, 120 short.
+#ifdef BO1_WEB
+// mod (profile): src/web/web_stats.cpp, a player's stats in files under <fs_homepath>/players/profiles
+void SV_Profile_Load(client_t *client);
+void SV_Profile_Save(client_t *client);
+void SV_Profile_Forget(client_t *client);
+#endif
+#ifndef BO1_WEB // web: the three stats buffers are larger there (BO1_STATS_SIZE, q_shared.h); nothing depends on the size
 static_assert(sizeof(client_t) == 544120, "client_t size changed");
+#endif

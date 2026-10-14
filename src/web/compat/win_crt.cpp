@@ -1,7 +1,9 @@
 // win_crt.cpp - the MSVC C runtime extensions declared in bo1_web_prelude.h, over musl (web build).
 #include "bo1_win_internal.h"
-#include <emscripten.h>
+#include "bo1_platform.h"
+#ifndef BO1_NATIVE
 #include <emscripten/em_asm.h>
+#endif
 #include <sys/stat.h>
 #include <atomic>
 #include <malloc.h>
@@ -13,6 +15,11 @@
 // blocks the calling engine thread until they ran).
 extern "C" void bo1_web_report_error(const char *message)
 {
+#ifdef BO1_NATIVE
+    // native: there is no page; the message goes to stderr
+    fprintf(stderr, "ENGINE ERROR: %s\n", message ? message : "");
+    fflush(stderr);
+#else
     MAIN_THREAD_EM_ASM({
         try {
             if (Module['onEngineError']) Module['onEngineError'](UTF8ToString($0));
@@ -20,6 +27,7 @@ extern "C" void bo1_web_report_error(const char *message)
             console.error(e);
         }
     }, message);
+#endif
 }
 
 static std::atomic<int> s_exitNotified{0};
@@ -29,6 +37,7 @@ static void NotifyExit()
 {
     if (s_exitNotified.exchange(1))
         return;
+#ifndef BO1_NATIVE
     MAIN_THREAD_EM_ASM({
         try {
             if (Module['onEngineExit']) Module['onEngineExit']($0);
@@ -36,6 +45,7 @@ static void NotifyExit()
             console.error(e);
         }
     }, s_exitCode);
+#endif
 }
 
 __attribute__((constructor)) static void RegisterExitHook()
@@ -44,12 +54,22 @@ __attribute__((constructor)) static void RegisterExitHook()
 }
 
 // quit: tell the page, then end every engine thread (EXIT_RUNTIME)
+#ifdef BO1_NATIVE
+extern "C" void bo1_native_restart_now(void);
+#endif
+
 extern "C" __attribute__((noreturn)) void bo1_web_exit(int code)
 {
     s_exitCode = code;
     NotifyExit();
     fflush(stdout);
     fflush(stderr);
+#ifdef BO1_NATIVE
+    // native: a quit that is a switch to the program's other mode or to another mod starts the program again
+    // (src/native/native_extras.cpp); it returns only when there was nothing to start
+    if (code == 0)
+        bo1_native_restart_now();
+#endif
     // like ExitProcess: no static destructors while the other engine threads still run (exit() would run them and the
     // threads then call into torn-down objects)
     _Exit(code);
@@ -59,10 +79,96 @@ extern "C" __attribute__((noreturn)) void bo1_web_debugbreak(const char *file, i
 {
     char msg[512];
     snprintf(msg, sizeof(msg), "__debugbreak at %s:%d (an assert or fatal check failed; Windows would crash here)", file, line);
+#ifndef BO1_NATIVE
     fprintf(stderr, "%s\n", msg);
-    emscripten_log(EM_LOG_ERROR | EM_LOG_C_STACK, "%s", msg);
+#endif
+    bo1_plat_log_stack(msg);
     bo1_web_report_error(msg);
     abort();
+}
+
+// ----- C library functions that return static storage: copies in this program's own (low) memory -----
+#if defined(BO1_NATIVE) && defined(__LP64__)
+#undef localtime
+#undef gmtime
+#undef asctime
+#undef ctime
+#undef strerror
+#undef getenv
+#include <pthread.h>
+extern "C" struct tm *bo1_host_localtime(const time_t *t)
+{
+    static struct tm result;
+    return localtime_r(t, &result);
+}
+
+extern "C" struct tm *bo1_host_gmtime(const time_t *t)
+{
+    static struct tm result;
+    return gmtime_r(t, &result);
+}
+
+extern "C" char *bo1_host_asctime(const struct tm *tm)
+{
+    static char text[64];
+    return asctime_r(tm, text);
+}
+
+extern "C" char *bo1_host_ctime(const time_t *t)
+{
+    static char text[64];
+    return ctime_r(t, text);
+}
+
+extern "C" char *bo1_host_strerror(int error)
+{
+    static char text[256];
+    auto message = strerror(error);   // the C library's own text, wherever it lives
+    snprintf(text, sizeof(text), "%s", message ? message : "");
+    return text;
+}
+
+// The environment strings sit on the process's initial stack. Each name looked up gets one copy here, refreshed on
+// every call (a variable can change), never freed (the engine looks up a handful of names).
+extern "C" char *bo1_host_getenv(const char *name)
+{
+    struct Entry
+    {
+        char name[64];
+        char value[1024];
+    };
+    static Entry entries[64];
+    static int count;
+    static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+    auto value = getenv(name);
+    if (!value)
+        return nullptr;
+    pthread_mutex_lock(&lock);
+    Entry *slot = nullptr;
+    for (int i = 0; i < count && !slot; ++i)
+        if (!strcmp(entries[i].name, name))
+            slot = &entries[i];
+    if (!slot)
+        slot = &entries[count < 64 ? count++ : 63];
+    snprintf(slot->name, sizeof(slot->name), "%s", name);
+    snprintf(slot->value, sizeof(slot->value), "%s", value);
+    pthread_mutex_unlock(&lock);
+    return slot->value;
+}
+#endif
+
+// ----- rand: MSVC's linear congruential generator, state per thread -----
+static thread_local unsigned int t_randState = 1;
+
+extern "C" int bo1_msvc_rand(void)
+{
+    t_randState = t_randState * 214013u + 2531011u;
+    return (int)((t_randState >> 16) & 0x7FFFu);
+}
+
+extern "C" void bo1_msvc_srand(unsigned int seed)
+{
+    t_randState = seed;
 }
 
 // ----- strings -----

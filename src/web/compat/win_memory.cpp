@@ -7,7 +7,7 @@
 // range this file allocated fail (the engine never asks for fixed addresses).
 #include "bo1_win_internal.h"
 #include <psapi.h>
-#include <emscripten/heap.h>
+#include "bo1_platform.h"
 #include <malloc.h>
 #include <unistd.h>
 #include <map>
@@ -89,7 +89,11 @@ LPVOID VirtualAlloc(LPVOID address, SIZE_T size, DWORD type, DWORD protect)
         return (LPVOID)from;
     }
     const size_t total = (size + GRANULARITY - 1) & ~(GRANULARITY - 1);
+#if defined(BO1_NATIVE)
+    void *p = memalign(GRANULARITY, total);   // (aligned_alloc: not in Android before API 28)
+#else
     void *p = aligned_alloc(GRANULARITY, total);
+#endif
     if (!p)
     {
         SetLastError(ERROR_NOT_ENOUGH_MEMORY);
@@ -146,8 +150,8 @@ SIZE_T VirtualQuery(LPCVOID address, PMEMORY_BASIC_INFORMATION info, SIZE_T leng
     if (!info || length < sizeof(MEMORY_BASIC_INFORMATION))
         return 0;
     const uintptr_t addr = (uintptr_t)address & ~(PAGE - 1);
-    const uintptr_t memSize = (uintptr_t)emscripten_get_heap_size();
-    if (addr >= memSize)
+    const uint64_t memSize = bo1_plat_address_space();
+    if ((uint64_t)addr >= memSize)
         return 0;
     std::lock_guard<std::mutex> lock(s_lock);
     memset(info, 0, sizeof(*info));
@@ -209,9 +213,16 @@ BOOL FlushInstructionCache(HANDLE process, LPCVOID address, SIZE_T size)
 // total: the wasm memory; used: the top of the sbrk heap (allocators take their memory from there)
 static void HeapNumbers(uint64_t *total, uint64_t *avail)
 {
-    *total = emscripten_get_heap_max();
+    *total = bo1_plat_memory_total();
+#ifdef BO1_NATIVE
+    // native: free physical memory, at most the total the engine is told about
+    const long pages = sysconf(_SC_AVPHYS_PAGES), pageSize = sysconf(_SC_PAGESIZE);
+    const uint64_t freePhys = pages > 0 && pageSize > 0 ? (uint64_t)pages * (uint64_t)pageSize : *total;
+    *avail = freePhys < *total ? freePhys : *total;
+#else
     const uint64_t used = (uint64_t)(uintptr_t)sbrk(0);
     *avail = *total > used ? *total - used : 0;
+#endif
 }
 
 void GlobalMemoryStatus(LPMEMORYSTATUS status)

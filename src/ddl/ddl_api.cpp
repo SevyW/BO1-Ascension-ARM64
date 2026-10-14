@@ -11,9 +11,49 @@
 
 const dvar_t *ddl_verbose;
 
+// mod: dev aid. bo1_dumpddl <asset> (e.g. ddl_mp/stats.ddl) prints the newest version of a loaded DDL definition:
+// every struct with its members (name, type, bit offset, bit size, array size, enum) and every enum with its values.
+// Used to recover the member names of DDL_MoveTo paths.
+#include <qcommon/cmd.h>
+static cmd_function_s DDL_Dump_f_VAR;
+static void DDL_Dump_f()
+{
+    if ( Cmd_Argc() < 2 )
+    {
+        Com_Printf(0, "usage: bo1_dumpddl <asset name>, e.g. bo1_dumpddl ddl_mp/stats.ddl\n");
+        return;
+    }
+    const ddlDef_t *def = DDL_LoadAsset(Cmd_Argv(1));
+    if ( !def )
+    {
+        Com_Printf(0, "bo1_dumpddl: %s is not loaded\n", Cmd_Argv(1));
+        return;
+    }
+    Com_Printf(0, "ddl %s version %i size %i bits: %i structs, %i enums\n", Cmd_Argv(1), def->version, def->size, def->structCount, def->enumCount);
+    for ( int i = 0; i < def->enumCount; ++i )
+    {
+        const ddlEnumDef_t *e = &def->enumList[i];
+        Com_Printf(0, "ddl enum %i %s (%i)\n", i, e->name, e->memberCount);
+        for ( int k = 0; k < e->memberCount; ++k )
+            Com_Printf(0, "ddl   %i %s\n", k, e->members[k]);
+    }
+    for ( int i = 0; i < def->structCount; ++i )
+    {
+        const ddlStructDef_t *st = &def->structList[i];
+        Com_Printf(0, "ddl struct %i %s (size %i, %i members)\n", i, st->name, st->size, st->memberCount);
+        for ( int k = 0; k < st->memberCount; ++k )
+        {
+            const ddlMemberDef_t *m = &st->members[k];
+            Com_Printf(0, "ddl   %s type %i ext %i offset %i size %i array %i enum %i\n", m->name, m->type, m->externalIndex, m->offset, m->size,
+                m->arraySize, m->enumIndex);
+        }
+    }
+}
+
 void __cdecl DDL_Init()
 {
     ddl_verbose = _Dvar_RegisterBool("ddl_verbose", 0, 0, "Verbose DDL output.");
+    Cmd_AddCommandInternal("bo1_dumpddl", DDL_Dump_f, &DDL_Dump_f_VAR); // mod
 }
 
 int __cdecl DDL_GetTotalBufferBitSize(ddlDef_t *ddl)

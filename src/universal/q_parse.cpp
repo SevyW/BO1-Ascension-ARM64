@@ -249,7 +249,7 @@ void Com_ScriptErrorDrop(const char *msg, ...)
     v3 = &ParseThreadInfo->parseInfo[ParseThreadInfo->parseInfoNum];
     va_copy(ap, va);
     _vsnprintf(string, 0x1000u, msg, va);
-    ap = 0;
+    va_end(ap);
     if ( ParseThreadInfo->parseInfoNum )
         Com_Error(ERR_DROP, "%sFile %s, line %i: %s", v3->errorPrefix, v3->parseFile, v3->lines, string);
     else
@@ -269,7 +269,7 @@ void Com_ScriptError(const char *msg, ...)
     v3 = &ParseThreadInfo->parseInfo[ParseThreadInfo->parseInfoNum];
     va_copy(ap, va);
     _vsnprintf(string, 0x1000u, msg, va);
-    ap = 0;
+    va_end(ap);
     if ( ParseThreadInfo->parseInfoNum )
         Com_PrintError(24, "%sFile %s, line %i: %s", v3->warningPrefix, v3->parseFile, v3->lines, string);
     else
@@ -289,7 +289,7 @@ void Com_ScriptWarning(const char *msg, ...)
     v3 = &ParseThreadInfo->parseInfo[ParseThreadInfo->parseInfoNum];
     va_copy(ap, va);
     _vsnprintf(string, 0x1000u, msg, va);
-    ap = 0;
+    va_end(ap);
     if ( ParseThreadInfo->parseInfoNum )
         Com_PrintWarning(24, "%sFile %s, line %i: %s", v3->warningPrefix, v3->parseFile, v3->lines, string);
     else

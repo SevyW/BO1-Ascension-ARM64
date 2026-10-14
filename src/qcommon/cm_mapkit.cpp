@@ -197,7 +197,7 @@ namespace
             p += 4;
             return MkJ_NewNode(MKJ_NULL);
         }
-        char *end = 0;
+        bo1_host_str end = 0;
         double v = strtod(p, &end);
         if (end == p)
         {
@@ -218,7 +218,7 @@ namespace
         const MkJson *n = &s_json[node];
         if (n->type == MKJ_ARR)
         {
-            char *end = 0;
+            bo1_host_str end = 0;
             long idx = strtol(key, &end, 10);
             if (end == key)
                 return -1;

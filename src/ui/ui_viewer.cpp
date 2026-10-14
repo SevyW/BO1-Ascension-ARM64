@@ -914,8 +914,14 @@ void __thiscall UIViewer::DrawDobj::Set(
                 bool lock)
 {
     this->weaponOptions.i = weapParam->weaponOptions.i;
+#ifdef BO1_NATIVE
+    // mod (native): the decompile shows the mask 0x3FFFFFF (the options below the 6 bits of the face pattern) as an
+    // address that had that value in the retail exe
+    this->weaponOptions.i = (playerParams->facePatternIndex << 26) | 0x3FFFFFFu & this->weaponOptions.i;
+#else
     this->weaponOptions.i = (playerParams->facePatternIndex << 26)
                                                 | ((unsigned int)&objBuf[1758][1] + 3) & this->weaponOptions.i;
+#endif
     this->heroLighting = hero;
     this->startTime = cls.realtime;
     this->weaponVariantDef = wvd;
@@ -1054,7 +1060,11 @@ const WeaponVariantDef *__thiscall UIViewer::GetWeaponVariantDef(const UIViewer:
     while ( v11 );
     if ( isDualWield )
     {
+#ifdef BO1_NATIVE
+        v10 = weaponDefName - 1;   // mod (native): the end of the name is looked for in the name
+#else
         v10 = (char *)&attachRefs[3] + 3;
+#endif
         while ( *++v10 )
             ;
         strcpy(v10, "dw");
@@ -1065,13 +1075,21 @@ const WeaponVariantDef *__thiscall UIViewer::GetWeaponVariantDef(const UIViewer:
         {
             v7 = va("_%s", attachRefs[i]);
             v8 = (unsigned int)&v7[strlen(v7) + 1];
+#ifdef BO1_NATIVE
+            v6 = weaponDefName - 1;   // mod (native): the end of the name is looked for in the name
+#else
             v6 = (char *)&attachRefs[3] + 3;
+#endif
             while ( *++v6 )
                 ;
             memcpy(v6, v7, v8 - (unsigned int)v7);
         }
     }
+#ifdef BO1_NATIVE
+    v4 = weaponDefName - 1;   // mod (native): the end of the name is looked for in the name
+#else
     v4 = (char *)&attachRefs[3] + 3;
+#endif
     while ( *++v4 )
         ;
     strcpy(v4, "_mp");

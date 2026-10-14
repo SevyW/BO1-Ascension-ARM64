@@ -138,7 +138,13 @@ void __cdecl CG_DrawUpperRightDebugInfo(int localClientNum)
     y = cg_debugInfoCornerOffset->current.vector[1];
     if ( Dvar_GetInt("debug_show_viewpos") )
         y = CG_DrawViewpos(&scrPlaceFull, y, localClientNum);
+#ifdef BO1_NATIVE
+    // mod (native): the port draws its own counter (bo1_fpscounter); Multiplayer's cg_drawFPS defaults to on and drew
+    // a second one in the top right corner. It is drawn only when bo1_engine_fps is set (+set bo1_engine_fps 1).
+    if ( cg_drawFPS->current.integer && Dvar_GetInt("bo1_engine_fps") )
+#else
     if ( cg_drawFPS->current.integer )
+#endif
         y = CG_DrawFPS(localClientNum, &scrPlaceFull, y, &meminfo);
     if ( com_statmon->current.enabled )
         y = CG_DrawStatmon(&scrPlaceFull, y);
@@ -307,7 +313,11 @@ double __cdecl DrawEntityCounts(const ScreenPlacement *scrPlace, float posY)
         Dvar_SetInt((dvar_s*)g_maxEntsInSnapshot, sv.num_entities);
     posX = (float)(scrPlace->virtualViewableMax[0] - scrPlace->virtualViewableMin[0])
         + cg_debugInfoCornerOffset->current.value;
+#ifdef BO1_NATIVE
+    if (listEntityCountsCurrent || cg_drawFPS && cg_drawFPS->current.integer && Dvar_GetInt("bo1_engine_fps"))   // mod (native)
+#else
     if (listEntityCountsCurrent || cg_drawFPS && cg_drawFPS->current.integer)
+#endif
     {
         v25 = (float)R_TextWidth(" Ent Count", 0, cgMedia.smallDevFont) * 1.0;
         numUsedEntities = sv.num_entities;

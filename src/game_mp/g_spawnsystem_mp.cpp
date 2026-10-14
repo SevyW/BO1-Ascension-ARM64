@@ -112,8 +112,8 @@ void __cdecl SpawnSystem_SortPointsForTeamByScore(int team)
     int *last = first + g_sortedTeamSpawnPoints[team].count;
 
     std::sort(
-        first,
-        last,
+        BO1_HOST_PTR(first),
+        BO1_HOST_PTR(last),
         compare_spawnpoint_score_sort(team)
     );
 }

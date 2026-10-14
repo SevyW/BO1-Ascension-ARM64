@@ -9,16 +9,27 @@
 //
 // The real output (a Web Audio mixer fed from these voices: PCM16 / MS-ADPCM decode, the engine's pan matrix and the
 // DSP chain of snd_driver_xaudio2_dsp.cpp) replaces the "advance" step below; see docs/web-port.md.
+//
+// native: there is one. src/native/native_audio.cpp mixes the voices on an SDL audio device, and the voice's clock
+// is then the mixer's (frames it played, buffers it finished) instead of the wall clock. A voice the mixer cannot
+// play (an xWMA sound) and a build without a device (dedicated server) keep the null timing.
 #include <sound/snd_driver_xaudio2.h>
 #include <sound/snd_stream.h>
 #include <sound/snd_db.h>
 #include <sound/snd_public_async.h>
 #include <sound/snd.h>
+#include <sound/snd_utils.h>
 #include <qcommon/common.h>
 #include <win32/win_shared.h>
+#ifdef BO1_NATIVE
+#include <native_audio.h>
+#endif
 
 namespace
 {
+#ifdef BO1_NATIVE
+bool s_audio;   // the mixer has a device
+#endif
 struct NullBuffer
 {
     char *data;        // stream window (released when played); nullptr for RAM sounds
@@ -40,6 +51,7 @@ struct NullVoice
     double framePos;   // frames played of the head buffer
     uint64_t samplesPlayed;
     unsigned int lastMs;
+    bool audible;      // native: the mixer plays it and is its clock
 };
 
 NullVoice s_voices[SND_MAX_VOICES];
@@ -72,7 +84,76 @@ void CreateVoice(int voiceIndex, const snd_asset *snd, bool looping)
     v.channels = snd->channel_count;
     v.format = snd->format;
     v.lastMs = Sys_Milliseconds();
+#ifdef BO1_NATIVE
+    // (xWMA, most of the effects: when the mixer has a decoder for it, native_audio.cpp)
+    const int mixerFormat = v.format == SND_ASSET_FORMAT_PCMS16 ? BO1_AUDIO_PCM16
+        : v.format == SND_ASSET_FORMAT_MSADPCM ? BO1_AUDIO_MSADPCM
+        : v.format == SND_ASSET_FORMAT_WMA ? BO1_AUDIO_XWMA : -1;
+    if (s_audio && mixerFormat >= 0 && bo1_audio_supports(mixerFormat) && v.channels >= 1 && v.channels <= 2)
+    {
+        bo1_audio_open(voiceIndex, mixerFormat, (int)v.channels, (int)v.rate, looping);
+        v.audible = true;
+    }
+    else if (s_audio)
+    {
+        // said once per kind: what the mixer has no decoder for stays silent
+        static bool said[16][9];
+        const unsigned f = (unsigned)v.format & 15u, c = v.channels < 8 ? (unsigned)v.channels : 8u;
+        if (!said[f][c])
+        {
+            said[f][c] = true;
+            printf("native: sound: not played: format %d, %d channels, %d Hz (first: voice %d)\n", (int)v.format,
+                (int)v.channels, (int)v.rate, voiceIndex);
+        }
+    }
+#endif
 }
+
+#ifdef BO1_NATIVE
+// the engine's pan matrix (the dry sends of SDXA2_UpdateVoiceSends), folded to stereo, and its pitch and low-pass
+void UpdateMixerVoice(int voiceIndex)
+{
+    snd_voice_t *voice = &g_snd.voice[voiceIndex];
+    if (!g_snd.voiceAliasHash[voiceIndex])
+        return;
+    const int inputs = voice->pan.input_channel_count;
+    const int outputs = voice->pan.output_channel_count;
+    float gains[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+    for (int in = 0; in < inputs && in < 2; ++in)
+    {
+        float left = 0.0f, right = 0.0f;
+        switch (outputs)
+        {
+        case 1:
+            left = right = (float)Snd_SpeakerMapGetVolume(&voice->pan, in, 0) * 0.70710677f;
+            break;
+        case 2:
+            left = (float)Snd_SpeakerMapGetVolume(&voice->pan, in, 0);
+            right = (float)Snd_SpeakerMapGetVolume(&voice->pan, in, 1);
+            break;
+        case 6:
+        case 8:
+        {
+            // front left / right, center, (LFE), then the surround pairs
+            const float center = (float)Snd_SpeakerMapGetVolume(&voice->pan, in, 2) * 0.70710677f;
+            left = (float)Snd_SpeakerMapGetVolume(&voice->pan, in, 0) + center;
+            right = (float)Snd_SpeakerMapGetVolume(&voice->pan, in, 1) + center;
+            for (int out = 4; out < outputs; ++out)
+                (out & 1 ? right : left) += (float)Snd_SpeakerMapGetVolume(&voice->pan, in, out) * 0.70710677f;
+            break;
+        }
+        default:
+            break;
+        }
+        gains[2 * in] = left * voice->dryLevel;
+        gains[2 * in + 1] = right * voice->dryLevel;
+    }
+    double pitch = SND_GetPitch(voice);
+    if (!(pitch > 0.0))
+        pitch = 1.0;
+    bo1_audio_params(voiceIndex, (float)pitch, gains, (float)SND_GetLpfLevel(voice));
+}
+#endif
 
 void ReleaseHead(unsigned int streamVoice, NullVoice &v)
 {
@@ -92,6 +173,20 @@ void Advance(int voiceIndex)
     NullVoice &v = s_voices[voiceIndex];
     if (!v.exists)
         return;
+#ifdef BO1_NATIVE
+    if (v.audible)
+    {
+        // the mixer's clock: what it played, and the buffers it is done with
+        int finished = 0;
+        const long long played = bo1_audio_progress(voiceIndex, &finished);
+        if (played >= 0)
+            v.samplesPlayed = (uint64_t)played;
+        const bool isStream = SND_IsStream(voiceIndex);
+        for (; finished > 0 && v.queued; --finished)
+            ReleaseHead(isStream ? iSND_GetStreamChannel(voiceIndex) : 0, v);
+        return;
+    }
+#endif
     const unsigned int now = Sys_Milliseconds();
     const unsigned int dt = now - v.lastMs;
     v.lastMs = now;
@@ -163,8 +258,9 @@ void UpdateStreamVoice(int voiceIndex)
         if (v.queued >= 2)
             break;
         unsigned int size, position;
-        char *data;
-        status = Snd_StreamAcquireWindow(streamVoice, &size, &position, &data);
+        char *dataSlot[1];   // an array: a pointer object as the engine's out-parameter expects (tools/p32)
+        status = Snd_StreamAcquireWindow(streamVoice, &size, &position, dataSlot);
+        char *data = dataSlot[0];
         switch (status)
         {
         case SND_STREAM_OK:
@@ -174,6 +270,10 @@ void UpdateStreamVoice(int voiceIndex)
             v.buffers[slot].frames = StreamWindowFrames(v, header, size);
             ++v.queued;
             ++v.bufferQueuedCount;
+#ifdef BO1_NATIVE
+            if (v.audible)
+                bo1_audio_queue(voiceIndex, data, size, v.buffers[slot].frames);
+#endif
             break;
         }
         case SND_STREAM_STARVING:
@@ -226,6 +326,13 @@ int StartAliasRam(SndStartAliasInfo *startAliasInfo, int voiceIndex)
     v.buffers[0].data = nullptr;
     v.buffers[0].frames = snd->frame_count;
     v.queued = 1;
+#ifdef BO1_NATIVE
+    if (v.audible && !bo1_audio_queue(voiceIndex, snd->data, snd->data_size, snd->frame_count))
+    {
+        bo1_audio_stop(voiceIndex);
+        v.audible = false;
+    }
+#endif
     const unsigned int rate = snd->frame_rate;
     const unsigned int total_msec = isLooping ? 0 : startAliasInfo->startDelay + (__int64)((double)snd->frame_count * 1000.0 / (double)rate);
     SND_SetSoundFileVoiceInfo(voiceIndex, snd->channel_count, rate, total_msec, 0, SFLS_LOADED);
@@ -245,6 +352,14 @@ bool __cdecl SD_Xaudio2CanInit()
 char __cdecl SD_Init()
 {
     memset(s_voices, 0, sizeof(s_voices));
+#ifdef BO1_NATIVE
+    s_audio = !IsDedicatedServer() && bo1_audio_init() != 0;
+    if (s_audio)
+    {
+        Com_Printf(9, "Sound: native mixer (src/native/native_audio.cpp)\n");
+        return 1;
+    }
+#endif
     Com_Printf(9, "Sound: web null driver (no audio output yet; voices are timed, docs/web-port.md)\n");
     return 1;
 }
@@ -254,6 +369,10 @@ void SD_Shutdown()
     for (int i = 0; i < SND_MAX_VOICES; ++i)
         SND_StopVoice(i);
     memset(s_voices, 0, sizeof(s_voices));
+#ifdef BO1_NATIVE
+    bo1_audio_shutdown();
+    s_audio = false;
+#endif
 }
 
 void __cdecl SD_PreUpdate()
@@ -283,6 +402,10 @@ void __cdecl iSND_ReleaseStreamBuffer(unsigned int streamVoice, unsigned int buf
 void __cdecl SD_StopVoice(int voiceIndex)
 {
     NullVoice &v = s_voices[voiceIndex];
+#ifdef BO1_NATIVE
+    if (v.audible)
+        bo1_audio_stop(voiceIndex);   // before its buffers go back: the mixer no longer reads them after this
+#endif
     if (SND_IsStream(voiceIndex))
     {
         const int streamVoice = iSND_GetStreamChannel(voiceIndex);
@@ -298,11 +421,19 @@ void __cdecl SD_PauseVoice(int voiceIndex)
 {
     Advance(voiceIndex);
     g_snd.voice[voiceIndex].paused = 1;
+#ifdef BO1_NATIVE
+    if (s_voices[voiceIndex].audible)
+        bo1_audio_pause(voiceIndex, 1);
+#endif
 }
 
 void __cdecl SD_UnpauseVoice(int voiceIndex)
 {
     s_voices[voiceIndex].lastMs = Sys_Milliseconds();   // paused time does not play
+#ifdef BO1_NATIVE
+    if (s_voices[voiceIndex].audible)
+        bo1_audio_pause(voiceIndex, 0);
+#endif
 }
 
 __int64 SD_BO1SamplesPlayed(int voiceIndex)
@@ -325,10 +456,18 @@ void __cdecl SD_UpdateVoice(unsigned int voiceIndex)
     NullVoice &v = s_voices[voiceIndex];
     snd_voice_t *voice = &g_snd.voice[voiceIndex];
     Advance((int)voiceIndex);
+#ifdef BO1_NATIVE
+    if (v.audible)
+        UpdateMixerVoice((int)voiceIndex);
+#endif
     if (!voice->startDelay && !v.samplesPlayed && v.queued && !voice->paused && !v.started)
     {
         v.started = true;
         v.lastMs = Sys_Milliseconds();
+#ifdef BO1_NATIVE
+        if (v.audible)
+            bo1_audio_start((int)voiceIndex);
+#endif
     }
     if (!v.queued)
         SND_StopVoice(voiceIndex);

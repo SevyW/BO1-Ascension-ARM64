@@ -65,7 +65,7 @@ HRESULT VertexShader::GetFunction(void *pData, UINT *pSizeOfData)
     return D3D_OK;
 }
 
-GLuint VertexShader::glShader(const TranslateOptions &opt, uint64_t key, const TranslatedShader **info)
+GLuint VertexShader::glShader(const TranslateOptions &opt, uint64_t key, bo1_host_ptr<const TranslatedShader> *info)
 {
     for (auto &v : m_variants)
         if (v.key == key) {

@@ -1416,7 +1416,7 @@ void __cdecl R_LoadLightGridPoints_Version15(unsigned int bspVersion)
             //    (int)(10 * entryCount) / 10,
             //    R_AnnotatedLightGridPointSortsBefore);
 
-            std::sort(points, points + entryCount, R_AnnotatedLightGridPointSortsBefore);
+            std::sort(BO1_HOST_PTR(points), BO1_HOST_PTR(points + entryCount), R_AnnotatedLightGridPointSortsBefore);
 
             for ( entryIndex = 0; entryIndex < entryCount; ++entryIndex )
             {
@@ -2601,7 +2601,7 @@ signed int R_SortSurfaces()
     //    80 * surfaceCount / 80,
     //    (unsigned __int8 (*)(void))R_CompareSurfaces);
 
-    std::sort(s_world.dpvs.surfaces, s_world.dpvs.surfaces + surfaceCount, R_CompareSurfaces);
+    std::sort(BO1_HOST_PTR(s_world.dpvs.surfaces), BO1_HOST_PTR(s_world.dpvs.surfaces + surfaceCount), R_CompareSurfaces);
 
     for ( surfIndexa = 0; surfIndexa < surfaceCount; ++surfIndexa )
     {
@@ -3885,7 +3885,7 @@ int R_PostLoadEntities()
     //    &smodelCombinedInsts[s_world.dpvs.smodelCount],
     //    (signed int)(120 * s_world.dpvs.smodelCount) / 120,
     //    (bool (__cdecl *)(const GfxStaticModelCombinedInst *, const GfxStaticModelCombinedInst *))R_StaticModelCompare);
-    std::sort(smodelCombinedInsts, smodelCombinedInsts + s_world.dpvs.smodelCount, R_StaticModelCompare);
+    std::sort(BO1_HOST_PTR(smodelCombinedInsts), BO1_HOST_PTR(smodelCombinedInsts + s_world.dpvs.smodelCount), R_StaticModelCompare);
     for ( smodelIndexa = 0; smodelIndexa < s_world.dpvs.smodelCount; ++smodelIndexa )
     {
         memcpy(

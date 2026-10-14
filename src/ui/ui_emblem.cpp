@@ -1222,6 +1222,12 @@ cmd_function_s UI_EmblemPalettePick_f_VAR;
 void __cdecl UI_EmblemRegisterCmds()
 {
     Cmd_AddCommandInternal("emblemSelect", UI_EmblemSelect_f, &UI_EmblemSelect_f_VAR);
+    {
+        // mod: bo1_dumpmenu (ui_utils.cpp)
+        extern cmd_function_s UI_DumpMenu_f_VAR;
+        void __cdecl UI_DumpMenu_f();
+        Cmd_AddCommandInternal("bo1_dumpmenu", UI_DumpMenu_f, &UI_DumpMenu_f_VAR);
+    }
     Cmd_AddCommandInternal("emblemReset", UI_EmblemReset_f, &UI_EmblemReset_f_VAR);
     Cmd_AddCommandInternal("emblemClearAll", UI_EmblemClearAll_f, &UI_EmblemClearAll_f_VAR);
     Cmd_AddCommandInternal("emblemClear", UI_EmblemClear_f, &UI_EmblemClear_f_VAR);

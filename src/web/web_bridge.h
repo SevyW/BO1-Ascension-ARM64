@@ -2,7 +2,7 @@
 // Change the contract document first, then this header and the page (web/client/src/engine/bridge.ts) together.
 #pragma once
 #include <stdint.h>
-#include <emscripten.h>
+#include "bo1_platform.h"
 
 #ifdef __cplusplus
 #include <atomic>

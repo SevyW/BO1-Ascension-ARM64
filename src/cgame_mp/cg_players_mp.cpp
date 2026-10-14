@@ -285,38 +285,39 @@ void CG_AddPlayerSpriteDrawSurf(
     bool renderFxFlags = (nextSnap->ps.otherFlags & 6) != 0 && cent->nextState.number == nextSnap->ps.clientNum;
 
     if (!renderFxFlags || cgameGlob->renderingThirdPerson) {
-        float radius = 0.0f;
-        float scale = 1.0f;
-
+        // mod (mp): rebuilt from the decompiled original above (the version that stood here drew a null material at a
+        // scrambled position: "ASSERT r_material.h(553): material" with the first friendly head icon).
+        // Flags 3 = fixed size on screen, radius then a fraction of the screen; else a world radius.
+        int flags = 0;
+        float radius = additionalRadiusSize + 5.0f;
         if (fixedScreenSize) {
-            radius = 3.0f;
-            scale = (additionalRadiusSize + 5.0f) * 0.0043f;
-        }
-        else {
-            scale = additionalRadiusSize + 5.0f;
+            flags = 3;
+            radius = (additionalRadiusSize + 5.0f) * 0.0043f;
         }
 
+        // above the head bone, or above the origin while the model has none
         float origin[3];
         DObj *obj = Com_GetClientDObj(cent->nextState.number, localClientNum);
-
-        Material *spriteMaterial = NULL;
         if (obj && CG_DObjGetWorldTagPos(&cent->pose, obj, scr_const.j_head, origin)) {
-            origin[1] += height + 21.0f;
+            origin[2] += (float)height + 21.0f;
         }
         else {
             origin[0] = cent->pose.origin[0];
-            origin[1] = cent->pose.origin[1] + height + 82.0f;
-            origin[2] = cent->pose.origin[2];
+            origin[1] = cent->pose.origin[1];
+            origin[2] = cent->pose.origin[2] + (float)height + 82.0f;
         }
 
+        if (!material)
+            return;
         FxSprite sprite;
-        sprite.material = spriteMaterial;
+        sprite.material = material;
         sprite.pos[0] = origin[0];
         sprite.pos[1] = origin[1];
-        sprite.pos[2] = NAN; // original code had NaN for Z
-        sprite.rgbaColor[0] = *(int *)&scale; // original LODWORD(obj) hack
-        sprite.radius = cg_headIconMinScreenRadius->current.integer;
-        sprite.minScreenRadius = radius;
+        sprite.pos[2] = origin[2];
+        sprite.rgbaColor[0] = sprite.rgbaColor[1] = sprite.rgbaColor[2] = sprite.rgbaColor[3] = 255;
+        sprite.radius = radius;
+        sprite.minScreenRadius = cg_headIconMinScreenRadius->current.value;
+        sprite.flags = flags;
 
         FX_SpriteAdd(&sprite);
     }

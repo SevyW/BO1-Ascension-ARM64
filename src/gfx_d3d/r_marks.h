@@ -145,10 +145,11 @@ struct MarkModelCoreContext // sizeof=0x1C
 struct GfxSurface;
 struct GfxWorldVertex;
 
+typedef int (__cdecl *R_AllowSurfFunc)(int, void *);
 void    R_BoxSurfaces(
                 const float *mins,
                 const float *maxs,
-                int (__cdecl **allowSurf)(int, void *),
+                R_AllowSurfFunc *allowSurf,
                 void *callbackContext,
                 GfxSurface ***surfLists,
                 unsigned int surfListSize,
@@ -158,7 +159,7 @@ void __cdecl R_BoxSurfaces_r(
                 mnode_t *node,
                 const float *mins,
                 const float *maxs,
-                int (__cdecl **allowSurf)(int, void *),
+                R_AllowSurfFunc *allowSurf,
                 void *callbackContext,
                 GfxSurface ***surfLists,
                 unsigned int surfListSize,
@@ -189,7 +190,7 @@ void __cdecl R_CellSurfacesTwoLists(
                 int cellIndex,
                 const float *mins,
                 const float *maxs,
-                int (__cdecl **allowSurf)(int, void *),
+                R_AllowSurfFunc *allowSurf,
                 void *callbackContext,
                 GfxSurface ***surfLists,
                 unsigned int surfListSize,
@@ -199,7 +200,7 @@ void __cdecl R_AABBTreeSurfacesTwoLists_r(
                 GfxAabbTree *tree,
                 const float *mins,
                 const float *maxs,
-                int (__cdecl **allowSurf)(int, void *),
+                R_AllowSurfFunc *allowSurf,
                 void *callbackContext,
                 GfxSurface ***surfLists,
                 unsigned int surfListSize,

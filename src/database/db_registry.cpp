@@ -3539,6 +3539,20 @@ void __cdecl DB_LoadXAssets(XZoneInfo *zoneInfo, unsigned int zoneCount, int syn
             locZoneInfo[count].allocFlags = allocFlags == 256 ? 1024 : 0x40000;
             locZoneInfo[count++].freeFlags = 0;
         }
+#ifdef BO1_NATIVE
+        // mod (native): a zone asked for with flag 2048 (ui_viewer_mp, DB_LoadFastFilesForPC: the 3D player and
+        // weapon preview of Create a Class) matched none of the cases below and was dropped without a word: the
+        // preview waited for it for ever (uiViewer_loaded 0). It is queued as it is; it has no localized zone.
+        if ( allocFlags == 2048 )
+        {
+            if ( count + 1 > (unsigned int)maxZones )
+                Com_Error(ERR_DROP, "DB_LoadXAssets: too many zones with '%s'", zoneInfo[k].name);
+            locZoneInfo[count].name = zoneInfo[k].name;
+            locZoneInfo[count].allocFlags = zoneInfo[k].allocFlags;
+            locZoneInfo[count++].freeFlags = zoneInfo[k].freeFlags;
+            continue;
+        }
+#endif
         if ( allocFlags > 4096 )
         {
             if ( allocFlags > 0x400000 )
@@ -3726,7 +3740,7 @@ void DB_Init()
     // mod: the *_MOD pool capacities are used only when bo1_mod_zones is on the command line (as the +256 MB in
     // physicalmemory.cpp; the pools are set up before the dvars exist). Without it every pool keeps its retail size and
     // free-list order, so the vanilla game is unchanged.
-    if ( I_stristr(GetCommandLineA(), "bo1_mod_zones") )
+    if ( (I_stristr(GetCommandLineA(), "bo1_mod_zones") || I_stristr(GetCommandLineA(), "fs_game")) /* mod (custom maps): a community mod needs the room too */ )
     {
         g_poolSize[ASSET_TYPE_PHYSPRESET] = POOLSIZE_PHYSPRESET_MOD;
         g_poolSize[ASSET_TYPE_PHYSCONSTRAINTS] = POOLSIZE_PHYSCONSTRAINTS_MOD;
@@ -3752,7 +3766,7 @@ void DB_Init()
     // mod: three or four bo1_mod_zones (mods/nightmare: temple + coast + moon, L60 f3) overflow the retail 32768 entries
     // ("increase XASSET_ENTRY_POOL_SIZE"); with bo1_mod_zones on the command line the free list runs to 0xFFFF, the
     // largest index the 16-bit nextHash / nextOverride / db_hashTable links hold. Without it the list is retail's.
-    unsigned int lastEntry = I_stristr(GetCommandLineA(), "bo1_mod_zones") ? 0xFFFF : 0x7FFF;
+    unsigned int lastEntry = (I_stristr(GetCommandLineA(), "bo1_mod_zones") || I_stristr(GetCommandLineA(), "fs_game")) /* mod (custom maps): a community mod needs the room too */ ? 0xFFFF : 0x7FFF;
     for (i = 1; i < lastEntry; ++i)
     {
         g_assetEntryPool[i].next = &g_assetEntryPool[i + 1];
@@ -4143,6 +4157,17 @@ int __cdecl DB_TryLoadXFileInternal(const char *zoneName, int zoneFlags)
     {
         DB_BuildOSPath(zoneName, ".ff", 0x100u, filename);
     }
+#ifdef BO1_NATIVE
+    // mod (native): ui_viewer_mp is asked for with flag 2048, one of the flags read as "localized" here, and its file
+    // is in zone/Common (`Could not find zone '...\zone\english\ui_viewer_mp.ff'`): the common folder is tried too.
+    if ( (zoneFlags & 0x2AAAAAA) != 0 && GetFileAttributesA(filename) == -1 )
+    {
+        char common[256];
+        DB_BuildOSPath_Unlocalized(zoneName, ".ff", 0x100u, common);
+        if ( GetFileAttributesA(common) != -1 )
+            I_strncpyz(filename, common, 0x100);
+    }
+#endif
     zoneFile = CreateFileA(filename, 0x80000000, 1u, 0, 3u, 0x60000000u, 0);
     if ( zoneFile == (void *)-1 )
         DB_ModXFileHandle(zoneName, &zoneFile, &zoneDir);
@@ -4511,6 +4536,19 @@ void __cdecl DB_ModXFileHandle(const char *zoneName, void **zoneFile, FF_DIR *zo
             if ( *zoneFile != (void *)-1 )
                 *zoneDir = FFD_USER_MAP;
         }
+        // mod (custom maps): community maps ship their fastfiles (<map>.ff, <map>_load.ff, <map>_patch.ff,
+        // localized ones) in the mod's folder next to mod.ff; retail only took "mod" from there (game_mod patched
+        // the same lookup). Any zone that is not in zone\ and not a usermap is looked for in <fs_game>.
+        if ( v6 && *zoneFile == (void *)-1 )
+        {
+            DB_BuildOSPath_FromSource(zoneName, FFD_MOD_DIR, 0x100u, filename);
+            *zoneFile = CreateFileA(filename, 0x80000000, 1u, 0, 3u, 0x60000000u, 0);
+            if ( *zoneFile != (void *)-1 )
+            {
+                *zoneDir = FFD_MOD_DIR;
+                Com_Printf(16, "mod: fastfile '%s' from %s\n", zoneName, filename);
+            }
+        }
     }
     else
     {
@@ -4541,10 +4579,26 @@ void __cdecl DB_BuildOSPath_FromSource(const char *zoneName, FF_DIR source, unsi
                 __debugbreak();
             }
             Com_sprintf(filename, size, "%s\\%s\\%s.ff", fs_homepath->current.string, fs_gameDirVar->current.string, zoneName);
+            // mod (custom maps): the mod's iwds and scripts are found under fs_basepath (FS_Startup); its fastfiles
+            // are looked for there too when fs_homepath is another folder and does not have them
+            if ( GetFileAttributesA(filename) == -1 && I_stricmp(fs_homepath->current.string, fs_basepath->current.string) )
+            {
+                char inBase[260];
+                Com_sprintf(inBase, sizeof(inBase), "%s\\%s\\%s.ff", fs_basepath->current.string, fs_gameDirVar->current.string, zoneName);
+                if ( GetFileAttributesA(inBase) != -1 )
+                    I_strncpyz(filename, inBase, size);
+            }
         }
         else if ( source == FFD_USER_MAP )
         {
             Com_sprintf(filename, size, "%s\\%s\\%s\\%s.ff", fs_homepath->current.string, "usermaps", zoneName, zoneName);
+            if ( GetFileAttributesA(filename) == -1 && I_stricmp(fs_homepath->current.string, fs_basepath->current.string) ) // mod (custom maps): as above
+            {
+                char inBase[260];
+                Com_sprintf(inBase, sizeof(inBase), "%s\\%s\\%s\\%s.ff", fs_basepath->current.string, "usermaps", zoneName, zoneName);
+                if ( GetFileAttributesA(inBase) != -1 )
+                    I_strncpyz(filename, inBase, size);
+            }
         }
         else if ( !Assert_MyHandler(
                                  "C:\\projects_pc\\cod\\codsrc\\src\\database\\db_registry.cpp",

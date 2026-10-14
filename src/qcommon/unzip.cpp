@@ -179,8 +179,10 @@ int    gzflush OF((gzFile file, int flush));
    degrade compression.
 */
 
+#ifndef BO1_P32   // zlib.h declares it; in the 32-bit-pointer build this copy's `long` would become `int`
 long gzseek OF((gzFile file,
 				      long offset, int whence));
+#endif
 /* 
       Sets the starting position for the next gzread or gzwrite on the
    given compressed file. The offset represents a number of bytes in the
@@ -204,7 +206,9 @@ int    gzrewind OF((gzFile file));
    gzrewind(file) is equivalent to (int)gzseek(file, 0L, SEEK_SET)
 */
 
+#ifndef BO1_P32
 long    gztell OF((gzFile file));
+#endif
 /*
      Returns the starting position for the next gzread or gzwrite on the
    given compressed file. This position represents a number of bytes in the

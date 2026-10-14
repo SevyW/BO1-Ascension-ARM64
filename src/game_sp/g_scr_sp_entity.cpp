@@ -1217,7 +1217,13 @@ void G_SP_NotifySnapAcknowledged()
     const auto type = startTop->type;
     startTop->type = (decltype(startTop->type))8; // VAR_PRECODEPOS, as Scr_NotifyNum_Internal
     gScrVmPub[inst].inparamcount = 0;
+    // mod (coop): the notify can create script variables; the variable allocator's bookkeeping wants a usage tag
+    // set while it does (a dedicated server asserted "gScrVarPub[inst].varUsagePos" here after a map restart)
+    const char *varUsagePos = gScrVarPub[inst].varUsagePos;
+    if (!varUsagePos)
+        gScrVarPub[inst].varUsagePos = "<snapacknowledged notify>";
     VM_Notify(inst, gScrVarPub[inst].levelId, scr_const.snapacknowledged, gScrVmPub[inst].top);
+    gScrVarPub[inst].varUsagePos = varUsagePos;
     startTop->type = type;
     gScrVmPub[inst].inparamcount = inparamcount;
 }

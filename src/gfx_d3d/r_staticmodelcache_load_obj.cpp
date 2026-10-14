@@ -104,7 +104,7 @@ unsigned int __cdecl R_OptimalSModelResourceStats(GfxWorld *world, GfxSModelSurf
     //    &drawInstArray[world->dpvs.smodelCount],
     //    (signed int)(4 * world->dpvs.smodelCount) >> 2,
     //    (bool (__cdecl *)(const GfxStaticModelDrawInst *, const GfxStaticModelDrawInst *))R_CompareSModels_Model);
-    std::sort(drawInstArray, drawInstArray + world->dpvs.smodelCount, R_CompareSModels_Model);
+    std::sort(BO1_HOST_PTR(drawInstArray), BO1_HOST_PTR(drawInstArray + world->dpvs.smodelCount), R_CompareSModels_Model);
 
     statCount = 0;
     for ( smodelItera = 0; smodelItera != world->dpvs.smodelCount; smodelItera = smodelIterNext )

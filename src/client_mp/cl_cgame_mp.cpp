@@ -1123,6 +1123,19 @@ void __cdecl CL_InitCGame(int localClientNum)
     I_strncpyz(mapname, v1, 64);
     LiveSteam_CheckAccess();
     Dvar_SetStringByName("mapname", mapname);
+#ifdef BO1_NATIVE
+    {
+        // mod (native): the Choose Class menu of a match names the five custom classes from offline_customclass1..5
+        // in Combat Training and System Link (changeclass.menu:151) and nothing sets them: five rows without a name
+        // (measured on the Odin 3). They take the names of Create a Class.
+        for ( int slot = 1; slot <= 5; ++slot )
+        {
+            const char *name = Dvar_GetVariantString(va("customclass%i", slot));
+            if ( name && *name )
+                Dvar_SetCommand(va("offline_customclass%i", slot), (char *)name);
+        }
+    }
+#endif
     Com_GetBspFilename(LocalClientGlobals->mapname, 0x40u, mapname);
     if ( !CL_WasMapAlreadyLoaded() )
     {

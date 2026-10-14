@@ -1302,7 +1302,7 @@ void __cdecl MatchRecordSetHitStat(
         va("%d", hitLocation);
         v5 = va("%d", 0);
         RootDDLState = LiveStats_GetRootDDLState();
-        DDL_MoveTo(RootDDLState, &hitLocState, 4, "RecentHitLocCounts", v5);
+        DDL_MoveTo(RootDDLState, &hitLocState, 4, "RecentHitLocCounts", v5, hitLocStatName, va("%d", hitLocation)); // mod (ddl): path argument restored
         SV_SetClientDIntStat(attackerClient->ps.clientNum, &hitLocState, hitLocationValue);
     }
 }

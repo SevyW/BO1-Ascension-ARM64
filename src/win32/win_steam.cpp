@@ -309,7 +309,7 @@ static void Steam_SV_TestKick()
 	}
 
 	const char *arg1 = SV_Cmd_Argv(1);
-	char *endptr;
+	bo1_host_str endptr;   // strtoull writes a native pointer (tools/p32)
 	uint64_t steamID64 = strtoull(arg1, &endptr, 10);
 	{
 		std::lock_guard<std::mutex> _(kickPlayerMutex);

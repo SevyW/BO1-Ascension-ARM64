@@ -7,6 +7,10 @@
 // receive): each direction has its own lock, and each ring still has exactly one producer and one consumer.
 // Broadcast packets (LAN server discovery) are dropped: the page has no broadcast route.
 // The remote debug socket (Sys_*DebugSocket*, net_listen / net_connect) does not exist on the web.
+//
+// native (BO1_NATIVE): a real UDP socket instead, as win32/win_net.cpp has it: bound to net_port (the next free one
+// of ten when taken) on net_ip or every interface, non-blocking, broadcast allowed, names resolved through DNS.
+// Builds of this engine on any platform then reach each other by address (+connect <ip>:<port>).
 #include <win32/win_net.h>
 #include <qcommon/net_chan_mp.h>
 #include <qcommon/msg_mp.h>
@@ -16,9 +20,19 @@
 
 #include "web_bridge.h"
 
-#include <emscripten/threading.h>
+#include "bo1_platform.h"
 #include <arpa/inet.h>
 #include <pthread.h>
+#ifdef BO1_NATIVE
+#include <errno.h>
+#include <fcntl.h>
+#include <ifaddrs.h>
+#include <net/if.h>
+#include <netdb.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <unistd.h>
+#endif
 
 const dvar_t *ip;
 const dvar_t *port;
@@ -50,6 +64,57 @@ bo1_net_shared s_shared;
 pthread_mutex_t s_sendLock = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t s_recvLock = PTHREAD_MUTEX_INITIALIZER;
 bool s_open;   // "socket" open (NET_OpenIP .. NET_Config(0))
+#ifdef BO1_NATIVE
+int s_socket = -1;
+
+// win_net.cpp NET_IPSocket: a non-blocking UDP socket bound to the interface ("localhost": all) and port; -1 on failure
+int OpenUdpSocket(const char *netInterface, int portNumber)
+{
+    const int fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    if (fd < 0)
+    {
+        Com_Printf(16, "WARNING: UDP_OpenSocket: socket: %s\n", strerror(errno));
+        return -1;
+    }
+    fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0) | O_NONBLOCK);
+    int on = 1;
+    setsockopt(fd, SOL_SOCKET, SO_BROADCAST, &on, sizeof(on));
+    sockaddr_in address;
+    memset(&address, 0, sizeof(address));
+    address.sin_family = AF_INET;
+    address.sin_addr.s_addr = htonl(INADDR_ANY);
+    if (netInterface && *netInterface && I_stricmp(netInterface, "localhost"))
+    {
+        sockaddr named;
+        if (Sys_StringToSockaddr(netInterface, &named))
+            address.sin_addr = ((sockaddr_in *)&named)->sin_addr;
+    }
+    address.sin_port = htons((unsigned short)portNumber);
+    if (bind(fd, (sockaddr *)&address, sizeof(address)) != 0)
+    {
+        close(fd);
+        return -1;
+    }
+    return fd;
+}
+
+// the machine's own IPv4 addresses, for Sys_IsLANAddress and Sys_ShowIP
+void ReadLocalAddresses()
+{
+    numIP = 0;
+    ifaddrs *list = nullptr;
+    if (getifaddrs(&list) != 0)
+        return;
+    for (ifaddrs *i = list; i && numIP < 16; i = i->ifa_next)
+    {
+        if (!i->ifa_addr || i->ifa_addr->sa_family != AF_INET || (i->ifa_flags & IFF_LOOPBACK))
+            continue;
+        memcpy(localIP[numIP], &((sockaddr_in *)i->ifa_addr)->sin_addr.s_addr, 4);
+        ++numIP;
+    }
+    freeifaddrs(list);
+}
+#endif
 
 void InitRings()
 {
@@ -78,11 +143,15 @@ extern "C" EMSCRIPTEN_KEEPALIVE bo1_net_shared *bo1_net_get_shared(void)
 
 void __cdecl NET_Sleep(unsigned int msec)
 {
+#ifdef BO1_NATIVE
+    Sleep(msec);   // as win_net.cpp
+    return;
+#endif
     // wait for the page to write a packet (or the time to pass)
     const uint32_t seen = s_fromPage.header.write_index.load(std::memory_order_acquire);
     if (s_fromPage.header.read_index.load(std::memory_order_relaxed) != seen)
         return;
-    emscripten_futex_wait((volatile void *)&s_fromPage.header.write_index, seen, (double)msec);
+    bo1_plat_futex_wait((volatile void *)&s_fromPage.header.write_index, seen, (double)msec);
 }
 
 const char *__cdecl NET_ErrorString()
@@ -105,7 +174,20 @@ int __cdecl Sys_StringToSockaddr(const char *s, sockaddr *sadr)
         in->sin_addr.s_addr = htonl(INADDR_LOOPBACK);
         return 1;
     }
+#ifdef BO1_NATIVE
+    addrinfo hints;
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_DGRAM;
+    addrinfo *found = nullptr;
+    if (getaddrinfo(s, nullptr, &hints, &found) != 0 || !found)
+        return 0;
+    in->sin_addr = ((sockaddr_in *)found->ai_addr)->sin_addr;
+    freeaddrinfo(found);
+    return 1;
+#else
     return 0;   // web: no DNS
+#endif
 }
 
 void __cdecl SockadrToNetadr(sockaddr *s, netadr_t *a)
@@ -132,6 +214,29 @@ int __cdecl Sys_GetPacket(netadr_t *net_from, msg_t *net_message)
 {
     if (!s_open)
         return 0;
+#ifdef BO1_NATIVE
+    for (;;)
+    {
+        if (s_socket < 0)
+            return 0;
+        sockaddr_in from;
+        socklen_t fromLength = sizeof(from);
+        const ssize_t received = recvfrom(s_socket, net_message->data, (size_t)net_message->maxsize, 0, (sockaddr *)&from,
+            &fromLength);
+        if (received < 0)
+            return 0;   // nothing waiting (or a refused datagram's ICMP answer: ignored as on Windows)
+        memset(net_from, 0, sizeof(*net_from));
+        SockadrToNetadr((sockaddr *)&from, net_from);
+        if ((int)received >= net_message->maxsize)
+        {
+            Com_Printf(16, "Oversize packet from %s\n", NET_AdrToString(*net_from));
+            continue;
+        }
+        net_message->cursize = (int)received;
+        net_message->readcount = 0;
+        return 1;
+    }
+#endif
     bo1_net_ring &ring = s_fromPage.header;
     pthread_mutex_lock(&s_recvLock);
     for (;;)
@@ -176,13 +281,39 @@ char __cdecl Sys_SendPacket(unsigned int length, unsigned __int8 *data, netadr_t
     case NA_IP:
         break;
     case NA_BROADCAST:
+#ifdef BO1_NATIVE
+        break;
+#else
         return 1;   // no broadcast route on the web
+#endif
     default:
         Com_Error(ERR_FATAL, "Sys_SendPacket: bad address type");
         return 0;
     }
     if (!s_open)
         return 1;
+#ifdef BO1_NATIVE
+    {
+        if (s_socket < 0)
+            return 1;
+        sockaddr_in address;
+        memset(&address, 0, sizeof(address));
+        address.sin_family = AF_INET;
+        address.sin_port = to.port;
+        if (to.type == NA_BROADCAST)
+            address.sin_addr.s_addr = htonl(INADDR_BROADCAST);
+        else
+            memcpy(&address.sin_addr.s_addr, to.ip, 4);
+        if (sendto(s_socket, data, length, 0, (sockaddr *)&address, sizeof(address)) < 0)
+        {
+            // a full send buffer or an unreachable broadcast is a lost datagram, not an error
+            if (errno != EAGAIN && errno != EWOULDBLOCK && to.type != NA_BROADCAST)
+                Com_PrintError(16, "Sys_SendPacket: %s\n", strerror(errno));
+            return 0;
+        }
+        return 1;
+    }
+#endif
     if (length > BO1_NET_MAX_PACKET)
     {
         Com_PrintError(16, "Sys_SendPacket: %u-byte packet is larger than the web transport's %d\n", length, BO1_NET_MAX_PACKET);
@@ -204,7 +335,7 @@ char __cdecl Sys_SendPacket(unsigned int length, unsigned __int8 *data, netadr_t
     memcpy(slot.data, data, length);
     ring.write_index.store(w + 1, std::memory_order_release);
     pthread_mutex_unlock(&s_sendLock);
-    emscripten_futex_wake((volatile void *)&ring.write_index, 0x7FFFFFFF);
+    bo1_plat_futex_wake_all((volatile void *)&ring.write_index);
     return 1;
 }
 
@@ -249,6 +380,32 @@ void __cdecl NET_OpenIP()
 {
     ip = _Dvar_RegisterString("net_ip", "localhost", 0x20u, "Network IP Address");
     port = _Dvar_RegisterInt("net_port", 3074, 0, 0xFFFF, 0x20u, "Network port");
+#ifdef BO1_NATIVE
+    {
+        if (s_socket >= 0)
+        {
+            close(s_socket);
+            s_socket = -1;
+        }
+        // the first free of ten ports from net_port (a client on the server's machine takes the next one)
+        const int wanted = port->current.integer;
+        for (int i = 0; i < 10 && s_socket < 0; ++i)
+        {
+            s_socket = OpenUdpSocket(ip->current.string, wanted + i);
+            if (s_socket >= 0)
+            {
+                Dvar_SetInt((dvar_s *)port, wanted + i);
+                Com_Printf(16, "Opening IP socket: %s:%i\n", ip->current.string, wanted + i);
+            }
+        }
+        if (s_socket < 0)
+            Com_PrintWarning(16, "WARNING: Couldn't allocate IP port %i..%i: network play is off\n", wanted, wanted + 9);
+        ReadLocalAddresses();
+        Sys_ShowIP();
+        s_open = s_socket >= 0;
+        return;
+    }
+#endif
     InitRings();
     const uint32_t local = __atomic_load_n(&s_shared.local_ip, __ATOMIC_ACQUIRE);
     if (local)
@@ -324,7 +481,16 @@ void __cdecl NET_Config(int enableNetworking)
         networkingEnabled = enableNetworking;
     }
     if (stop)
+    {
         s_open = false;
+#ifdef BO1_NATIVE
+        if (s_socket >= 0)
+        {
+            close(s_socket);
+            s_socket = -1;
+        }
+#endif
+    }
     if (start && !net_noudp->current.enabled)
     {
         NET_OpenIP();

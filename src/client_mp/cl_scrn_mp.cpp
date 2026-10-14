@@ -1,8 +1,15 @@
+#include <algorithm> // mod (native): the FPS counter's lows
+#include <ui/ui_main.h>
+#include <client/screen_placement.h>
 #include "cl_scrn_mp.h"
 #include <game_sp/g_sp_measure.h>
 #include <gfx_d3d/r_font.h>
 #include <gfx_d3d/r_rendercmds.h>
 #include "cl_main_mp.h"
+#include "cl_joinmenu.h" // mod (coop)
+#include "cl_touch.h" // mod (touch)
+#include "cl_extras.h" // mod (native menus)
+#include "cl_play.h" // mod (native menus)
 #include <client/client.h>
 #include <cgame/cg_draw_debug.h>
 #include <cgame_mp/cg_main_mp.h>
@@ -72,6 +79,104 @@ void __cdecl SCR_Init()
 
 // mod: bo1_fpscounter 1 draws a small FPS number at the top left (like Steam's overlay counter), in the console
 // font, which every map loads. Off by default; not in the retail exe. Averages real frame times over 500 ms.
+#ifdef BO1_NATIVE
+// mod (native): bo1_fpscounter 0..3 (archived, default 0), set from the graphics menu's "FPS Counter" row
+// (UI_ModFov_PatchMenus, ui_main.cpp):
+//   0 none
+//   1 simple    FPS
+//   2 advanced  FPS, the 5 % and 1 % lows, frame time (average and worst of the last 240 frames)
+//   3 full      ... and how busy the CPU (this process, share of all cores) and the GPU are (native_perf.cpp)
+// Drawn in the game's small font at the top left. FPS is frames over the last half second; a "low" is the frame
+// rate of the slowest 5 % (1 %) of the last 240 frames.
+extern "C" float bo1_native_cpu_percent(void);
+extern "C" int bo1_native_gpu_percent(void);
+extern "C" double bo1_native_seconds(void);
+
+static void CL_DrawModFpsCounter()
+{
+    static const dvar_t *bo1_fpscounter;
+    static double lastFrame, windowStart;
+    static int windowFrames;
+    static float shownFps, low5, low1, averageMs, worstMs, cpu;
+    static int gpu = -1;
+    static float history[240];
+    static int historyCount, historyNext;
+    if (!bo1_fpscounter)
+        bo1_fpscounter = _Dvar_RegisterInt("bo1_fpscounter", 0, 0, 3, 1u, "mod: FPS counter: 0 none, 1 FPS, 2 + lows and frame times, 3 + CPU and GPU use");
+    const int mode = bo1_fpscounter->current.integer;
+    const double now = bo1_native_seconds();
+    if (lastFrame > 0.0)
+    {
+        history[historyNext] = (float)((now - lastFrame) * 1000.0);
+        historyNext = (historyNext + 1) % 240;
+        if (historyCount < 240)
+            ++historyCount;
+    }
+    lastFrame = now;
+    ++windowFrames;
+    if (windowStart <= 0.0 || now - windowStart > 2.0)
+    {
+        windowStart = now;
+        windowFrames = 0;
+    }
+    else if (now - windowStart >= 0.5)
+    {
+        shownFps = (float)(windowFrames / (now - windowStart));
+        windowStart = now;
+        windowFrames = 0;
+        if (mode >= 2 && historyCount > 0)
+        {
+            // sorted copy: the slowest frames are at the end
+            float sorted[240];
+            memcpy(sorted, history, sizeof(float) * historyCount);
+            std::sort(sorted, sorted + historyCount);
+            float sum = 0.0f;
+            for (int i = 0; i < historyCount; ++i)
+                sum += sorted[i];
+            averageMs = sum / (float)historyCount;
+            worstMs = sorted[historyCount - 1];
+            const float ms5 = sorted[(int)((historyCount - 1) * 0.95f)], ms1 = sorted[(int)((historyCount - 1) * 0.99f)];
+            low5 = ms5 > 0.0f ? 1000.0f / ms5 : 0.0f;
+            low1 = ms1 > 0.0f ? 1000.0f / ms1 : 0.0f;
+        }
+        if (mode >= 3)
+        {
+            cpu = bo1_native_cpu_percent();
+            gpu = bo1_native_gpu_percent();
+        }
+    }
+    if (mode <= 0 || !cls.rendererStarted)
+        return;
+    Font_s *font = UI_GetFontHandle(&scrPlaceFull, 0, 0.25f);   // the game's small font
+    if (!font)
+        font = cls.consoleFont;
+    if (!font)
+        return;
+    static const float color[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
+    const float screenH = scrPlaceFull.realViewportSize[1] > 0.0f ? scrPlaceFull.realViewportSize[1] : 720.0f;
+    const float fontHeight = (float)R_TextHeight(font);
+    const float line = 20.0f * screenH / 720.0f;
+    const float scale = fontHeight > 0.0f ? line / fontHeight : 1.0f;
+    float y = 6.0f + line;
+    const float x = 8.0f;
+    R_AddCmdDrawText(va("%.0f FPS", shownFps), 0x7FFFFFFF, font, x, y, scale, scale, 0.0f, color, 3);
+    if (mode >= 2)
+    {
+        y += line;
+        R_AddCmdDrawText(va("5%% low %.0f   1%% low %.0f", low5, low1), 0x7FFFFFFF, font, x, y, scale, scale, 0.0f, color, 3);
+        y += line;
+        R_AddCmdDrawText(va("frame %.1f ms   worst %.1f ms", averageMs, worstMs), 0x7FFFFFFF, font, x, y, scale, scale, 0.0f, color, 3);
+    }
+    if (mode >= 3)
+    {
+        y += line;
+        if (gpu >= 0)
+            R_AddCmdDrawText(va("CPU %.0f%%   GPU %d%%", cpu, gpu), 0x7FFFFFFF, font, x, y, scale, scale, 0.0f, color, 3);
+        else
+            R_AddCmdDrawText(va("CPU %.0f%%   GPU n/a", cpu), 0x7FFFFFFF, font, x, y, scale, scale, 0.0f, color, 3);
+    }
+}
+#else
 static void CL_DrawModFpsCounter()
 {
     static const dvar_t *bo1_fpscounter;
@@ -99,6 +204,7 @@ static void CL_DrawModFpsCounter()
     const float h = (float)R_TextHeight(cls.consoleFont);
     R_AddCmdDrawText(va("%i", shownFps), 0x7FFFFFFF, cls.consoleFont, 6.0f, 4.0f + h, 1.0f, 1.0f, 0.0f, fpsColor, 3);
 }
+#endif
 
 void __cdecl CL_DrawScreen(int localClientNum)
 {
@@ -117,10 +223,20 @@ void __cdecl CL_DrawScreen(int localClientNum)
     {
         //BLOPS_NULLSUB();
     }
+#ifdef BO1_NATIVE
+    // mod (native): the build string ran through the HUD and the menus' button row (something turns cg_drawVersion
+    // on in a match); drawn only with +set bo1_engine_fps 1, like Multiplayer's own FPS counter
+    if ( cg_draw2D && cg_drawVersion && cg_draw2D->current.enabled && cg_drawVersion->current.enabled && Dvar_GetInt("bo1_engine_fps") )
+#else
     if ( cg_draw2D && cg_drawVersion && cg_draw2D->current.enabled && cg_drawVersion->current.enabled )
+#endif
         CG_DrawVersion();
     CG_DrawShaderWarming(); // zombies: SP 0x004075F9 (no-op in MP)
     CL_DrawModFpsCounter(); // mod
+    CL_Touch_Draw(); // mod (touch): the on-screen controls of the native builds
+    CL_Extras_Draw(); // mod (native menus): the Extras settings screen, when open
+    CL_Play_Draw(); // mod (native menus): the Play screen (maps and modes), when open
+    CL_JoinMenu_Draw(); // mod (coop): the join-by-address screen, when open
     Con_DrawConsole(localClientNum);
     DevGui_Draw(localClientNum);
 }
@@ -895,6 +1011,21 @@ char __cdecl SCR_ShouldSkipUpdateScreen()
     if ( clcState >= 10 )
         return 0;
     timeNow = Sys_Milliseconds();
+#ifdef BO1_NATIVE
+    // mod (native): retail draws a menu at most every 16 ms, 60 FPS on any display (measured on the Odin 3: the main
+    // loop ran 955 times a second and 62 frames were drawn). Native builds draw one a display refresh: 7 ms at
+    // 120 Hz, which r_vsync or the 1 ms clock brings to 120 FPS or a little more. Loading screens keep 33 ms.
+    if ( clcState < 8 )
+    {
+        unsigned int hz = cls.vidConfig.displayFrequency;
+        if ( hz < 120 )
+            hz = 120;
+        if ( (int)(timeNow - s_lastUpdateScreenTime) < (int)(1000 / hz) - 1 )
+            return 1;
+        s_lastUpdateScreenTime = timeNow;
+        return 0;
+    }
+#endif
     if ( (int)(timeNow - s_lastUpdateScreenTime) < (clcState < 8 ? 16 : 33) )
         return 1;
     s_lastUpdateScreenTime = timeNow;

@@ -198,7 +198,7 @@ void __cdecl SV_GetChallenge(netadr_t from)
 
     uint32 decodedLen = b64_decode((unsigned char *)clientSteamTicketBase64, strlen(clientSteamTicketBase64), decodedSteamTicket);
 
-    char *endptr;
+    bo1_host_str endptr;   // strtoull writes a native pointer (tools/p32)
     uint64_t steamID64 = strtoull(clientSteamID64, &endptr, 10);
 
     //if (SV_IsBannedGuid(guid)) 
@@ -291,7 +291,7 @@ void __cdecl SV_SetClientDIntStat(unsigned int clientNum, ddlState_t *searchStat
         if ( !cl->statsValidated )
         {
             StatsDDL = LiveStats_GetStatsDDL();
-            if ( !DDL_AssociateBuffer(buffer, 40168, StatsDDL) )
+            if ( !DDL_AssociateBuffer(buffer, BO1_STATS_SIZE, StatsDDL) )
             {
                 DDL_PrintError("DDL: Could not get stat. Buffer error.");
                 return;
@@ -338,7 +338,7 @@ void __cdecl SV_SetClientDStringStat(unsigned int clientNum, ddlState_t *searchS
         if ( !cl->statsValidated )
         {
             StatsDDL = LiveStats_GetStatsDDL();
-            if ( !DDL_AssociateBuffer(buffer, 40168, StatsDDL) )
+            if ( !DDL_AssociateBuffer(buffer, BO1_STATS_SIZE, StatsDDL) )
             {
                 DDL_PrintError("DDL: Could not get stat. Buffer error.");
                 return;
@@ -385,7 +385,7 @@ void __cdecl SV_SetClientDInt64Stat(unsigned int clientNum, ddlState_t *searchSt
         if ( !cl->statsValidated )
         {
             StatsDDL = LiveStats_GetStatsDDL();
-            if ( !DDL_AssociateBuffer(buffer, 40168, StatsDDL) )
+            if ( !DDL_AssociateBuffer(buffer, BO1_STATS_SIZE, StatsDDL) )
             {
                 DDL_PrintError("DDL: Could not get stat. Buffer error.");
                 return;
@@ -436,7 +436,7 @@ unsigned int __cdecl SV_GetClientDIntStat(unsigned int clientNum, ddlState_t *se
     if ( !svs.clients[clientNum].statsValidated )
     {
         StatsDDL = LiveStats_GetStatsDDL();
-        if ( !DDL_AssociateBuffer(buffer, 40168, StatsDDL) )
+        if ( !DDL_AssociateBuffer(buffer, BO1_STATS_SIZE, StatsDDL) )
         {
             DDL_PrintError("DDL: Could not get stat. Buffer error.");
             return 0;
@@ -473,7 +473,7 @@ char *__cdecl SV_GetClientDStringStat(unsigned int clientNum, ddlState_t *search
     if ( !svs.clients[clientNum].statsValidated )
     {
         StatsDDL = LiveStats_GetStatsDDL();
-        if ( !DDL_AssociateBuffer(buffer, 40168, StatsDDL) )
+        if ( !DDL_AssociateBuffer(buffer, BO1_STATS_SIZE, StatsDDL) )
         {
             DDL_PrintError("DDL: Could not get stat. Buffer error.");
             return (char *)"";
@@ -514,7 +514,7 @@ unsigned int __cdecl SV_GetClientDInt64Stat(unsigned int clientNum, ddlState_t *
     if ( !svs.clients[clientNum].statsValidated )
     {
         StatsDDL = LiveStats_GetStatsDDL();
-        if ( !DDL_AssociateBuffer(buffer, 40168, StatsDDL) )
+        if ( !DDL_AssociateBuffer(buffer, BO1_STATS_SIZE, StatsDDL) )
         {
             DDL_PrintError("DDL: Could not get stat. Buffer error.");
             return 0;
@@ -1290,6 +1290,10 @@ void __cdecl SV_DropClient(client_t *drop, const char *reason, bool tellThem, bo
 #ifdef BO1_STATS
         if (drop->statPacketsReceived == ALL_STATS_PACKETS_RECEIVED && writeStats)
             SV_DWWriteClientStats(drop);
+#elif defined(BO1_WEB)
+        // mod (profile): the local profile files (src/web/web_stats.cpp)
+        SV_Profile_Save(drop);
+        SV_Profile_Forget(drop);
 #endif
 
         if (drop->reservedSlot > 0)
@@ -1489,7 +1493,11 @@ void __cdecl SV_SendClientGameState(client_t *client)
         return;
     }
 #else
+#ifdef BO1_WEB
+    SV_Profile_Load(client); // mod (profile): the player's stats from the local profile files, once per connection
+#else
     memset(client->stats, 0, sizeof(client->stats));
+#endif
     client->statPacketsReceived = ALL_STATS_PACKETS_RECEIVED;
 #endif
 

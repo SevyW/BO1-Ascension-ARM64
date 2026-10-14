@@ -1654,6 +1654,15 @@ void __cdecl CG_InitExposure(int localClientNum, char *mapname)
         r = v2 + 1;
     else
         r = mapname;
+#ifdef BO1_NATIVE
+    // mod (native): the line below ends the *caller's* string 255 bytes after its start, and the callers' buffers
+    // are 64 bytes (CG_Init): a zero byte lands in whatever is 255 bytes up the stack. With the x86 frame layout
+    // that is harmless; in the AArch64 build it was one byte of a callee-saved register of CL_ParseGamestate (its
+    // msg pointer), saved in CL_InitCGame's frame: the game state's tail was then read from a wrong address and
+    // every multiplayer map start crashed in Destructible_ReadGameState. The copy is bounded instead.
+    I_strncpyz(temp, r, 256);
+    (void)v4; (void)v5; (void)v6;
+#else
     r[255] = 0;
     v6 = r;
     v5 = temp;
@@ -1663,6 +1672,7 @@ void __cdecl CG_InitExposure(int localClientNum, char *mapname)
         *v5++ = *v6++;
     }
     while ( v4 );
+#endif
     v3 = strstr(temp, "_geo");
     if ( v3 )
         *v3 = 0;

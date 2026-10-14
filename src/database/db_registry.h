@@ -138,14 +138,16 @@ union XAssetPoolEntry // sizeof=0x10
     {
         next = NULL;
     }
+    typedef XAssetPoolEntry<T> Self;   // a typedef'd pointee: the form clang 21 can instantiate with 32-bit pointers (tools/p32)
     T entry;
-    XAssetPoolEntry<T> *next;
+    Self *next;
 };
 
 template <typename T, int LEN>
 struct XAssetPool
 {
-    XAssetPoolEntry<T> *freeHead;
+    typedef XAssetPoolEntry<T> Entry;
+    Entry *freeHead;
     XAssetPoolEntry<T> entries[LEN];
 };
 

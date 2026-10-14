@@ -44,49 +44,9 @@ Device::Device(Direct3D9 *d3d, UINT adapter, D3DDEVTYPE type, HWND focus, DWORD 
         m_gamma.red[i] = m_gamma.green[i] = m_gamma.blue[i] = (WORD)(i * 257);
 }
 
-void Device::createContext()
+// The limits and extensions of the current context. ext answers for the name the WebGL build asks for.
+static void readContextCaps(GLCaps &c, const std::function<bool(const char *)> &ext)
 {
-#ifdef __EMSCRIPTEN__
-    EmscriptenWebGLContextAttributes attrs;
-    emscripten_webgl_init_context_attributes(&attrs);
-    attrs.majorVersion = 2;
-    attrs.minorVersion = 0;
-    attrs.alpha = EM_FALSE;
-    attrs.depth = EM_FALSE;
-    attrs.stencil = EM_FALSE;
-    attrs.antialias = EM_FALSE;
-    attrs.premultipliedAlpha = EM_FALSE;
-    attrs.preserveDrawingBuffer = EM_FALSE;
-    attrs.powerPreference = EM_WEBGL_POWER_PREFERENCE_HIGH_PERFORMANCE;
-    attrs.failIfMajorPerformanceCaveat = EM_FALSE;
-    attrs.enableExtensionsByDefault = EM_FALSE;
-    attrs.explicitSwapControl = EM_FALSE;
-    attrs.proxyContextToMainThread = EMSCRIPTEN_WEBGL_CONTEXT_PROXY_FALLBACK;
-    // One context per canvas for the whole run: a second getContext('webgl2') on the same canvas would return the
-    // old context anyway, so a re-created device (vid_restart) reuses it if it is still alive on this thread.
-    static EMSCRIPTEN_WEBGL_CONTEXT_HANDLE s_ctx = 0;
-    static std::string s_ctxSelector;
-    EMSCRIPTEN_WEBGL_CONTEXT_HANDLE ctx = 0;
-    if (s_ctx > 0 && s_ctxSelector == g_canvasSelector && !emscripten_is_webgl_context_lost(s_ctx) &&
-        emscripten_webgl_make_context_current(s_ctx) == EMSCRIPTEN_RESULT_SUCCESS)
-        ctx = s_ctx;
-    else
-        ctx = emscripten_webgl_create_context(g_canvasSelector.c_str(), &attrs);
-    s_ctx = ctx;
-    s_ctxSelector = g_canvasSelector;
-    if (ctx <= 0) {
-        D3D9_ERROR("emscripten_webgl_create_context(\"%s\") failed (%d): no WebGL2?", g_canvasSelector.c_str(),
-                   (int)ctx);
-        return;
-    }
-    if (emscripten_webgl_make_context_current(ctx) != EMSCRIPTEN_RESULT_SUCCESS) {
-        D3D9_ERROR("emscripten_webgl_make_context_current failed");
-        emscripten_webgl_destroy_context(ctx);
-        return;
-    }
-    m_context = (intptr_t)ctx;
-    auto ext = [&](const char *name) { return emscripten_webgl_enable_extension(ctx, name) != 0; };
-    GLCaps c;
     c.valid = true;
     c.colorBufferFloat = ext("EXT_color_buffer_float");
     c.colorBufferHalfFloat = ext("EXT_color_buffer_half_float");
@@ -129,13 +89,79 @@ void Device::createContext()
     strncpy(c.vendor, vd ? vd : "?", sizeof(c.vendor) - 1);
     while (glGetError() != GL_NO_ERROR) {
     }
+}
+
+#ifndef __EMSCRIPTEN__
+void queryContextCaps(GLCaps &c)
+{
+    readContextCaps(c, [](const char *name) { return nativeHasExtension(name); });
+}
+#endif
+
+void Device::createContext()
+{
+#ifdef __EMSCRIPTEN__
+    EmscriptenWebGLContextAttributes attrs;
+    emscripten_webgl_init_context_attributes(&attrs);
+    attrs.majorVersion = 2;
+    attrs.minorVersion = 0;
+    attrs.alpha = EM_FALSE;
+    attrs.depth = EM_FALSE;
+    attrs.stencil = EM_FALSE;
+    attrs.antialias = EM_FALSE;
+    attrs.premultipliedAlpha = EM_FALSE;
+    attrs.preserveDrawingBuffer = EM_FALSE;
+    attrs.powerPreference = EM_WEBGL_POWER_PREFERENCE_HIGH_PERFORMANCE;
+    attrs.failIfMajorPerformanceCaveat = EM_FALSE;
+    attrs.enableExtensionsByDefault = EM_FALSE;
+    attrs.explicitSwapControl = EM_FALSE;
+    attrs.proxyContextToMainThread = EMSCRIPTEN_WEBGL_CONTEXT_PROXY_FALLBACK;
+    // One context per canvas for the whole run: a second getContext('webgl2') on the same canvas would return the
+    // old context anyway, so a re-created device (vid_restart) reuses it if it is still alive on this thread.
+    static EMSCRIPTEN_WEBGL_CONTEXT_HANDLE s_ctx = 0;
+    static std::string s_ctxSelector;
+    EMSCRIPTEN_WEBGL_CONTEXT_HANDLE ctx = 0;
+    if (s_ctx > 0 && s_ctxSelector == g_canvasSelector && !emscripten_is_webgl_context_lost(s_ctx) &&
+        emscripten_webgl_make_context_current(s_ctx) == EMSCRIPTEN_RESULT_SUCCESS)
+        ctx = s_ctx;
+    else
+        ctx = emscripten_webgl_create_context(g_canvasSelector.c_str(), &attrs);
+    s_ctx = ctx;
+    s_ctxSelector = g_canvasSelector;
+    if (ctx <= 0) {
+        D3D9_ERROR("emscripten_webgl_create_context(\"%s\") failed (%d): no WebGL2?", g_canvasSelector.c_str(),
+                   (int)ctx);
+        return;
+    }
+    if (emscripten_webgl_make_context_current(ctx) != EMSCRIPTEN_RESULT_SUCCESS) {
+        D3D9_ERROR("emscripten_webgl_make_context_current failed");
+        emscripten_webgl_destroy_context(ctx);
+        return;
+    }
+    m_context = (intptr_t)ctx;
+    auto ext = [&](const char *name) { return emscripten_webgl_enable_extension(ctx, name) != 0; };
+#else
+    // native: the platform layer owns the window and the GLES 3 context (d3d9shim_set_host)
+    const d3d9shim_host *host = nativeHost();
+    if (!host || !host->create_context) {
+        D3D9_ERROR("no context host registered (d3d9shim_set_host): cannot create a device");
+        return;
+    }
+    if (!host->create_context(640, 480)) {
+        D3D9_ERROR("the host could not create an OpenGL ES 3 context");
+        return;
+    }
+    m_context = 1;
+    auto ext = [&](const char *name) { return nativeHasExtension(name); };
+#endif
+    GLCaps c;
+    readContextCaps(c, ext);
     m_glcaps = c;
     setLiveGLCaps(c);
     D3D9_INFO("WebGL2 context on %s: %s / %s; max texture %d; s3tc %d, color_buffer_float %d, float_linear %d, "
               "aniso %.0f, norm16 %d",
               g_canvasSelector.c_str(), c.vendor, c.renderer, c.maxTextureSize, c.s3tc, c.colorBufferFloat,
               c.textureFloatLinear, c.maxAnisotropy, c.norm16);
-#endif
 }
 
 static void fillPresentDefaults(D3DPRESENT_PARAMETERS *pp)
@@ -171,8 +197,9 @@ static void setCanvasSize(UINT w, UINT h)
 #ifdef __EMSCRIPTEN__
     emscripten_set_canvas_element_size(g_canvasSelector.c_str(), (int)w, (int)h);
 #else
-    (void)w;
-    (void)h;
+    const d3d9shim_host *host = nativeHost();
+    if (host && host->resize)
+        host->resize((int)w, (int)h);
 #endif
 }
 
@@ -617,6 +644,12 @@ HRESULT Device::Present(const RECT *, const RECT *, HWND, const struct _RGNDATA 
     DEVICE_THREAD_CHECK("Present");
     D3D9_TRACE("Present (frame %u, %u draws)", m_frame, g_stats.drawsThisFrame);
     presentBlit();
+#ifndef __EMSCRIPTEN__
+    // native: nothing shows the default framebuffer for us (the browser does at the end of the task)
+    if (const d3d9shim_host *host = nativeHost())
+        if (host->swap)
+            host->swap();
+#endif
     ++m_frame;
     g_stats.frame = m_frame;
     g_stats.draws = g_stats.drawsThisFrame;

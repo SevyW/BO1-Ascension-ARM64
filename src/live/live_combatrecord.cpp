@@ -927,7 +927,7 @@ void __cdecl LiveCombatRecord_BuildSortedItem(
     int j; // [esp+88h] [ebp-9D2Ch]
     int v87; // [esp+8Ch] [ebp-9D28h]
     int i; // [esp+90h] [ebp-9D24h]
-    char backupBuffer[40172]; // [esp+94h] [ebp-9D20h] BYREF
+    char backupBuffer[(BO1_STATS_SIZE + 4)]; // [esp+94h] [ebp-9D20h] BYREF
     int HeaderVersion; // [esp+9D84h] [ebp-30h]
     const char *PlayerStatStringByKey; // [esp+9D88h] [ebp-2Ch]
     char *buffer; // [esp+9D8Ch] [ebp-28h]
@@ -968,10 +968,10 @@ void __cdecl LiveCombatRecord_BuildSortedItem(
             if ( LiveStats_GetStatsDDL() && LiveStats_GetStatsDDL()->version != HeaderVersion )
             {
                 StatsDDL = LiveStats_GetStatsDDL();
-                if ( !DDL_FixBufferVersion(buffer, StatsDDL, "ddl_mp/stats_archive.ddl", backupBuffer, 40168) )
+                if ( !DDL_FixBufferVersion(buffer, StatsDDL, "ddl_mp/stats_archive.ddl", backupBuffer, BO1_STATS_SIZE) )
                 {
                     v8 = LiveStats_GetStatsDDL();
-                    if ( !DDL_FixBufferVersion(buffer, v8, "ddl_mp/stats.ddl", backupBuffer, 40168) )
+                    if ( !DDL_FixBufferVersion(buffer, v8, "ddl_mp/stats.ddl", backupBuffer, BO1_STATS_SIZE) )
                     {
                         v9 = LiveStats_GetStatsDDL();
                         Com_PrintError(
@@ -1030,7 +1030,7 @@ void __cdecl LiveCombatRecord_BuildSortedItem(
                     LiveStats_GetPlayerStatStringByKey(MP_PLAYERSTATSKEY_GAMETYPE);
                     v50 = va("%d", itemNumber);
                     v13 = LiveStats_GetRootDDLState();
-                    DDL_MoveTo(v13, &resultState, 3, "RecentScores", v50);
+                    DDL_MoveTo(v13, &resultState, 3, "RecentScores", v50, LiveStats_GetPlayerStatStringByKey(MP_PLAYERSTATSKEY_GAMETYPE)); // mod (ddl): path argument restored
                     if ( !forOtherPlayer )
                     {
                         v83 = xblive_basictraining && xblive_basictraining->current.enabled
@@ -1044,24 +1044,24 @@ void __cdecl LiveCombatRecord_BuildSortedItem(
                     {
                         v51 = va("%d", itemNumber);
                         v15 = LiveStats_GetRootDDLState();
-                        DDL_MoveTo(v15, &resultState, 3, "RecentScores", v51);
+                        DDL_MoveTo(v15, &resultState, 3, "RecentScores", v51, "score"); // mod (ddl): path argument restored
                         v16 = DDL_GetInt(&resultState, buffer);
                         v96[index].param1 = v16;
                     }
                     v52 = va("%d", itemNumber);
                     v17 = LiveStats_GetRootDDLState();
-                    DDL_MoveTo(v17, &resultState, 3, "RecentScores", v52);
+                    DDL_MoveTo(v17, &resultState, 3, "RecentScores", v52, "valid"); // mod (ddl): path argument restored
                     v18 = DDL_GetInt(&resultState, buffer);
                     v96[index].itemIndex = v18;
                     LiveStats_GetPlayerStatStringByKey(MP_PLAYERSTATSKEY_KILLS);
                     v53 = va("%d", itemNumber);
                     v19 = LiveStats_GetRootDDLState();
-                    DDL_MoveTo(v19, &resultState, 3, "RecentScores", v53);
+                    DDL_MoveTo(v19, &resultState, 3, "RecentScores", v53, LiveStats_GetPlayerStatStringByKey(MP_PLAYERSTATSKEY_KILLS)); // mod (ddl): path argument restored
                     v93 = DDL_GetInt(&resultState, buffer);
                     LiveStats_GetPlayerStatStringByKey(MP_PLAYERSTATSKEY_DEATHS);
                     v54 = va("%d", itemNumber);
                     v20 = LiveStats_GetRootDDLState();
-                    DDL_MoveTo(v20, &resultState, 3, "RecentScores", v54);
+                    DDL_MoveTo(v20, &resultState, 3, "RecentScores", v54, LiveStats_GetPlayerStatStringByKey(MP_PLAYERSTATSKEY_DEATHS)); // mod (ddl): path argument restored
                     v97 = DDL_GetInt(&resultState, buffer);
                     if ( v93 || v97 )
                     {
@@ -1093,7 +1093,7 @@ void __cdecl LiveCombatRecord_BuildSortedItem(
                 {
                     v43 = va("%d", itemNumber);
                     v21 = LiveStats_GetRootDDLState();
-                    DDL_MoveTo(v21, &resultState, 5, "ItemStats", v43);
+                    DDL_MoveTo(v21, &resultState, 5, "ItemStats", v43, "stats", PlayerStatStringByKey, "statValue"); // mod (ddl): path argument restored
                     if ( !forOtherPlayer )
                     {
                         v82 = xblive_basictraining && xblive_basictraining->current.enabled
@@ -1105,7 +1105,7 @@ void __cdecl LiveCombatRecord_BuildSortedItem(
                     v96[index].param1 = v22;
                     v44 = va("%d", itemNumber);
                     v23 = LiveStats_GetRootDDLState();
-                    DDL_MoveTo(v23, &resultState, 5, "ItemStats", v44);
+                    DDL_MoveTo(v23, &resultState, 5, "ItemStats", v44, "stats", PlayerStatStringByKey, "challengeTier"); // mod (ddl): path argument restored
                     v24 = DDL_GetInt(&resultState, buffer);
                     v96[index].param3 = v24;
                     v96[index].sortKey = (float)v96[index].param1;
@@ -1113,7 +1113,7 @@ void __cdecl LiveCombatRecord_BuildSortedItem(
                     {
                         v45 = va("%d", itemNumber);
                         v25 = LiveStats_GetRootDDLState();
-                        DDL_MoveTo(v25, &resultState, 5, "ItemStats", v45);
+                        DDL_MoveTo(v25, &resultState, 5, "ItemStats", v45, "stats", v94, "statValue"); // mod (ddl): path argument restored
                         v26 = DDL_GetInt(&resultState, buffer);
                         v96[index].param2 = v26;
                         if ( v96[index].param2 )
@@ -1144,7 +1144,7 @@ void __cdecl LiveCombatRecord_BuildSortedItem(
                 {
                     v55 = va("%d", i);
                     v27 = LiveStats_GetRootDDLState();
-                    DDL_MoveTo(v27, &resultState, 4, "RecentHitLocCounts", v55);
+                    DDL_MoveTo(v27, &resultState, 3, "RecentHitLocCounts", v55, "valid"); // mod (ddl): path argument restored; retail passes depth 4 with 3 strings (4th lookup fails on the leaf, result ignored)
                     if ( !forOtherPlayer )
                     {
                         v81 = xblive_basictraining && xblive_basictraining->current.enabled
@@ -1157,13 +1157,13 @@ void __cdecl LiveCombatRecord_BuildSortedItem(
                     va("%d", index);
                     v48 = va("%d", i);
                     v28 = LiveStats_GetRootDDLState();
-                    DDL_MoveTo(v28, &resultState, 4, "RecentHitLocCounts", v48);
+                    DDL_MoveTo(v28, &resultState, 4, "RecentHitLocCounts", v48, "criticalHitLocations", va("%d", index)); // mod (ddl): path argument restored
                     v29 = DDL_GetInt(&resultState, buffer);
                     v96[index].param1 += v29;
                     va("%d", index);
                     v49 = va("%d", i);
                     v30 = LiveStats_GetRootDDLState();
-                    DDL_MoveTo(v30, &resultState, 4, "RecentHitLocCounts", v49);
+                    DDL_MoveTo(v30, &resultState, 4, "RecentHitLocCounts", v49, "hitLocations", va("%d", index)); // mod (ddl): path argument restored
                     v31 = DDL_GetInt(&resultState, buffer);
                     v96[index].param2 += v31;
                 }
@@ -1240,7 +1240,7 @@ void __cdecl LiveCombatRecord_BuildSortedItem(
                         v60 = va("%d", j);
                         v46 = lbTypeEnum_5[itemNumber];
                         v36 = LiveStats_GetRootDDLState();
-                        DDL_MoveTo(v36, &resultState, 5, "PlayerStatsByGameMode", v46, "prevScores", v60);
+                        DDL_MoveTo(v36, &resultState, 5, "PlayerStatsByGameMode", v46, "prevScores", v60, LiveStats_GetPlayerStatStringByKey(MP_PLAYERSTATSKEY_SCORE)); // mod (ddl): path argument restored
                         if ( !forOtherPlayer )
                         {
                             v78 = xblive_basictraining && xblive_basictraining->current.enabled
@@ -1253,7 +1253,7 @@ void __cdecl LiveCombatRecord_BuildSortedItem(
                         v61 = va("%d", j);
                         v47 = lbTypeEnum_5[itemNumber];
                         v37 = LiveStats_GetRootDDLState();
-                        DDL_MoveTo(v37, &resultState, 5, "PlayerStatsByGameMode", v47, "prevScores", v61);
+                        DDL_MoveTo(v37, &resultState, 5, "PlayerStatsByGameMode", v47, "prevScores", v61, "valid"); // mod (ddl): path argument restored
                         v38 = DDL_GetInt(&resultState, buffer);
                         v96[v99].itemIndex = v38;
                         if ( !v96[v99].itemIndex )
@@ -1277,7 +1277,7 @@ void __cdecl LiveCombatRecord_BuildSortedItem(
                 LiveStats_GetPlayerStatStringByKey(MP_PLAYERSTATSKEY_SCORE);
                 v62 = va("%d", itemNumber);
                 v39 = LiveStats_GetRootDDLState();
-                DDL_MoveTo(v39, &resultState, 3, "RecentEarnings", v62);
+                DDL_MoveTo(v39, &resultState, 3, "RecentEarnings", v62, LiveStats_GetPlayerStatStringByKey(MP_PLAYERSTATSKEY_SCORE)); // mod (ddl): path argument restored
                 if ( !forOtherPlayer )
                 {
                     v77 = xblive_basictraining && xblive_basictraining->current.enabled
@@ -1289,7 +1289,7 @@ void __cdecl LiveCombatRecord_BuildSortedItem(
                 v96[itemNumber].param1 = v40;
                 v63 = va("%d", itemNumber);
                 v41 = LiveStats_GetRootDDLState();
-                DDL_MoveTo(v41, &resultState, 3, "RecentEarnings", v63);
+                DDL_MoveTo(v41, &resultState, 3, "RecentEarnings", v63, "valid"); // mod (ddl): path argument restored
                 v42 = DDL_GetInt(&resultState, buffer);
                 v96[itemNumber].itemIndex = v42;
                 break;

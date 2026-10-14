@@ -29,6 +29,10 @@ void __cdecl PMem_Init()
         // Three or four zones (mods/nightmare: temple + coast + moon is ~320 MB, L60 f1 ran out with 256) add 128 MB each.
         unsigned int size = 0x14800000u;
         const char *modZones = I_stristr(GetCommandLineA(), "bo1_mod_zones");
+        // mod (custom maps): a community mod (fs_game on the command line) gets the first step too: its mod.ff and map
+        // fastfiles load next to the retail zones
+        if ( !modZones && I_stristr(GetCommandLineA(), "fs_game") )
+            size += 0x10000000u;
         if ( modZones )
         {
             int zoneWords = 0;
@@ -45,6 +49,14 @@ void __cdecl PMem_Init()
             }
             size += zoneWords > 2 ? (unsigned int)zoneWords * 0x8000000u : 0x10000000u;
         }
+#ifdef BO1_NATIVE
+        // mod (native): Multiplayer keeps ui_viewer_mp (the Create-a-Class preview, about 48 MB; database/db_registry.cpp
+        // loads it on native builds) through a match, as retail does: with retail's size the map that followed was
+        // 13 MB short (`Need 13095888 more bytes of 'main' physical ram`, Summit). It sits under the per-client
+        // memory on this stack, so it cannot be freed for the match. 64 MB more, not in Zombies (no such zone).
+        if ( !I_stristr(GetCommandLineA(), "bo1_zombies 1") )
+            size += 0x4000000u;
+#endif
         memory = (unsigned __int8 *)VirtualAlloc(0, size, 0x1000u, 4u);
         PMem_InitPhysicalMemory(&g_mem, "main", memory, size);
     }

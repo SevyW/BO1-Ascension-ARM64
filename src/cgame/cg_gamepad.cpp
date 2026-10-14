@@ -97,6 +97,12 @@ bool __cdecl CG_ShouldUpdateViewAngles(int localClientNum)
 {
     if ( Demo_IsPlaying() )
         return Demo_ShouldUpdateViewAngles(localClientNum);
+#ifdef BO1_NATIVE
+    // mod (gpad): the front end's menus are drawn on the room's TV screens (3D menus) and leave the view to the
+    // player: the mouse turns it there (CL_MouseEvent), and so does the right stick, as on the consoles.
+    if ( UI_IsFocusedMenu3D(localClientNum) )
+        return true;
+#endif
     return !Key_IsCatcherActive(localClientNum, -1) || UI_GetActiveMenu(localClientNum) == UIMENU_SCOREBOARD;
 }
 

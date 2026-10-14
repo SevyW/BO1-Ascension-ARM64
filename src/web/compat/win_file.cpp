@@ -153,10 +153,13 @@ std::string Resolved(const char *path, bool *exists = nullptr)
 extern "C" {
 
 // ----- wrapped C library calls (-Wl,--wrap=fopen,--wrap=remove,--wrap=rename) -----
+#ifndef BO1_P32   // (there fopen is bo1_fopen, which resolves the path itself: bo1_stdio.h)
 FILE *__real_fopen(const char *name, const char *mode);
+#endif
 int __real_remove(const char *path);
 int __real_rename(const char *from, const char *to);
 
+#ifndef BO1_P32
 FILE *__wrap_fopen(const char *name, const char *mode)
 {
     if (!name)
@@ -168,6 +171,24 @@ FILE *__wrap_fopen(const char *name, const char *mode)
         InvalidateDirOf(real.c_str());
     return f;
 }
+
+#ifdef BO1_NATIVE
+// glibc with _FILE_OFFSET_BITS=64 on a 32-bit target: <stdio.h> renames fopen to fopen64 at the symbol level, so
+// that is the name the engine's calls reach the linker with (cmake/native.cmake wraps both)
+extern "C" FILE *__real_fopen64(const char *name, const char *mode);
+extern "C" FILE *__wrap_fopen64(const char *name, const char *mode)
+{
+    if (!name)
+        return __real_fopen64(name, mode);
+    bool exists;
+    const std::string real = Resolved(name, &exists);
+    FILE *f = __real_fopen64(real.c_str(), mode);
+    if (f && !exists)
+        InvalidateDirOf(real.c_str());
+    return f;
+}
+#endif
+#endif
 
 int __wrap_remove(const char *path)
 {
@@ -766,7 +787,7 @@ BOOL GetVolumeInformationA(LPCSTR root, LPSTR name, DWORD nameSize, LPDWORD seri
 }
 
 // ----- io.h -----
-static intptr_t FindFirstCommon(const char *pattern, Find **out)
+static intptr_t FindFirstCommon(const char *pattern, bo1_host_ptr<Find> *out)
 {
     Find *f = StartFind(pattern);
     *out = f;

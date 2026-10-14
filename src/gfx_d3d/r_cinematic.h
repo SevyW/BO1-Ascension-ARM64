@@ -6,7 +6,11 @@
 // structures). The Bink library itself is not linked: src/web/web_cinematic.cpp stubs the Bink API (no video opens,
 // so every cinematic ends at once).
 #define _WIN32 1
+// native Linux: radbase.h tests the GNU macro `linux` before _WIN32; hide it for these headers
+#pragma push_macro("linux")
+#undef linux
 #include <binklib/binktextures.h>
+#pragma pop_macro("linux")
 #undef _WIN32
 #else
 #include <binklib/binktextures.h>

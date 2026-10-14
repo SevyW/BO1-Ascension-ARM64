@@ -147,7 +147,7 @@ void G_SP_HeadlessThrowFields(scriptInstance_t inst)
         return;
     char list[256];
     strncpy_s(list, dvar->current.string, _TRUNCATE);
-    char *context = nullptr;
+    bo1_host_str context = nullptr;
     for (char *item = strtok_s(list, ", ", &context); item && s_giveCount < 4; item = strtok_s(nullptr, ", ", &context))
     {
         char *sep = strstr(item, "::");

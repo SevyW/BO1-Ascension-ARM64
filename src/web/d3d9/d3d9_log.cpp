@@ -151,6 +151,19 @@ void d3d9shim_set_display_size(int width, int height)
         g_displayHeight = height;
     }
 }
+#ifndef __EMSCRIPTEN__
+static d3d9shim_host g_host;
+static bool g_haveHost = false;
+void d3d9shim_set_host(const d3d9shim_host *host)
+{
+    g_haveHost = host != nullptr;
+    if (host)
+        g_host = *host;
+}
+extern "C" const d3d9shim_host *d3d9shim_internal_host(void) { return g_haveHost ? &g_host : nullptr; }
+#else
+void d3d9shim_set_host(const d3d9shim_host *) {}
+#endif
 void d3d9shim_set_occlusion_visible_count(unsigned count) { g_occlusionVisibleCount = count ? count : 1; }
 void d3d9shim_get_stats(d3d9shim_stats *out)
 {

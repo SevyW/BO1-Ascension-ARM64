@@ -137,7 +137,7 @@ struct _CustomClassData // sizeof=0x50
         int modifierOffset;
     };
 
-    static constexpr _CustomClassData::modifierDef modifierIndex[9] =
+    inline static const _CustomClassData::modifierDef modifierIndex[9] =   // was constexpr: 32-bit pointers (tools/p32) are not constant expressions
     {
       { "active", 0 },
       { "team", 44 },
@@ -150,7 +150,7 @@ struct _CustomClassData // sizeof=0x50
       { "damageExplosive", 76 }
     };
 
-    static constexpr const char *itemNames[39] =
+    inline static const char *itemNames[39] =
     {
       "primary",
       "primaryattachment",

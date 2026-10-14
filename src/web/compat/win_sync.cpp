@@ -12,8 +12,7 @@
 // thread priorities and affinities are recorded and ignored.
 #include "bo1_win_internal.h"
 #include <process.h>
-#include <emscripten.h>
-#include <emscripten/threading.h>
+#include "bo1_platform.h"
 #include <errno.h>
 #include <sched.h>
 #include <time.h>
@@ -198,7 +197,7 @@ void RunApc(const Apc &apc)
 }
 
 // The one wait. objs may contain nullptr for handles that are not waitable kernel objects (treated as signaled).
-DWORD WaitCore(DWORD count, Object *const *objs, bool waitAll, DWORD ms, bool alertable)
+DWORD WaitCore(DWORD count, bo1_host_ptr<Object> const *objs, bool waitAll, DWORD ms, bool alertable)
 {
     Thread *self = Self();
     const DWORD me = self->id;
@@ -309,7 +308,7 @@ void *ThreadTrampoline(void *arg)
     while (t->suspendCount > 0)
         pthread_cond_wait(&t->cond, &s_lock);
     if (t->name[0])
-        emscripten_set_thread_name(pthread_self(), t->name);
+        bo1_plat_set_thread_name(t->name);
     pthread_mutex_unlock(&s_lock);
     const DWORD code = t->start(t->param);
     ThreadFinished(t, code);
@@ -323,21 +322,34 @@ pthread_mutex_t *CsMutex(LPCRITICAL_SECTION cs)
     return reinterpret_cast<pthread_mutex_t *>(cs->bo1_mutex);
 }
 static_assert(sizeof(pthread_mutex_t) <= sizeof(((CRITICAL_SECTION *)nullptr)->bo1_mutex), "CRITICAL_SECTION storage");
+// LP64: pthread_mutex_t asks for 8 (it holds a long), CRITICAL_SECTION gives 4. The futex word, the only member
+// accessed atomically, is a 4-byte int at the start; the rest is plain data.
+#ifndef __LP64__
 static_assert(alignof(pthread_mutex_t) <= alignof(unsigned int), "CRITICAL_SECTION alignment");
+#endif
 
 pthread_mutex_t s_srwInitLock = PTHREAD_MUTEX_INITIALIZER;
+#ifdef BO1_P32
+typedef uint32_t SrwBits;
+#else
+typedef uintptr_t SrwBits;
+#endif
 pthread_rwlock_t *SrwLock(PSRWLOCK lock)
 {
-    pthread_rwlock_t *rw = static_cast<pthread_rwlock_t *>(__atomic_load_n(&lock->Ptr, __ATOMIC_ACQUIRE));
+    // Atomics on an integer the size of the field (a 4-byte pointer object in the 32-bit-pointer build, where
+    // LLVM cannot emit an atomic load of the pointer itself).
+    static_assert(sizeof(lock->Ptr) == sizeof(SrwBits), "SRWLOCK::Ptr");
+    SrwBits *bits = reinterpret_cast<SrwBits *>(&lock->Ptr);
+    pthread_rwlock_t *rw = reinterpret_cast<pthread_rwlock_t *>((uintptr_t)__atomic_load_n(bits, __ATOMIC_ACQUIRE));
     if (rw)
         return rw;
     pthread_mutex_lock(&s_srwInitLock);
-    rw = static_cast<pthread_rwlock_t *>(lock->Ptr);
+    rw = reinterpret_cast<pthread_rwlock_t *>((uintptr_t)*bits);
     if (!rw)
     {
         rw = new pthread_rwlock_t;
         pthread_rwlock_init(rw, nullptr);
-        __atomic_store_n(&lock->Ptr, rw, __ATOMIC_RELEASE);
+        __atomic_store_n(bits, (SrwBits)(uintptr_t)rw, __ATOMIC_RELEASE);
     }
     pthread_mutex_unlock(&s_srwInitLock);
     return rw;
@@ -646,7 +658,7 @@ DWORD WaitForSingleObjectEx(HANDLE handle, DWORD milliseconds, BOOL alertable)
     {
         if ((uintptr_t)handle == (uintptr_t)-2)   // the current thread never finishes while it waits
         {
-            Object *none[1] = {Self()};
+            bo1_host_ptr<Object> none[1] = {Self()};
             return WaitCore(1, none, false, milliseconds, alertable != 0);
         }
         SetLastError(ERROR_INVALID_HANDLE);
@@ -667,7 +679,7 @@ DWORD WaitForMultipleObjectsEx(DWORD count, const HANDLE *handles, BOOL waitAll,
         SetLastError(ERROR_INVALID_PARAMETER);
         return WAIT_FAILED;
     }
-    Object *objs[MAXIMUM_WAIT_OBJECTS];
+    bo1_host_ptr<Object> objs[MAXIMUM_WAIT_OBJECTS];
     for (DWORD i = 0; i < count; ++i)
     {
         objs[i] = ToObject(handles[i]);
@@ -773,7 +785,12 @@ HANDLE CreateThread(LPSECURITY_ATTRIBUTES sa, SIZE_T stackSize, LPTHREAD_START_R
     SIZE_T size = stackSize ? stackSize : 2u * 1024u * 1024u;
     if (size < 1024u * 1024u)
         size = 1024u * 1024u;
+#ifdef BO1_P32
+    // 32-bit-pointer build: the engine keeps addresses of locals in its structures, so the stack is below 4 GB
+    pthread_attr_setstack(&attr, bo1_lowmem_thread_stack(size), size);
+#else
     pthread_attr_setstacksize(&attr, size);
+#endif
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 #ifndef BO1_WEB_NODE
     if (s_nextThreadTakesCanvas.exchange(0))
@@ -983,11 +1000,11 @@ void RaiseException(DWORD code, DWORD flags, DWORD nargs, const ULONG_PTR *args)
     {
         strncpy(t->name, name, sizeof(t->name) - 1);
         if (t == t_self)
-            emscripten_set_thread_name(pthread_self(), t->name);
+            bo1_plat_set_thread_name(t->name);
     }
     pthread_mutex_unlock(&s_lock);
     if (id == (DWORD)-1 && !t)
-        emscripten_set_thread_name(pthread_self(), name);
+        bo1_plat_set_thread_name(name);
 }
 
 // ----- TLS -----

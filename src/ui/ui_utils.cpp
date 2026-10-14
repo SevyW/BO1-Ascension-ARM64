@@ -914,3 +914,120 @@ bool __cdecl UI_VerifyString(const char *str)
     return hasNonSpace;
 }
 
+
+// mod: bo1_dumpmenu <menu>: prints a loaded menu's items, their event scripts and the conditions on them to the
+// console (for reading what a retail menu does; menus come from fastfiles). Development aid; never commit a dump.
+#include <universal/com_expressions.h>
+#include <universal/com_expressions_eval.h>
+#include <database/db_registry.h>
+#include <qcommon/cmd.h>
+
+extern const char *g_expOperatorNames[];
+extern void(__cdecl *rpnFunctions[480])(const int, itemDef_s *, OperandStack *);
+// rpn entries: type 0 a constant, 1 an operator or function by number, 2 the same after its first run (the number
+// replaced by the function's address), 3 the end
+void UI_DumpExpression(const char *label, const ExpressionStatement *e)
+{
+    if ( !e || !e->rpn )
+        return;
+    char line[1600];
+    line[0] = 0;
+    for ( int i = 0; i < 150 && e->rpn[i].type != 3 && strlen(line) < sizeof(line) - 200; ++i )
+    {
+        const expressionRpn *r = &e->rpn[i];
+        char one[160];
+        if ( r->type == 0 )
+        {
+            if ( r->data.constant.dataType == VAL_STRING )
+                Com_sprintf(one, sizeof(one), "\"%.120s\" ", r->data.constant.internals.string ? r->data.constant.internals.string : "");
+            else if ( r->data.constant.dataType == VAL_FLOAT )
+                Com_sprintf(one, sizeof(one), "%g ", r->data.constant.internals.floatVal);
+            else
+                Com_sprintf(one, sizeof(one), "%i ", r->data.constant.internals.intVal);
+        }
+        else
+        {
+            int op = r->data.cmdIdx;
+            if ( r->type == 2 )
+            {
+                op = -1;
+                for ( int k = 0; k < 480 && op < 0; ++k )
+                    if ( (void *)rpnFunctions[Expression_GetFunctionForOp(k)] == r->data.cmd )
+                        op = k;
+            }
+            const char *name = 0;
+            if ( op >= 0 && op < 24 )
+                name = g_expOperatorNames[op];
+            else if ( op >= 24 )
+                for ( int f = 0; f < 457 && g_expFunctionNames[f]; ++f )
+                    if ( Expression_GetIndexForFunction(f) + 24 == op )
+                    {
+                        name = g_expFunctionNames[f];
+                        break;
+                    }
+            Com_sprintf(one, sizeof(one), "%s ", name ? name : va("op%i", op));
+        }
+        I_strncat(line, sizeof(line), one);
+    }
+    Com_Printf(0, "menu       %s (%s:%i rpn): %s\n", label, e->filename ? e->filename : "", e->line, line);
+}
+
+static void UI_DumpScript(const char *label, const GenericEventScript *script)
+{
+    for ( ; script; script = script->next )
+    {
+        Com_Printf(0, "menu     %s type %i block %i construct %i%s: %s\n", label, script->type, script->blockID, script->constructID,
+            script->fireOnTrue ? "" : " (on false)", script->action ? script->action : "");
+        UI_DumpExpression("if", &script->condition);
+        for ( const ScriptCondition *c = script->prerequisites; c; c = c->next )
+            Com_Printf(0, "menu       needs block %i construct %i %s\n", c->blockID, c->constructID, c->fireOnTrue ? "true" : "false");
+    }
+}
+
+static void UI_DumpHandlers(const GenericEventHandler *h, const ItemKeyHandler *k)
+{
+    for ( ; h; h = h->next )
+        UI_DumpScript(h->name ? h->name : "?", h->eventScript);
+    for ( ; k; k = k->next )
+        UI_DumpScript(va("key %i", k->key), k->keyScript);
+}
+
+cmd_function_s UI_DumpMenu_f_VAR;
+void __cdecl UI_DumpMenu_f()
+{
+    if ( Cmd_Argc() < 2 )
+    {
+        Com_Printf(0, "usage: bo1_dumpmenu <menu>\n");
+        return;
+    }
+    menuDef_t *menu = DB_FindXAssetHeader(ASSET_TYPE_MENU, (char *)Cmd_Argv(1), 0, -1).menu;
+    if ( !menu )
+    {
+        Com_Printf(0, "menu %s: not loaded\n", Cmd_Argv(1));
+        return;
+    }
+    Com_Printf(0, "menu %s: %i items\n", menu->window.name, menu->itemCount);
+    UI_DumpExpression("visible", &menu->visibleExp);
+    UI_DumpHandlers(menu->onEvent, menu->onKey);
+    for ( int i = 0; i < menu->itemCount; ++i )
+    {
+        itemDef_s *item = menu->items[i];
+        if ( !item )
+            continue;
+        textDef_s *text = Item_GetTextDef(item);
+        focusItemDef_s *focus = Item_GetFocusItemDef(item);
+        Com_Printf(0, "menu   item %i type %i name '%s' text '%s' dvar '%s'\n", i, item->type, item->window.name ? item->window.name : "",
+            text && text->text ? text->text : "", item->dvar ? item->dvar : "");
+        UI_DumpExpression("visible", &item->visibleExp);
+        if ( text && text->textExpData )
+            UI_DumpExpression("text", &text->textExpData->textExp);
+        UI_DumpHandlers(item->onEvent, focus ? focus->onKey : 0);
+        if ( focus )
+        {
+            if ( focus->mouseEnter )
+                Com_Printf(0, "menu     mouseEnter: %s\n", focus->mouseEnter);
+            if ( focus->mouseExit )
+                Com_Printf(0, "menu     mouseExit: %s\n", focus->mouseExit);
+        }
+    }
+}

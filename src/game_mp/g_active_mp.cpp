@@ -1408,7 +1408,7 @@ LABEL_53:
                     pm->tracemask = 0x810011;
                 pm->handler = 1;
                 // zombies: the SP AllowStand/AllowCrouch/AllowProne bits for PM_CheckDuck (SP pm_flags 0x1C00000).
-                pm->spDisabledStances = (zombiemode && zombiemode->current.enabled)
+                pm->spDisabledStances = Com_SPPlayerRules()   // mod (native): was zombiemode
                     ? (G_SP_PlayerBuiltinState(client->ps.clientNum).disabledActions & 0x1C00000) : 0;
                 vs.ps = &client->ps;
                 vs.damageTime = client->damageTime;

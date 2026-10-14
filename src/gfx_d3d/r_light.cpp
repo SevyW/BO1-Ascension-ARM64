@@ -487,7 +487,7 @@ void __cdecl R_GetBspSpotLightSurfs(const GfxLight *light, int lightIndex, GfxBs
         //    (signed int)(4 * surfCounts[1]) >> 2,
         //    (bool (__cdecl *)(const GfxStaticModelDrawInst *, const GfxStaticModelDrawInst *))R_SortBspLightSurfaces);
 
-        std::sort(&surfaces[1][0], &surfaces[1][surfCounts[1]], R_SortBspLightSurfaces);
+        std::sort(BO1_HOST_PTR(&surfaces[1][0]), BO1_HOST_PTR(&surfaces[1][surfCounts[1]]), R_SortBspLightSurfaces);
 
         for ( listSurfIndex = 0; listSurfIndex < surfCounts[1]; ++listSurfIndex )
         {

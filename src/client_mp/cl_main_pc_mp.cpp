@@ -379,8 +379,9 @@ static bool CL_CoopDeferConnect(const char *server)
     if ( cl_coopFrontEndSeen || !bo1_zombies || !bo1_zombies->current.enabled || IsDedicatedServer() )
         return false;
     I_strncpyz(cl_coopPendingServer, server, sizeof(cl_coopPendingServer));
-    I_strncpyz(cl_coopPendingSystemlink, Dvar_GetString("systemlink"), sizeof(cl_coopPendingSystemlink));
-    I_strncpyz(cl_coopPendingOnlinegame, Dvar_GetString("onlinegame"), sizeof(cl_coopPendingOnlinegame));
+    // (both are bool dvars: Dvar_GetString asserts on them in a build that keeps asserts)
+    I_strncpyz(cl_coopPendingSystemlink, Dvar_GetBool("systemlink") ? "1" : "0", sizeof(cl_coopPendingSystemlink));
+    I_strncpyz(cl_coopPendingOnlinegame, Dvar_GetBool("onlinegame") ? "1" : "0", sizeof(cl_coopPendingOnlinegame));
     cl_coopPendingSince = Sys_Milliseconds();
     Com_Printf(0, "coop: connect %s waits for the front end to load (systemlink \"%s\")\n", server, cl_coopPendingSystemlink);
     return true;
@@ -1561,7 +1562,7 @@ char __cdecl CL_RequestCACValidate(unsigned __int64 serverId)
         }
         else
         {
-            v5 = MSG_CompressWithZLib(buffer->statsBuffer, 0x9CE8u, to, 0x9CE8u);
+            v5 = MSG_CompressWithZLib(buffer->statsBuffer, BO1_STATS_SIZE, to, BO1_STATS_SIZE);
             payload[0] = 3;
             payload[1] = 0;
             v8 = v5;

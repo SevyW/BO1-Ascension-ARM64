@@ -6489,6 +6489,54 @@ void __cdecl Item_Action(int localClientNum, UiContext *dc, itemDef_s *item)
 {
     if ( dc->openMenuCount )
     {
+#ifdef BO1_NATIVE
+        // mod (native menus): entries shown as "COMING SOON" do nothing when chosen (stringed_hooks.cpp)
+        extern bool SEH_NativeItemDisabled(const char *text);
+        // (the front end's Campaign entry has its text from an expression: it is main_button1 of the menu main_text)
+        if ( item && ((item->typeData.textDef && SEH_NativeItemDisabled(item->typeData.textDef->text))
+            || (item->window.name && item->parent && item->parent->window.name
+                && !I_stricmp(item->window.name, "main_button1") && !I_stricmp(item->parent->window.name, "main_text"))) )
+        {
+            // the game's own notice box says why
+            Dvar_SetStringByName("com_errorTitle", (char *)"Notice");
+            Dvar_SetStringByName("com_errorMessage", (char *)"Campaign is coming soon. Stay tuned!");
+            Menus_OpenByName(localClientNum, dc, "error_popmenu");
+            return;
+        }
+        // mod (native menus): the front end's Multiplayer entry (main_button2 of main_text). Retail asks to switch to
+        // the other executable, whose Play entry needs the online service; here it opens the Play screen on its
+        // multiplayer modes (client_mp/cl_play.cpp), which starts the match and the other mode with it.
+        if ( item && item->window.name && item->parent && item->parent->window.name
+            && !I_stricmp(item->window.name, "main_button2") && !I_stricmp(item->parent->window.name, "main_text") )
+        {
+            extern void CL_Play_Open(int family);
+            CL_Play_Open(1);
+            return;
+        }
+        // mod (native menus): Zombies > Online. The retail entry needs the platform's online service ("No network
+        // connection detected"); games of this build are joined by address (client_mp/cl_joinmenu.cpp).
+        if ( item && item->window.name && item->parent && item->parent->window.name
+            && !I_stricmp(item->window.name, "online_button1") && !I_stricmp(item->parent->window.name, "main_online") )
+        {
+            extern void CL_JoinMenu_Open();
+            CL_JoinMenu_Open();
+            return;
+        }
+        // mod (native menus): the settings menus' Voice Chat entry (no voice chat in this build: sv_voice 0) is the
+        // Extras screen (client_mp/cl_extras.cpp; ui_main.cpp renames it). It has no name: the third entry of the
+        // left column of every options_* menu.
+        if ( item && item->type == 3 && item->parent && item->parent->window.name
+            && !I_strnicmp(item->parent->window.name, "options_", 8)
+            && item->window.rect.x > -267.5f && item->window.rect.x < -265.5f
+            && item->window.rect.y > -97.0f && item->window.rect.y < -95.0f )
+        {
+            extern void CL_Extras_Open();
+            CL_Extras_Open();
+            return;
+        }
+        if ( item && getenv("BO1_MENU_TRACE") )
+            fprintf(stderr, "menu-trace: action on item '%s' of menu '%s' type %d\n", item->window.name ? item->window.name : "", item->parent && item->parent->window.name ? item->parent->window.name : "", item->type);
+#endif
         if ( item )
             Item_RunEventScript(localClientNum, dc, item, "action");
     }
@@ -10660,7 +10708,7 @@ void __cdecl Menu_PaintAll_AppendToVisibleList(char *stringBegin, unsigned int s
 
     if (!lastNewline)
     {
-        // No newline in string — treat start as line beginning
+        // No newline in string ï¿½ treat start as line beginning
         lastNewline = stringBegin - 1;
     }
 

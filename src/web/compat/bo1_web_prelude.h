@@ -24,6 +24,7 @@
 #include <float.h>
 #include <limits.h>
 #include <math.h>
+#include "bo1_hostptr.h"
 
 #ifdef __cplusplus
 #define BO1_EXTERN_C extern "C"
@@ -42,6 +43,19 @@
 // -fdeclspec (calling conventions are ignored on wasm). The rest:
 #ifndef _MSC_EXTENSIONS
 #define _MSC_EXTENSIONS 1
+#endif
+#if defined(BO1_NATIVE) && defined(__i386__)
+// native x86: here the calling convention keywords are real, and decompiled code declares and defines the same
+// function with different ones (MSVC tolerated what it could mangle). Nothing in this build calls Windows code,
+// so every function uses the platform's convention.
+#define __cdecl
+#define __stdcall
+#define __fastcall
+#define __thiscall
+#define __vectorcall
+#define _cdecl
+#define _stdcall
+#define _fastcall
 #endif
 #define __w64
 #ifndef __FUNCSIG__
@@ -62,11 +76,23 @@
 // use the qualifier)
 #define __unaligned __bo1_unaligned
 // MSVC's FILE is struct _iobuf (decompiled signatures spell it)
+#ifdef BO1_P32
+// 32-bit-pointer build: FILE is an object of this program around the host's stream (bo1_stdio.h says why)
+#include "bo1_stdio.h"
+#define _iobuf bo1_file
+#else
 #define _iobuf _IO_FILE
+#endif
 #define _errno() (&errno)
 #ifdef __cplusplus
 // universal/com_math.h declares double random(): POSIX has long random(void) in <stdlib.h>
 #define random bo1_engine_random
+#ifdef BO1_NATIVE
+// qcommon/files.cpp has a global `char basename[64]`: glibc's <string.h> declares basename()
+#define basename bo1_engine_basename
+// universal/q_shared.h: `typedef unsigned long ulong` (32 bits to the engine); glibc's <sys/types.h> has its own
+#define ulong bo1_engine_ulong
+#endif
 #endif
 
 BO1_EXTERN_C_BEGIN
@@ -78,6 +104,46 @@ BO1_EXTERN_C_BEGIN
 __attribute__((noreturn)) void bo1_web_debugbreak(const char *file, int line);
 #define __debugbreak() bo1_web_debugbreak(__FILE__, __LINE__)
 #define DebugBreak() bo1_web_debugbreak(__FILE__, __LINE__)
+
+// ----- C library functions that return their own static storage -----
+// 32-bit-pointer build (tools/p32): the C library's statics are far above 4 GB, and the engine keeps what these return
+// in pointer variables (`newtime = localtime(&t); ... asctime(newtime)`). These versions return storage of this
+// program, which is below 4 GB (win_crt.cpp). Like the originals they are not reentrant.
+#if defined(BO1_NATIVE) && defined(__LP64__)
+BO1_EXTERN_C struct tm *bo1_host_localtime(const time_t *t);
+BO1_EXTERN_C struct tm *bo1_host_gmtime(const time_t *t);
+BO1_EXTERN_C char *bo1_host_asctime(const struct tm *tm);
+BO1_EXTERN_C char *bo1_host_ctime(const time_t *t);
+BO1_EXTERN_C char *bo1_host_strerror(int error);
+BO1_EXTERN_C char *bo1_host_getenv(const char *name);
+#define localtime bo1_host_localtime
+#define gmtime bo1_host_gmtime
+#define asctime bo1_host_asctime
+#define ctime bo1_host_ctime
+#define strerror bo1_host_strerror
+#define getenv bo1_host_getenv
+#endif
+
+// ----- BO1_HOST_PTR(p): p as a native pointer -----
+// In the 32-bit-pointer build (tools/p32) the element type behind a 32-bit pointer carries an address space;
+// std::sort and friends cannot declare temporaries of such a type. Give them native iterators.
+#ifdef BO1_P32
+#define BO1_HOST_PTR(p) BO1_NATD(p)
+#else
+#define BO1_HOST_PTR(p) (p)
+#endif
+
+// ----- rand (MSVC CRT) -----
+// The engine is written against MSVC's rand(): 15 bits (RAND_MAX 0x7FFF), per-thread state, seed 1. It divides
+// by 32768 to get [0, 1) (universal/com_math.cpp random()) and loops until a point falls inside the unit circle
+// (GaussianRandom): with a 31-bit rand() that loop never ends. Same generator as MSVC's, so seeded sequences
+// (bg_wind.cpp's wind variants, G_InitGame's srand) are the retail ones.
+int bo1_msvc_rand(void);
+void bo1_msvc_srand(unsigned int seed);
+#define rand bo1_msvc_rand
+#define srand bo1_msvc_srand
+#undef RAND_MAX
+#define RAND_MAX 0x7FFF
 
 // ----- strings (MSVC CRT names) -----
 #define _stricmp strcasecmp
@@ -148,6 +214,47 @@ BO1_INLINE int gmtime_s(struct tm *out, const time_t *t) { return gmtime_r(t, ou
 #define _gmtime64_s gmtime_s
 char *_strtime(char *buf);
 char *_strdate(char *buf);
+#if defined(__cplusplus) && defined(BO1_NATIVE) && defined(__LP64__)
+BO1_EXTERN_C_END
+// LP64: time_t is long; the engine's 64-bit time variables are __int64 (long long). Same size, another type: the
+// MSVC names take either.
+inline time_t bo1_time64(time_t *t) { return time(t); }
+inline time_t bo1_time64(int) { return time((time_t *)0); }   // _time64(0)
+inline time_t bo1_time64(long long *t)
+{
+    const time_t now = time((time_t *)0);
+    if (t)
+        *t = now;
+    return now;
+}
+inline struct tm *bo1_localtime64(const time_t *t) { return localtime(t); }
+inline struct tm *bo1_localtime64(const long long *t)
+{
+    const time_t v = (time_t)*t;
+    return localtime(&v);
+}
+inline struct tm *bo1_gmtime64(const time_t *t) { return gmtime(t); }
+inline struct tm *bo1_gmtime64(const long long *t)
+{
+    const time_t v = (time_t)*t;
+    return gmtime(&v);
+}
+inline char *bo1_ctime64(const time_t *t) { return ctime(t); }
+inline char *bo1_ctime64(const long long *t)
+{
+    const time_t v = (time_t)*t;
+    return ctime(&v);
+}
+#undef _time64
+#undef _localtime64
+#undef _gmtime64
+#undef _ctime64
+#define _time64 bo1_time64
+#define _localtime64 bo1_localtime64
+#define _gmtime64 bo1_gmtime64
+#define _ctime64 bo1_ctime64
+BO1_EXTERN_C_BEGIN
+#endif
 struct __timeb64 { __time64_t time; unsigned short millitm; short timezone; short dstflag; };
 #define _timeb __timeb64
 void _ftime64(struct __timeb64 *tb);
@@ -176,6 +283,10 @@ size_t _msize(void *p);
 #define _copysign copysign
 #define _chgsign(x) (-(x))
 // _rotl/_rotr/_lrotl/_lrotr/_rotl64/_rotr64, _byteswap_ushort/_ulong/_uint64: clang builtins with -fms-extensions
+// MSVC's long, by name: macro bodies are not rewritten for 64-bit builds (tools/p32 turns `long` into `int` in
+// declarations only), so the macros below must not spell it.
+typedef long bo1_long32;
+typedef unsigned long bo1_ulong32;
 BO1_INLINE unsigned char bo1_BitScanForward(unsigned long *index, unsigned long mask)
 {
     if (!mask) return 0;
@@ -201,10 +312,10 @@ BO1_INLINE unsigned char bo1_BitScanReverse64(unsigned long *index, unsigned lon
     return 1;
 }
 // decompiled callers pass DWORD *, unsigned int *, int *: all 32-bit
-#define _BitScanForward(index, mask) bo1_BitScanForward((unsigned long *)(index), (unsigned long)(mask))
-#define _BitScanReverse(index, mask) bo1_BitScanReverse((unsigned long *)(index), (unsigned long)(mask))
-#define _BitScanForward64(index, mask) bo1_BitScanForward64((unsigned long *)(index), (unsigned long long)(mask))
-#define _BitScanReverse64(index, mask) bo1_BitScanReverse64((unsigned long *)(index), (unsigned long long)(mask))
+#define _BitScanForward(index, mask) bo1_BitScanForward((bo1_ulong32 *)(index), (bo1_ulong32)(mask))
+#define _BitScanReverse(index, mask) bo1_BitScanReverse((bo1_ulong32 *)(index), (bo1_ulong32)(mask))
+#define _BitScanForward64(index, mask) bo1_BitScanForward64((bo1_ulong32 *)(index), (unsigned long long)(mask))
+#define _BitScanReverse64(index, mask) bo1_BitScanReverse64((bo1_ulong32 *)(index), (unsigned long long)(mask))
 #define __popcnt(x) ((unsigned int)__builtin_popcount((unsigned int)(x)))
 #define __popcnt16(x) ((unsigned short)__builtin_popcount((unsigned short)(x)))
 #define __lzcnt(x) ((unsigned int)((x) ? __builtin_clz((unsigned int)(x)) : 32))
@@ -215,6 +326,7 @@ unsigned long long bo1_web_rdtsc(void);
 #define __rdtsc() bo1_web_rdtsc()
 // __readfsdword(0x24) is the current thread id on x86 Windows (TEB.ClientId.UniqueThread); profile.h uses it
 unsigned long GetCurrentThreadId(void);
+#define __readfsdword bo1_readfsdword         // a compiler builtin on native x86
 BO1_INLINE unsigned long __readfsdword(unsigned long offset)
 {
     return offset == 0x24 ? GetCurrentThreadId() : 0;
@@ -264,21 +376,28 @@ BO1_INLINE long long bo1_ilk_cmpxchg64(volatile void *p, long long xchg, long lo
     __atomic_compare_exchange_n((volatile long long *)p, &cmp, xchg, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
     return cmp;
 }
-BO1_INLINE void *bo1_ilk_xchgptr(volatile void *p, void *v) { return __atomic_exchange_n((void *volatile *)p, v, __ATOMIC_SEQ_CST); }
+BO1_INLINE void *bo1_ilk_xchgptr(volatile void *p, void *v)
+{
+    void *slot[1] = {v};   // a pointer object, see bo1_ilk_cmpxchgptr
+    return __atomic_exchange_n((void *volatile *)p, slot[0], __ATOMIC_SEQ_CST);
+}
 BO1_INLINE void *bo1_ilk_cmpxchgptr(volatile void *p, void *xchg, void *cmp)
 {
-    __atomic_compare_exchange_n((void *volatile *)p, &cmp, xchg, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
-    return cmp;
+    // an array: its element is a pointer object of the same representation as *p (4 bytes in the 32-bit-pointer
+    // build, tools/p32, where this file's plain locals and parameters stay native)
+    void *slot[2] = {cmp, xchg};
+    __atomic_compare_exchange_n((void *volatile *)p, &slot[0], slot[1], 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
+    return slot[0];
 }
 
 #define _InterlockedIncrement(p) (bo1_ilk_add((p), 1) + 1)
 #define _InterlockedDecrement(p) (bo1_ilk_add((p), -1) - 1)
-#define _InterlockedExchangeAdd(p, v) bo1_ilk_add((p), (long)(v))
-#define _InterlockedExchange(p, v) bo1_ilk_xchg((p), (long)(v))
-#define _InterlockedCompareExchange(p, x, c) bo1_ilk_cmpxchg((p), (long)(x), (long)(c))
-#define _InterlockedOr(p, v) bo1_ilk_or((p), (long)(v))
-#define _InterlockedAnd(p, v) bo1_ilk_and((p), (long)(v))
-#define _InterlockedXor(p, v) bo1_ilk_xor((p), (long)(v))
+#define _InterlockedExchangeAdd(p, v) bo1_ilk_add((p), (bo1_long32)(v))
+#define _InterlockedExchange(p, v) bo1_ilk_xchg((p), (bo1_long32)(v))
+#define _InterlockedCompareExchange(p, x, c) bo1_ilk_cmpxchg((p), (bo1_long32)(x), (bo1_long32)(c))
+#define _InterlockedOr(p, v) bo1_ilk_or((p), (bo1_long32)(v))
+#define _InterlockedAnd(p, v) bo1_ilk_and((p), (bo1_long32)(v))
+#define _InterlockedXor(p, v) bo1_ilk_xor((p), (bo1_long32)(v))
 #define _InterlockedIncrement16(p) ((short)(bo1_ilk_add16((p), 1) + 1))
 #define _InterlockedDecrement16(p) ((short)(bo1_ilk_add16((p), -1) - 1))
 #define _InterlockedCompareExchange16(p, x, c) bo1_ilk_cmpxchg16((p), (short)(x), (short)(c))

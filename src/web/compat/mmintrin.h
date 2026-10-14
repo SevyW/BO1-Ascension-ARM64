@@ -1,8 +1,23 @@
 // mmintrin.h - the MMX intrinsics the engine uses (gfx_d3d/r_model_skin_sse.cpp, r_model_skin.cpp), emulated on
 // Emscripten's __m64 (an 8-byte vector from its <xmmintrin.h>). wasm has no MMX; these are scalar and exact.
 #pragma once
+#if defined(__i386__) || defined(__x86_64__)
+// native x86: the compiler's own MMX intrinsics
+#include_next <mmintrin.h>
+#else
 #ifndef BO1_WEB_MMINTRIN_H
 #define BO1_WEB_MMINTRIN_H
+#if defined(__aarch64__)
+// sse2neon defines a few of the MMX conversions itself; the scalar versions below (exact, as used by the
+// wasm build) take other names and the engine's calls go to them.
+#define _mm_empty bo1_mm_empty
+#define _mm_cvt_ps2pi bo1_mm_cvt_ps2pi
+#define _mm_cvtps_pi32 bo1_mm_cvtps_pi32
+#define _mm_cvtpi16_ps bo1_mm_cvtpi16_ps
+#define _mm_cvtpu16_ps bo1_mm_cvtpu16_ps
+#define _mm_cvtpu8_ps bo1_mm_cvtpu8_ps
+#define _mm_stream_pi bo1_mm_stream_pi
+#endif
 #include <xmmintrin.h>
 #include <stdint.h>
 #include <string.h>
@@ -79,3 +94,4 @@ static __inline__ __m64 __attribute__((__always_inline__)) _mm_cvtps_pi32(__m128
 #define _mm_cvt_ps2pi _mm_cvtps_pi32
 static __inline__ void __attribute__((__always_inline__)) _mm_stream_pi(__m64 *p, __m64 a) { memcpy(p, &a, 8); }
 #endif
+#endif // x86

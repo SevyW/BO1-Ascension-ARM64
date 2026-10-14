@@ -142,7 +142,12 @@ bool bo1w::ResolvePath(const char *in, char *out, size_t outSize)
                 else
                 {
                     resolved += want;
-                    exists = false;
+                    // Not in the listing. A directory that cannot be listed can still be passed through (Android:
+                    // an app may not read "/", "/storage" or "/storage/emulated", but its own folder is below them),
+                    // so the name as given gets one direct look before the lookup ends.
+                    struct stat st;
+                    if (l.exists || stat(resolved.c_str(), &st) != 0)
+                        exists = false;
                 }
             }
             else

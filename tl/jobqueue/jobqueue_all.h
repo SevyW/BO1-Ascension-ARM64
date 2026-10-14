@@ -205,17 +205,19 @@ struct __declspec(align(8)) jqAtomicQueue//<jqBatch,32> // sizeof=0x50
 {                                       // XREF: jqQueue/r
     struct NodeType // sizeof=0x80
     {
-        jqAtomicQueue<T, SIZE>::NodeType *Next;
+        NodeType *Next;   // (was jqAtomicQueue<T, SIZE>::NodeType *: the same type; that spelling crashes clang 21 with 32-bit pointers, tools/p32)
         jqBatch Data;
     };
 
     struct NodeBlockEntry//<jqBatch,32>::NodeBlockEntry // sizeof=0x8
     {
         void *Addr;
-        jqAtomicQueue<T,SIZE>::NodeBlockEntry *Next;
+        NodeBlockEntry *Next;
     };
 
-    NodeType **FreeListPtr;
+    typedef NodeType *NodePtr;   // a typedef'd pointee: the form clang 21 can instantiate with 32-bit pointers (tools/p32)
+    typedef jqAtomicQueue<T, SIZE> Self;
+    NodePtr *FreeListPtr;
     NodeType *_FreeList;
     NodeBlockEntry *NodeBlockListHead;
     NodeType *Head; // XREF: jqInit(void)+9C/w
@@ -223,11 +225,11 @@ struct __declspec(align(8)) jqAtomicQueue//<jqBatch,32> // sizeof=0x50
     tlSharedAtomicMutex FreeLock;       // XREF: jqInit(void)+27/w
     tlAtomicMutex HeadLock;             // XREF: jqInit(void)+4E/w
     tlAtomicMutex TailLock;             // XREF: jqInit(void)+6A/w
-    jqAtomicQueue<T,SIZE> *ThisPtr; // XREF: jqInit(void)+D/w
+    Self *ThisPtr; // XREF: jqInit(void)+D/w
 
     void Init(jqAtomicQueue<T, SIZE> *SharedFreeList)
     {
-        NodeType **p_FreeList = &_FreeList;
+        NodePtr *p_FreeList = &_FreeList;
         ThisPtr = this;
         *p_FreeList = nullptr;
 

@@ -1,4 +1,8 @@
 #include "r_init.h"
+#ifdef BO1_NATIVE
+extern "C" void bo1_native_video_default_mode(char *text, int size); // mod (native): src/native/native_video.cpp
+extern "C" void bo1_native_set_refresh_rate(int hz);                 // mod (native): src/native/native_extras.cpp
+#endif
 #include <win32/win_main.h>
 #include <qcommon/common.h>
 
@@ -968,7 +972,18 @@ void __cdecl R_SetWndParms(GfxWindowParms *wndParms)
     else
     {
         wndParms->hz = 60;
+#ifdef BO1_NATIVE
+        // mod (native): the window fills the display here (Android), and r_displayRefresh lists the display's own
+        // refresh rates (src/web/d3d9/d3d9_direct3d.cpp displayModeList): the display is asked for the chosen one.
+        refreshRate = 0;
+        refreshRateString = Dvar_EnumToString(r_displayRefresh);
+        if ( sscanf(refreshRateString, "%i Hz", &refreshRate) == 1 && refreshRate >= 24 )
+            wndParms->hz = refreshRate;
+#endif
     }
+#ifdef BO1_NATIVE
+    bo1_native_set_refresh_rate(wndParms->hz);
+#endif
     wndParms->x = Dvar_GetInt("vid_xpos");
     wndParms->y = Dvar_GetInt("vid_ypos");
     wndParms->hwnd = 0;
@@ -1401,6 +1416,21 @@ void __cdecl R_EnumDisplayModes(unsigned int adapterIndex)
             defaultResolutionIndex = resolutionIndex;
     }
     dx.resolutionNameTable[resolutionIndex] = 0;
+#ifdef BO1_NATIVE
+    {
+        // mod (native): the platform's preferred mode is the default (Android: the display's shape at 720 lines,
+        // src/native/android/bo1_boot.c). An r_mode in the configuration still wins.
+        char preferred[32];
+        bo1_native_video_default_mode(preferred, (int)sizeof(preferred));
+        for ( resolutionIndex = 0; preferred[0] && resolutionIndex < resolutionCount; ++resolutionIndex )
+        {
+            if ( !I_stricmp(dx.resolutionNameTable[resolutionIndex], preferred) )
+                defaultResolutionIndex = resolutionIndex;
+        }
+        if ( preferred[0] )
+            Com_Printf(8, "native: preferred mode %s: default r_mode %s\n", preferred, dx.resolutionNameTable[defaultResolutionIndex]);
+    }
+#endif
     r_mode = _Dvar_RegisterEnum(
                          "r_mode",
                          dx.resolutionNameTable,
@@ -1418,12 +1448,44 @@ void __cdecl R_EnumDisplayModes(unsigned int adapterIndex)
             defaultRefreshRateIndex = refreshRateIndex;
     }
     dx.refreshRateNameTable[refreshRateIndex] = 0;
+#ifdef BO1_NATIVE
+    // mod (native): the default is the display's highest rate (a 120 Hz panel runs at 120 Hz)
+    if ( refreshRateCount > 0 )
+        defaultRefreshRateIndex = refreshRateCount - 1;
+#endif
     r_displayRefresh = _Dvar_RegisterEnum(
                                              "r_displayRefresh",
                                              dx.refreshRateNameTable,
                                              defaultRefreshRateIndex,
                                              0x221u,
                                              "Refresh rate");
+#ifdef BO1_NATIVE
+    {
+        // mod (native): configurations written before the setting did anything hold "60 Hz" (the only entry the
+        // list had) while the display ran at its highest rate. Once: start from the highest rate.
+        const dvar_t *bo1_refresh_set = _Dvar_RegisterInt("bo1_refresh_set", 0, 0, 1, 1u, "mod: r_displayRefresh was set to the display's highest rate once");
+        if ( !bo1_refresh_set->current.integer )
+        {
+            if ( refreshRateCount > 0 )
+            {
+                Dvar_SetInt((dvar_s *)r_displayRefresh, refreshRateCount - 1);
+                Dvar_MakeLatchedValueCurrent((dvar_s *)r_displayRefresh);
+            }
+            Dvar_SetInt((dvar_s *)bo1_refresh_set, 1);
+        }
+        // mod (native): Multiplayer's com_maxfps defaults to 85 (retail PC); on a 120 Hz display with r_vsync 1 that
+        // gave about 91 FPS in a match and 45 in the menus (measured on the Odin 3). Once: no cap (the display's
+        // rate with r_vsync 1).
+        const dvar_t *bo1_maxfps_set = _Dvar_RegisterInt("bo1_maxfps_set", 0, 0, 1, 1u, "mod: com_maxfps 85 (the retail default) was set to 0 once");
+        if ( !bo1_maxfps_set->current.integer )
+        {
+            if ( Dvar_GetInt("com_maxfps") == 85 )
+                Dvar_SetIntByName("com_maxfps", 0);
+            Dvar_SetInt((dvar_s *)bo1_maxfps_set, 1);
+        }
+        Com_Printf(8, "native: refresh rate %s of %i choices\n", Dvar_EnumToString(r_displayRefresh), refreshRateCount);
+    }
+#endif
 }
 
 int __cdecl R_CompareDisplayModes(unsigned int *e0, unsigned int *e1)

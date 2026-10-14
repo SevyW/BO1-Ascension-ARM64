@@ -356,7 +356,9 @@ void __cdecl SV_Map_f()
     }
     else
     {
-        if (!DB_FileExists(mapname, FFD_DEFAULT) && !DB_FileExists(mapname, FFD_USER_MAP))
+        // mod (custom maps): ... or in the active mod's folder (DB_ModXFileHandle)
+        const bool inMod = fs_gameDirVar && fs_gameDirVar->current.string[0] && DB_FileExists(mapname, FFD_MOD_DIR);
+        if (!inMod && !DB_FileExists(mapname, FFD_DEFAULT) && !DB_FileExists(mapname, FFD_USER_MAP))
         {
             Com_PrintError(1, "Can't find map \"%s\" in usermaps\\%s folder.\n", mapname, mapname);
             return;
@@ -459,6 +461,16 @@ void __cdecl SV_MapRotate_f()
     parseInfo_t *tokenc; // [esp+0h] [ebp-4h]
 
     Com_Printf(0, "\n\nmap_rotate...\n\n");
+    // mod (coop): a zombies server has no rotation of its own (sv_mapRotation defaults to MP maps and gametypes, and
+    // a dedicated server went to "tdm on mp_array" after the first Game Over). Unless the host's rotation names
+    // zombie maps, the same map starts again.
+    if ( bo1_zombies && bo1_zombies->current.enabled && Com_IsZombieMap(Dvar_GetString("mapname"))
+        && !I_stristr(sv_mapRotation->current.string, "zombie") )
+    {
+        Com_Printf(0, "coop: zombies server: starting %s again\n", Dvar_GetString("mapname"));
+        Cbuf_AddText(0, va("map %s\n", Dvar_GetString("mapname")));
+        return;
+    }
     LicenseType = SV_GetLicenseType();
     if ( SV_IsServerRanked(LicenseType) )
         Dvar_SetBoolByName("playlist_enabled", 1);

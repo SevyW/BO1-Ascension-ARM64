@@ -6752,7 +6752,7 @@ void __cdecl GetCurrentItemIndex(int localClientNum, itemDef_s *item, OperandSta
     }
     result.internals.intVal = index;
     if ( uiscript_debug && uiscript_debug->current.integer )
-        Expression_TraceInternal("GetCurrentItemIndex() = %s\n", result.internals.string);
+        Expression_TraceInternal("GetCurrentItemIndex() = %i\n", result.internals.intVal);   // mod: was %s of an integer (a crash with uiscript_debug 1)
     AddOperandToStack(dataStack, &result);
 }
 
@@ -8344,6 +8344,12 @@ void __cdecl IsSignedInToLive(int localClientNum, itemDef_s *item, OperandStack 
 
     Com_LocalClient_GetControllerIndex(localClientNum);
     result.internals.intVal = 0;// Live_IsSignedInToLive();
+#ifdef BO1_NATIVE
+    // mod (native): bo1_offline_menus: the Multiplayer menus ask for a sign-in to the retail online service, which
+    // does not exist here; PLAY answered "No network connection detected". The menus are told the player is signed in.
+    if ( Dvar_GetInt("bo1_offline_menus") )
+        result.internals.intVal = 1;
+#endif
     result.dataType = VAL_INT;
     if (uiscript_debug && uiscript_debug->current.integer)
         Expression_TraceInternal("IsSignedInToLive() = %i\n", result.internals.intVal);
@@ -8381,6 +8387,10 @@ void __cdecl AreStatsFetched(int localClientNum, itemDef_s *item, OperandStack *
     localControllerIndex = Com_LocalClient_GetControllerIndex(localClientNum);
     result.internals.intVal = Live_IsUserSignedInToDemonware(localControllerIndex)
                                                  && LiveStorage_DoWeHaveAllStats(localControllerIndex);
+#ifdef BO1_NATIVE
+    if ( Dvar_GetInt("bo1_offline_menus") )   // mod (native): see IsSignedInToLive
+        result.internals.intVal = 1;
+#endif
     result.dataType = VAL_INT;
     if ( uiscript_debug && uiscript_debug->current.integer )
         Expression_TraceInternal("AreStatsFetched() = %i\n", result.internals.intVal);
@@ -8448,6 +8458,10 @@ void __cdecl IsDemonwareFetchingDone(int localClientNum, itemDef_s *item, Operan
     weHaveContracts = LiveStorage_DoWeHaveContracts();
     if ( !isTimeSynced || !weHaveContracts )
         result.internals.intVal = 0;
+#ifdef BO1_NATIVE
+    if ( Dvar_GetInt("bo1_offline_menus") )   // mod (native): see IsSignedInToLive
+        result.internals.intVal = 1;
+#endif
     if ( !result.internals.intVal )
     {
         Com_Printf(16, "Can play online (controller: %d): %s\n", controllerIndex, "false");
@@ -8557,7 +8571,9 @@ void __cdecl GetDStat(int localClientNum, itemDef_s *item, OperandStack *dataSta
 
     result.dataType = VAL_INT;
     result.internals.intVal = 0;
-#ifdef BO1_LIVE
+    // mod (native): compiled in for native builds: without it getDStat left its arguments on the stack (every
+    // menu expression that reads a stat failed: "Expected 4 params to function StringTableLookup, found 3")
+#if defined(BO1_LIVE) || defined(BO1_NATIVE)
     searchState = *LiveStats_GetRootDDLState();
     GetOperandList(dataStack, &list);
     if ( GetSearchState(&searchState, &list, 0) )
@@ -14296,6 +14312,14 @@ void Expression_Error(const char *str, ...)
         buf[1023] = 0;
         //BLOPS_NULLSUB();
         Com_PrintMessage(16, buf, 3);
+#ifdef BO1_NATIVE
+        // mod: TEST SWITCH: +set bo1_exprdebug 1 prints the failing expression (ui/ui_utils.cpp)
+        if ( Dvar_GetInt("bo1_exprdebug") )
+        {
+            void UI_DumpExpression(const char *label, const ExpressionStatement *e);
+            UI_DumpExpression("error in", s_currentStatement);
+        }
+#endif
     }
 }
 

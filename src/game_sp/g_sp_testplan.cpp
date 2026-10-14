@@ -827,7 +827,7 @@ bool Matches(const gentity_s *ent, const PlanStep &step)
         : !strcmp(step.key, "script_flag_wait") ? F_FLAGWAIT : !strcmp(step.key, "script_string") ? F_SCRIPTSTRING
         : !strcmp(step.key, "requiredplayers") ? F_REQPLAYERS
         : !strcmp(step.key, "zombie_equipment_upgrade") ? F_EQUIPUPGRADE : -1; // L42: the Hacker pickup
-    return field >= 0 && EntField(ent->s.number, field, &text, nullptr) && text == step.value;
+    return field >= 0 && EntField(ent->s.number, field, &text, nullptr) && text == (const char *)step.value;
 }
 
 // A trigger the scripts switched off (trigger_off / disable_trigger) is moved 10000 units down.
@@ -1037,7 +1037,7 @@ void ParsePlan(const gentity_s *player)
             continue;
         bool found = false;
         for (int i = 0; i < (int)ARRAY_COUNT(s_steps); ++i)
-            if (word == s_steps[i].name)
+            if (word == (const char *)s_steps[i].name)
             {
                 s_plan.push_back(i);
                 s_planFlags.push_back(0);

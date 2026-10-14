@@ -1,3 +1,6 @@
+#include <client_mp/cl_joinmenu.h> // mod (coop)
+#include <client_mp/cl_extras.h> // mod (native menus)
+#include <client_mp/cl_play.h> // mod (native menus)
 #include "cl_gamepad.h"
 #include <win32/win_shared.h>
 #include <qcommon/cmd.h>
@@ -648,6 +651,11 @@ void __cdecl CL_GamepadButtonEvent(
 
     pressed = buttonEvent == 1;
     v15 = buttonEvent == 1 || buttonEvent == 2;
+    // mod (coop): the join-by-address screen takes the pad while it is open, and Back opens it outside a game
+    // mod (native menus): and so does the Extras screen (client_mp/cl_extras.cpp)
+    if ( IsGamepadKey(key) && ((pressed && (CL_Play_Key(localClientNum, key) || CL_Extras_Key(localClientNum, key) || CL_JoinMenu_Key(localClientNum, key)))
+                               || (!pressed && (CL_JoinMenu_IsOpen() || CL_Extras_IsOpen() || CL_Play_IsOpen()))) )
+        return;
     LocalClientUIGlobals = CL_GetLocalClientUIGlobals(localClientNum);
     if ( (LocalClientUIGlobals->keyCatchers & 0x100) == 0 )
     {

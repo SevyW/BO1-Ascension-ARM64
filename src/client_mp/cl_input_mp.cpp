@@ -1170,7 +1170,7 @@ void __cdecl CL_MouseMove(int localClientNum, usercmd_s *cmd)
                 // (pm_type 1, PM_NORMAL_LINKED, without pm_flags 0x4000000): at min(max speed, 360) deg/s,
                 // 360 deg/s when cgame set no max yaw speed. MP caps only when a max speed is set.
                 const bool spZombies = zombiemode && zombiemode->current.enabled;
-                const bool spLinkedTurnCap = spZombies && LocalClientGlobals->snap.ps.pm_type == 1
+                const bool spLinkedTurnCap = Com_SPPlayerRules() && LocalClientGlobals->snap.ps.pm_type == 1   // mod (native): was spZombies
                     && (LocalClientGlobals->snap.ps.pm_flags & 0x4000000) == 0;
                 float maxTurnSpeed;
                 if ( kb[8].active )

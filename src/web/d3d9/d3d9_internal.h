@@ -10,6 +10,11 @@
 #pragma once
 
 #include <d3d9.h>
+#if __has_include(<bo1_hostptr.h>)
+#include <bo1_hostptr.h>
+#else
+template <class T> using bo1_host_ptr = T *;   // standalone shim builds (unit tests)
+#endif
 #include <d3d9shim.h>
 
 #include <GLES3/gl3.h>
@@ -84,6 +89,14 @@ void shaderDump(const char *kind, uint64_t hash, const char *ext, const void *da
 // probe context (OffscreenCanvas) or defaults.
 const GLCaps &currentGLCaps();
 void setLiveGLCaps(const GLCaps &caps);
+#ifndef __EMSCRIPTEN__
+// native: the platform's context provider (d3d9shim_set_host), or null; whether the current context has a GL
+// extension, by the name the WebGL build asks for (EXT_color_buffer_float, WEBGL_compressed_texture_s3tc, ...);
+// the limits of the current context
+const struct d3d9shim_host *nativeHost();
+bool nativeHasExtension(const char *webglName);
+void queryContextCaps(GLCaps &c);
+#endif
 void fillD3DCaps(D3DCAPS9 *caps, const GLCaps &gl);
 HRESULT checkDeviceFormat(const GLCaps &gl, DWORD usage, D3DRESOURCETYPE rtype, D3DFORMAT fmt);
 
@@ -515,7 +528,7 @@ public:
     const TranslatedShader &base() const { return m_base; }
     const std::vector<DWORD> &bytecode() const { return m_bytecode; }
     // Compiled GL shader for a variant (device thread). Returns 0 on failure.
-    GLuint glShader(const TranslateOptions &opt, uint64_t variantKey, const TranslatedShader **variantInfo);
+    GLuint glShader(const TranslateOptions &opt, uint64_t variantKey, bo1_host_ptr<const TranslatedShader> *variantInfo);
 
 private:
     std::vector<DWORD> m_bytecode;

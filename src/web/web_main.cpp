@@ -39,7 +39,13 @@
 
 #include "web_bridge.h"
 
-#include <emscripten.h>
+#include "bo1_platform.h"
+#ifdef BO1_NATIVE
+#include <native_video.h>
+#include <universal/com_files.h> // mod (native): fs_basepath, fs_homepath for the restart
+extern "C" int bo1_native_read_line(const char *path, char *text, int size);
+extern "C" void bo1_native_restart_at_exit(const char *basePath, const char *homePath, const char *args);
+#endif
 #ifndef BO1_WEB_NODE
 #include <emscripten/wasmfs.h>
 #endif
@@ -107,7 +113,21 @@ void __cdecl Sys_HitchWatchEnd()
 
 unsigned int __cdecl Sys_FramePerfHitchMs()
 {
+#ifdef BO1_NATIVE
+    // mod (native): TEST SWITCH: '+set bo1_frameperf <ms>' on the command line, as win32/win_main.cpp reads it
+    // (BO1_FRAMEPERF every 5 s, a BO1_FRAMEHITCH line with the frame's phases for every frame of <ms> or more)
+    static int ms = -1;
+    if (ms < 0)
+    {
+        const char *at = strstr(GetCommandLineA(), "bo1_frameperf ");
+        ms = at ? atoi(at + 14) : 0;
+        if (ms < 0)
+            ms = 0;
+    }
+    return (unsigned int)ms;
+#else
     return 0;
+#endif
 }
 
 void __cdecl Sys_SetQuitRequested()
@@ -232,13 +252,24 @@ void __cdecl Sys_OutOfMemErrorInternal(const char *filename, int line)
 void __cdecl Sys_QuitAndStartProcess(const char *exeName)
 {
     I_strncpyz(sys_exitCmdLine, exeName, 1024);   // web: there is no other process to start; just quit
+#ifdef BO1_NATIVE
+    // native: the other executable is this program in its other mode (src/native/native_extras.cpp): the
+    // singleplayer one is Zombies (bo1_zombies 1), the multiplayer one the program without it
+    bo1_native_restart_at_exit(fs_basepath->current.string, fs_homepath->current.string,
+        exeName && I_stristr(exeName, "SP") ? "+set bo1_zombies 1" : "");
+#endif
     Cbuf_AddText(0, "quit\n");
 }
 
 void __cdecl Sys_OpenURL(const char *url, int doexit)
 {
+#ifdef BO1_NATIVE
+    if (url)
+        Com_Printf(16, "Sys_OpenURL: %s\n", url);   // native: no browser to hand it to
+#else
     if (url)
         MAIN_THREAD_ASYNC_EM_ASM({ try { window.open(UTF8ToString($0), '_blank'); } catch (e) {} }, strdup(url));
+#endif
     if (doexit)
         Cbuf_AddText(0, "quit\n");
 }
@@ -454,7 +485,7 @@ int __cdecl Sys_CheckCrashOrRerun()
 // ===================================================================================================================
 // main
 // ===================================================================================================================
-static std::string ArgValue(int argc, char **argv, const char *name)
+static std::string ArgValue(int argc, bo1_host_str *argv, const char *name)
 {
     // the last "+set <name> <value>" (arguments are one per +command or one per word)
     std::string all;
@@ -520,14 +551,24 @@ static void Web_Frame()
 }
 #endif
 
-int main(int argc, char **argv)
+static int EngineMain(int argc, bo1_host_str *argv)
 {
+#ifdef BO1_NATIVE
+    setvbuf(stdout, nullptr, _IOLBF, 0);   // native: the console is often a pipe or a log file; keep it line by line
+    bo1_native_x86_install_unaligned_fixup();
+#endif
     MountFileSystem();
 
     // the command line: the page passes one token per +command; joined with spaces as WinMain's lpCmdLine.
     // Defaults first so the page's own +set commands win: r_smp_backend 0 keeps every D3D9 (WebGL) call on this
     // thread, which owns the canvas (docs/web-port.md, "Render thread").
+#ifdef BO1_NATIVE
+    // native: no canvas to own. The render thread (RB_RenderThread) runs R_Init, so it creates the device and the GL
+    // context; the back end must run there too, which is the engine's own default (r_smp_backend 1), as on Windows.
+    std::string cmdline = "+set r_smp_backend 1";
+#else
     std::string cmdline = "+set r_smp_backend 0";
+#endif
     for (int i = 1; i < argc; ++i)
     {
         cmdline += ' ';
@@ -543,6 +584,19 @@ int main(int argc, char **argv)
         home = ArgValue(argc, argv, "fs_homepath");
     if (home.empty())
         home = "/opfs/bo1/home";
+#ifdef BO1_NATIVE
+    // native: the mod chosen on the Extras screen (client_mp/cl_extras.cpp) is this start's fs_game, unless the
+    // command line names one
+    if (cmdline.find("fs_game") == std::string::npos)
+    {
+        char mod[64];
+        if (bo1_native_read_line((home + "/bo1_mod.txt").c_str(), mod, (int)sizeof(mod)) && mod[0])
+        {
+            cmdline += " +set fs_game mods/";
+            cmdline += mod;
+        }
+    }
+#endif
     MakeDirs(game.c_str());
     MakeDirs(home.c_str());
     bo1_web_set_exe_dir(game.c_str());   // Sys_DefaultInstallPath (GetModuleFileNameA's folder)
@@ -561,9 +615,19 @@ int main(int argc, char **argv)
     Com_InitParse();
     Dvar_Init();
     InitTiming();
+#ifdef BO1_NATIVE
+    // web: the adapter name is read from the OpenGL ES shim, not by starting Vulkan (native_video.h)
+    bo1_native_renderer_detecting = 1;
     Sys_FindInfo();
+    bo1_native_renderer_detecting = 0;
+#else
+    Sys_FindInfo();
+#endif
     I_strncpyz(sys_cmdline, cmdline.c_str(), 1024);
     bo1_web_input_init();
+#ifdef BO1_NATIVE
+    bo1_native_video_register();   // the window and GL ES context the D3D9 shim will ask for (not for a dedicated server)
+#endif
     Sys_Milliseconds();
     tlPrintf("Hello from the wonderful world of TL\n");
     Sys_SetupTLCallbacks(0x900000);
@@ -590,4 +654,20 @@ int main(int argc, char **argv)
     emscripten_set_main_loop(Web_Frame, 0, true);
 #endif
     return 0;
+}
+
+#ifdef __ANDROID__
+// Android: the engine is libbo1.so. src/native/android/bo1_boot.c (SDL's libmain.so) loads it below 4 GB and calls this.
+extern "C" __attribute__((visibility("default"))) int bo1_android_main(int argc, char **argv)
+#else
+int main(int argc, char **argv)
+#endif
+{
+#ifdef BO1_P32
+    // 32-bit-pointer build (tools/p32): the process's own stack is far above 4 GB and the engine stores addresses of
+    // locals in 32-bit pointers. Run it on a thread whose stack comes from the low heap (native_lowmem.c).
+    return bo1_lowmem_run(EngineMain, argc, argv, 16u * 1024u * 1024u);
+#else
+    return EngineMain(argc, argv);
+#endif
 }

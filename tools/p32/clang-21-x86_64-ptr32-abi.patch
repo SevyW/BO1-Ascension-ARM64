@@ -1,0 +1,27 @@
+--- a/clang/lib/CodeGen/Targets/X86.cpp	2026-10-09 04:19:26.695999847 +0000
++++ b/clang/lib/CodeGen/Targets/X86.cpp
+@@ -2492,7 +2492,12 @@
+   // returning an 8-byte unit starting with it.  See if we can safely use it.
+   if (IROffset == 0) {
+     // Pointers and int64's always fill the 8-byte unit.
+-    if ((isa<llvm::PointerType>(IRType) && Has64BitPointers) ||
++    // BO1 patch: a pointer fills the 8-byte unit only if it is 8 bytes. An MS __ptr32 pointer (address spaces
++    // 270-272) is 4, and returning it here as the coercion type dropped the rest of the eightbyte: struct { T
++    // *__ptr32 a, *__ptr32 b; } passed by value arrived with b undefined.
++    if ((isa<llvm::PointerType>(IRType) &&
++         getDataLayout().getPointerSize(
++             cast<llvm::PointerType>(IRType)->getAddressSpace()) == 8) ||
+         IRType->isIntegerTy(64))
+       return IRType;
+ 
+@@ -2504,7 +2509,9 @@
+     // unions being lowered a specific way etc.
+     if (IRType->isIntegerTy(8) || IRType->isIntegerTy(16) ||
+         IRType->isIntegerTy(32) ||
+-        (isa<llvm::PointerType>(IRType) && !Has64BitPointers)) {
++        (isa<llvm::PointerType>(IRType) &&
++         getDataLayout().getPointerSize(
++             cast<llvm::PointerType>(IRType)->getAddressSpace()) == 4)) {
+       unsigned BitWidth = isa<llvm::PointerType>(IRType) ? 32 :
+           cast<llvm::IntegerType>(IRType)->getBitWidth();
+ 

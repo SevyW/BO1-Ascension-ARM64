@@ -625,7 +625,12 @@ void __cdecl CG_RegisterDvars()
                                                              640.0,
                                                              1u,
                                                              "Offset from top-right corner, for cg_drawFPS, etc");
+#ifdef BO1_NATIVE
+    // mod (native): off by default: the build string ran through the menus' button row at the bottom of the screen
+    cg_drawVersion = _Dvar_RegisterBool("cg_drawVersion", 0, 0, "Draw the game version");
+#else
     cg_drawVersion = _Dvar_RegisterBool("cg_drawVersion", 1, 0, "Draw the game version");
+#endif
     cg_drawVersionX = _Dvar_RegisterFloat("cg_drawVersionX", 50.0, 0.0, 512.0, 0, "X offset for the version string");
     cg_drawVersionY = _Dvar_RegisterFloat("cg_drawVersionY", 18.0, 0.0, 512.0, 0, "Y offset for the version string");
     cg_readTitleStorageLocally = _Dvar_RegisterBool(

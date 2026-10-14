@@ -16,7 +16,10 @@ HBINK BinkOpen(const char *name, U32 flags)
 
 char *BinkGetError(void)
 {
-    static char error[] = "Bink video is not available in the browser build";
+    // No error text: R_Cinematic_CheckBinkError (gfx_d3d/r_cinematic.cpp) treats any text as a failed assert, which
+    // ends the process. A failed BinkOpen with no text is the engine's "this video could not be opened" path: the
+    // cinematic ends at once. (The first run with a renderer and real files stopped here on the menu's video.)
+    static char error[] = "";
     return error;
 }
 

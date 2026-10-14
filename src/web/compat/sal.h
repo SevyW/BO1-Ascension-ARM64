@@ -62,4 +62,9 @@
 #define __out_bcount_opt(x)
 #define __deref_out
 #define __deref_out_opt
+#if defined(__aarch64__) && defined(__linux__)
+// the kernel's and the C library's AArch64 signal context structs have a member named __reserved
+#include <signal.h>
+#include <sys/ucontext.h>
+#endif
 #define __reserved

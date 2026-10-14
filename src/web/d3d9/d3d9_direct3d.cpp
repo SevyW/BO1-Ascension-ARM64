@@ -1,4 +1,5 @@
 // d3d9_direct3d.cpp - IDirect3D9(Ex): adapter info, display modes, caps, format support, device creation.
+#include <stdlib.h>
 #include "d3d9_internal.h"
 
 #include <string.h>
@@ -74,11 +75,51 @@ EM_JS(int, d3d9shim_probe_webgl2, (int *ints, float *floats, char *renderer, int
 });
 #endif
 
+#ifndef __EMSCRIPTEN__
+} // namespace d3d9shim
+extern "C" const d3d9shim_host *d3d9shim_internal_host(void);
+namespace d3d9shim {
+
+const d3d9shim_host *nativeHost() { return d3d9shim_internal_host(); }
+
+bool nativeHasExtension(const char *webglName)
+{
+    // WebGL names map to GL ES names by prefix, except the S3TC ones
+    std::string want;
+    if (!strcmp(webglName, "WEBGL_compressed_texture_s3tc"))
+        want = "GL_EXT_texture_compression_s3tc";
+    else if (!strcmp(webglName, "WEBGL_compressed_texture_s3tc_srgb"))
+        want = "GL_EXT_texture_compression_s3tc_srgb";
+    else
+        want = std::string("GL_") + webglName;
+    GLint n = 0;
+    glGetIntegerv(GL_NUM_EXTENSIONS, &n);
+    for (GLint i = 0; i < n; ++i) {
+        const char *e = (const char *)glGetStringi(GL_EXTENSIONS, (GLuint)i);
+        if (e && want == e)
+            return true;
+    }
+    return false;
+}
+#endif
+
 static void probeOnce()
 {
     if (g_probed)
         return;
     g_probed = true;
+#ifndef __EMSCRIPTEN__
+    // native: the engine asks for caps before CreateDevice, on the thread that will create the device. Create the
+    // host's context now (CreateDevice gets the same one again) and read the real limits.
+    const d3d9shim_host *host = nativeHost();
+    if (host && host->create_context && host->create_context(640, 480)) {
+        GLCaps c;
+        queryContextCaps(c);
+        g_probeCaps = c;
+        D3D9_INFO("GL ES probe: %s, max texture %d, s3tc %d, color_buffer_float %d, aniso %.0f", c.renderer,
+                  c.maxTextureSize, c.s3tc, c.colorBufferFloat, c.maxAnisotropy);
+    }
+#endif
 #ifdef __EMSCRIPTEN__
     int ints[16] = {0};
     float floats[2] = {0, 0};
@@ -310,6 +351,42 @@ std::vector<D3DDISPLAYMODE> displayModeList()
     }
     if (!haveDesktop)
         modes.push_back({dw, dh, 60, D3DFMT_X8R8G8B8});
+#ifdef BO1_NATIVE
+    // A display that is none of the shapes above (a phone: 2340x1080) also gets its own shape at the usual numbers
+    // of lines, so that a smaller mode still fills it.
+    static const UINT kLines[] = {540, 720, 900, 1080, 1440};
+    for (UINT lines : kLines) {
+        if (lines >= dh || !dh)
+            continue;
+        const UINT width = (dw * lines / dh) & ~1u;
+        bool have = false;
+        for (auto &m : modes)
+            have |= m.Width == width && m.Height == lines;
+        if (!have && width >= 640)
+            modes.push_back({width, lines, 60, D3DFMT_X8R8G8B8});
+    }
+    // The display's refresh rates (BO1_REFRESH_RATES=60,90,120, set by the Android loader from the display's
+    // modes): each mode at each of them. The engine's "refresh rate" setting lists them (r_displayRefresh).
+    if (const char *rates = getenv("BO1_REFRESH_RATES")) {
+        std::vector<UINT> list;
+        for (const char *at = rates; *at;) {
+            const UINT rate = (UINT)atoi(at);
+            if (rate >= 24 && rate <= 480)
+                list.push_back(rate);
+            while (*at && *at != ',')
+                ++at;
+            if (*at)
+                ++at;
+        }
+        if (!list.empty()) {
+            const std::vector<D3DDISPLAYMODE> base = modes;
+            modes.clear();
+            for (auto &m : base)
+                for (UINT rate : list)
+                    modes.push_back({m.Width, m.Height, rate, D3DFMT_X8R8G8B8});
+        }
+    }
+#endif
     return modes;
 }
 
@@ -504,10 +581,10 @@ HRESULT Direct3D9::GetAdapterDisplayModeEx(UINT Adapter, D3DDISPLAYMODEEX *pMode
 HRESULT Direct3D9::CreateDeviceEx(UINT Adapter, D3DDEVTYPE DeviceType, HWND hFocusWindow, DWORD BehaviorFlags,
                                   D3DPRESENT_PARAMETERS *pp, D3DDISPLAYMODEEX *, IDirect3DDevice9Ex **ppDevice)
 {
-    IDirect3DDevice9 *dev = nullptr;
-    HRESULT hr = CreateDevice(Adapter, DeviceType, hFocusWindow, BehaviorFlags, pp, &dev);
+    IDirect3DDevice9 *dev[1] = {nullptr};   // an array: a pointer object as CreateDevice's out-parameter expects
+    HRESULT hr = CreateDevice(Adapter, DeviceType, hFocusWindow, BehaviorFlags, pp, dev);
     if (ppDevice)
-        *ppDevice = static_cast<IDirect3DDevice9Ex *>(static_cast<Device *>(dev));
+        *ppDevice = static_cast<IDirect3DDevice9Ex *>(static_cast<Device *>(dev[0]));
     return hr;
 }
 
@@ -522,9 +599,31 @@ HRESULT Direct3D9::GetAdapterLUID(UINT, struct _LUID *pLUID)
 
 using namespace d3d9shim;
 
+#if defined(BO1_NATIVE) && defined(BO1_DXVK)
+#include <stdio.h>
+// The Vulkan renderer (d3d9_vkbridge.cpp: the same interfaces over DXVK). bo1_native_renderer_is_vulkan is the
+// engine's bo1_renderer dvar (src/web/web_input.cpp).
+namespace d3d9vk
+{
+IDirect3D9 *Create();
+// the shim's own object, which the bridge asks for the display modes (see there)
+IDirect3D9 *CreateModeSource() { return new Direct3D9(false); }
+}
+extern "C" int bo1_native_renderer_is_vulkan(void);
+#endif
+
 extern "C" IDirect3D9 *WINAPI Direct3DCreate9(UINT SDKVersion)
 {
     initLogFromEnv();
+#if defined(BO1_NATIVE) && defined(BO1_DXVK)
+    if (bo1_native_renderer_is_vulkan()) {
+        if (IDirect3D9 *vulkan = d3d9vk::Create()) {
+            fprintf(stderr, "renderer: Vulkan (DXVK)\n");
+            return vulkan;
+        }
+        fprintf(stderr, "renderer: Vulkan is not available here, using OpenGL ES\n");
+    }
+#endif
     if (SDKVersion != D3D_SDK_VERSION && SDKVersion != (D3D9b_SDK_VERSION | 0x80000000u) &&
         SDKVersion != D3D9b_SDK_VERSION)
         D3D9_WARN("Direct3DCreate9: unexpected SDK version %u", SDKVersion);

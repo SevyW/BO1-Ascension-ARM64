@@ -861,7 +861,7 @@ void __cdecl Flame_Phys_Update_Items(bool is_server)
 
         //_First = phys_static_array<flameGeneric_s *,1000>::operator[](v3, 0);
         //std::_Sort<flameGeneric_s * *,int,Flame_SortByStream>(_First, v4, v4 - _First, 0);
-        std::sort(v3->operator[](0), v4, Flame_SortByStream{});
+        std::sort(v3->operator[](0), v3->operator[](nflames), Flame_SortByStream{});   // both ends as returned: one iterator type (tools/p32)
         //prevStream = (*phys_static_array<flameGeneric_s *,1000>::operator[](v3, 0))->stream;
         prevStream = (flameStream_s*)((*v3->operator[](0))->stream);
         startIndex = 0;

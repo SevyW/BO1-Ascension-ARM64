@@ -13,6 +13,8 @@
 #include <win32/win_main.h>
 #include <win32/win_local.h>
 #include <win32/win_shared.h>
+#include <client/cl_gamepad.h>
+#include <ui/keycodes.h>
 #include <client/gpad_core.h>
 #include <client/cl_main.h>
 #include <client_mp/cl_input_mp.h>
@@ -24,8 +26,12 @@
 
 #include "web_bridge.h"
 
-#include <emscripten.h>
+#include "bo1_platform.h"
+#ifndef BO1_NATIVE
 #include <emscripten/html5.h>
+#else
+#include <native_video.h>
+#endif
 #include <atomic>
 
 // win_wndproc.cpp / win_input.cpp globals
@@ -63,6 +69,7 @@ enum InputType : uint8_t
     INPUT_BUTTONS,
     INPUT_WHEEL,
     INPUT_FOCUS,
+    INPUT_ENGINEKEY,   // native: an engine key code as it is (ui/keycodes.h), e.g. a game pad's d-pad from a touch swipe
 };
 
 struct InputEvent
@@ -92,7 +99,7 @@ bool s_keyDown[256];   // page thread: keys down, released on blur
 
 uint32_t NowMs()
 {
-    return (uint32_t)emscripten_get_now();
+    return (uint32_t)bo1_plat_now_ms();
 }
 
 // page thread only (single producer)
@@ -320,6 +327,168 @@ EM_BOOL OnFocus(int eventType, const EmscriptenFocusEvent *, void *)
 // ===================================================================================================================
 // registration and the engine-side pump
 // ===================================================================================================================
+#ifdef BO1_NATIVE
+// ===================================================================================================================
+// native: the window's events (src/native/native_video.cpp, SDL) enter the same queue the page's callbacks fill.
+// Called from bo1_native_video_pump, inside bo1_web_input_pump (one producer, on the pumping thread).
+// ===================================================================================================================
+extern "C" void bo1_native_input_key(int vk, int down, int extended, int console)
+{
+    InputEvent ev{};
+    ev.type = INPUT_KEY;
+    ev.down = down != 0;
+    ev.extended = extended != 0;
+    ev.console = console != 0;
+    ev.value = vk;
+    ev.time = NowMs();
+    if (vk > 0 && vk < 256)
+        s_keyDown[vk] = down != 0;
+    Push(ev);
+}
+
+extern "C" void bo1_native_input_char(unsigned ch)
+{
+    InputEvent c{};
+    c.type = INPUT_CHAR;
+    c.value = (int32_t)ch;
+    c.time = NowMs();
+    Push(c);
+}
+
+extern "C" void bo1_native_input_buttons(int mask)
+{
+    InputEvent ev{};
+    ev.type = INPUT_BUTTONS;
+    ev.value = mask;
+    ev.time = NowMs();
+    Push(ev);
+}
+
+extern "C" void bo1_native_input_wheel(int direction)
+{
+    InputEvent ev{};
+    ev.type = INPUT_WHEEL;
+    ev.value = direction;
+    ev.time = NowMs();
+    Push(ev);
+}
+
+extern "C" void bo1_native_input_focus(int active)
+{
+    s_focused.store(active ? 1 : 0);
+    if (!active)
+    {
+        // nothing stays held while the window is in the background (as the page's blur handler does)
+        for (int vk = 0; vk < 256; ++vk)
+        {
+            if (!s_keyDown[vk])
+                continue;
+            s_keyDown[vk] = false;
+            InputEvent up{};
+            up.type = INPUT_KEY;
+            up.value = vk;
+            up.time = NowMs();
+            Push(up);
+        }
+        bo1_native_input_buttons(0);
+    }
+    InputEvent f{};
+    f.type = INPUT_FOCUS;
+    f.down = active != 0;
+    f.time = NowMs();
+    Push(f);
+}
+
+extern "C" void bo1_native_input_motion(int dx, int dy, int x, int y, int width, int height)
+{
+    s_mouseDx.fetch_add(dx);
+    s_mouseDy.fetch_add(dy);
+    if (width > 0 && height > 0 && !s_pointerLocked.load())
+    {
+        double fx = (double)x / width, fy = (double)y / height;
+        fx = fx < 0 ? 0 : fx > 1 ? 1 : fx;
+        fy = fy < 0 ? 0 : fy > 1 ? 1 : fy;
+        s_mouseX.store((int)(fx * 65536.0));
+        s_mouseY.store((int)(fy * 65536.0));
+    }
+}
+
+extern "C" void bo1_native_input_enginekey(int key, int down)
+{
+    InputEvent ev{};
+    ev.type = INPUT_ENGINEKEY;
+    ev.value = key;
+    ev.down = down ? 1 : 0;
+    ev.time = NowMs();
+    Push(ev);
+}
+
+// 1 while a menu has the keys (the UI key catcher): what the touch gestures of native_video.cpp are for
+extern "C" int bo1_native_ui_active(void)
+{
+    clientUIActive_t *ui = CL_GetLocalClientUIGlobals(0);
+    return ui && (ui->keyCatchers & 0x50) != 0;
+}
+
+// mod (native): bo1_renderer (archived, default 0, on Android 1; read when the renderer starts, so a change needs a restart):
+//   0 OpenGL ES 3 (the D3D9 shim, src/web/d3d9)
+//   1 Vulkan (DXVK behind src/web/d3d9/d3d9_vkbridge.cpp); falls back to 0 where DXVK or a Vulkan driver is missing
+// The environment variable BO1_RENDERER=vulkan|gles overrides it (tests).
+// (Set by web_main.cpp around Sys_FindInfo: that first D3D9 object only reads the adapter's name, on the main
+// thread, before the configuration is loaded. It stays the OpenGL ES shim's, which needs no window; SDL's video
+// subsystem then starts on the render thread for either renderer.)
+extern "C" int bo1_native_renderer_detecting = 0;
+
+extern "C" int bo1_native_renderer_is_vulkan(void)
+{
+    if (bo1_native_renderer_detecting)
+        return 0;
+    const char *env = getenv("BO1_RENDERER");
+    if (env && *env)
+        return !I_stricmp(env, "vulkan");
+    static const dvar_t *bo1_renderer;
+    if (!bo1_renderer)
+    {
+#ifdef __ANDROID__
+        const int byDefault = 1;   // (falls back to OpenGL ES where there is no usable Vulkan driver)
+#else
+        const int byDefault = 0;
+#endif
+        bo1_renderer = _Dvar_RegisterInt("bo1_renderer", byDefault, 0, 1, 1u, "mod: renderer: 0 OpenGL ES 3, 1 Vulkan (restart to apply)");
+        // bo1_vk_async (archived, default 1; restart to apply): how the Vulkan renderer gets a pipeline (shaders +
+        // render state) it has not used before, on drivers without graphics pipeline libraries (Adreno):
+        //   1  compiled on background threads; the draws that need it are left out until it is ready (measured on
+        //      an Adreno 830: 2 frames at 60 Hz; a surface lit by a new light shows the cleared colour for that
+        //      long, once: DXVK's state cache keeps the pipeline for later sessions)
+        //   0  compiled at the draw: nothing is left out, the frame waits (a stutter instead)
+        // DXVK reads BO1_DXVK_ASYNC (tools/native/build-dxvk.sh, the BO1_ASYNC patch).
+        // bo1_offline_menus (default 1, 0 or 1): the Multiplayer menus treat the player as signed in to the retail
+        // online service (universal/com_expressions_eval.cpp), so PLAY and the menus behind it open.
+        _Dvar_RegisterInt("bo1_offline_menus", 1, 0, 1, 0, "mod: Multiplayer menus work without the retail online service");
+        const dvar_t *bo1_vk_async = _Dvar_RegisterInt("bo1_vk_async", 1, 0, 1, 1u, "mod: Vulkan: 1 new pipelines compile in the background (no stutter; a surface may flicker once), 0 at the draw (restart to apply)");
+        if (!bo1_vk_async->current.integer && !getenv("BO1_DXVK_ASYNC"))
+            setenv("BO1_DXVK_ASYNC", "0", 1);
+        // bo1_vk_resolve (archived, default 2, 0 to 3; restart to apply; measured on an Adreno 830 with r_aaSamples 4:
+        // 0 loses every effect, 1 gives a black scene, 2 and 3 are right): how the Vulkan renderer resolves the
+        // multisampled scene (r_aaSamples above 1); DXVK reads BO1_DXVK_RESOLVE (tools/native/build-dxvk.sh).
+        const dvar_t *bo1_vk_resolve = _Dvar_RegisterInt("bo1_vk_resolve", 2, 0, 3, 1u, "mod: Vulkan: multisample resolve: 0 DXVK's choice, 1 own pass, 2 shader, 3 vkCmdResolveImage (restart to apply)");
+        if (!getenv("BO1_DXVK_RESOLVE"))
+            setenv("BO1_DXVK_RESOLVE", va("%i", bo1_vk_resolve->current.integer), 1);
+    }
+    return bo1_renderer->current.integer;
+}
+
+extern "C" int bo1_native_input_wants_grab(void)
+{
+    return s_wantPointerLock.load();
+}
+
+extern "C" void bo1_native_input_set_grabbed(int grabbed)
+{
+    s_pointerLocked.store(grabbed ? 1 : 0);
+}
+#endif
+
 extern "C" void bo1_web_input_init(void)
 {
     g_wv.hWnd = GetActiveWindow();
@@ -343,6 +512,9 @@ extern "C" void bo1_web_input_pump(void)
 {
     if (s_pumping.exchange(1))
         return;   // one consumer at a time (Win_GetEvent can run on other threads while loading)
+#ifdef BO1_NATIVE
+    bo1_native_video_pump();   // native: the window's pending events -> the queue drained below
+#endif
     uint32_t r = s_queueRead.load(std::memory_order_relaxed);
     const uint32_t w = s_queueWrite.load(std::memory_order_acquire);
     for (; r != w; ++r)
@@ -361,6 +533,14 @@ extern "C" void bo1_web_input_pump(void)
         case INPUT_CHAR:
             Sys_QueEvent(g_msgTime, SE_CHAR, e.value, 0, 0, 0);
             break;
+        case INPUT_ENGINEKEY:
+        {
+            // a game pad key (d-pad, A): through the game pad's own event, which is what the menus listen to
+            const GamePadButton button = e.value == K_DPAD_UP ? GPAD_UP : e.value == K_DPAD_DOWN ? GPAD_DOWN
+                : e.value == K_DPAD_LEFT ? GPAD_LEFT : e.value == K_DPAD_RIGHT ? GPAD_RIGHT : GPAD_A;
+            CL_GamepadButtonEvent(0, 0, e.value, e.down ? 1 : 0, (unsigned int)g_msgTime, button);
+            break;
+        }
         case INPUT_BUTTONS:
             IN_MouseEvent(e.value);
             break;

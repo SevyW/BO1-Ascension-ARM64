@@ -4193,7 +4193,7 @@ void G_ModSvProfBegin()
     if (!samplerStarted)
     {
         samplerStarted = true;
-        CreateThread(0, 0, G_ModSvProfSampler, 0, 0, 0);
+        CreateThread(0, 0, (LPTHREAD_START_ROUTINE)G_ModSvProfSampler, 0, 0, 0);
     }
     g_svProfThread = GetCurrentThreadId();
     g_svProfDepth = 0;

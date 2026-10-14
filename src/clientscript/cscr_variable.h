@@ -633,7 +633,7 @@ int __cdecl Scr_GetClassnumForCharId(scriptInstance_t inst, char charId);
 int __cdecl Scr_FindAllThreads(scriptInstance_t inst, unsigned int selfId, unsigned int *threads, unsigned int localId);
 unsigned int __cdecl Scr_FindAllEndons(scriptInstance_t inst, unsigned int threadId, unsigned int *names);
 
-static constexpr const char *var_typename[] =
+static const char *const var_typename[] =   // was constexpr: a 32-bit pointer (tools/p32) is not a constant expression
 {
   "undefined",
   "object",

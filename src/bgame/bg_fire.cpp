@@ -157,7 +157,7 @@ void __cdecl TerrainScorch(float *loresCellPos, bool instant)
     unsigned int stream2LockedSize; // [esp+1084h] [ebp-34h] BYREF
     float mins[3]; // [esp+1088h] [ebp-30h] BYREF
     float floatIn; // [esp+1094h] [ebp-24h]
-    int (__cdecl *allowSurf)(int, void *); // [esp+1098h] [ebp-20h] BYREF
+    R_AllowSurfFunc allowSurf; // [esp+1098h] [ebp-20h] BYREF
     GfxWorldVertex *v26; // [esp+10A8h] [ebp-10h]
     float v27; // [esp+10ACh] [ebp-Ch]
     unsigned int v28; // [esp+10B0h] [ebp-8h]
@@ -292,7 +292,7 @@ void __cdecl TerrainScorch(float *loresCellPos, bool instant)
     maxs[1] = loresCellPos[1] + radiusXY;
     maxs[2] = loresCellPos[2] + radiusZ;
 
-    int(__cdecl * allowSurf)(int, void *) = TerrainScorch_AllowSurfacesCallback;
+    R_AllowSurfFunc allowSurf = TerrainScorch_AllowSurfacesCallback;
 
     GfxSurface surfs[50];
     GfxSurface *surfList = surfs;

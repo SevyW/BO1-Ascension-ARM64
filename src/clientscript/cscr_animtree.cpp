@@ -1228,6 +1228,15 @@ void __cdecl ConnectScriptToAnim(
     const char *nextCodePos; // [esp+18h] [ebp-4h]
 
     animId = FindVariable(inst, names, name);
+    // mod (coop): a client without a local server builds the server instance's trees without having compiled the
+    // server's scripts (CG_SP_RegisterRemoteAnimTrees), so no anim is "used" and the name map the client scripts are
+    // matched against (GScr_FindAnimTree's "Client Script uses anim ... that doesn't exist on the server") would hold
+    // the root only. The index of a name in its tree is the same on every machine: map every name there.
+    if ( !animId && inst == SCRIPTINSTANCE_SERVER && g_pCurrClientData && g_pCurrClientData->pTreeNameMap
+        && index >= 0 && index < g_pCurrClientData->numIndices && com_sv_running && !com_sv_running->current.enabled )
+    {
+        I_strncpyz(g_pCurrClientData->pTreeNameMap[index].strName, SL_ConvertToString(name, SCRIPTINSTANCE_SERVER), 80);
+    }
     if ( animId )
     {
         value = GetVariableValueAddress(inst, animId);
@@ -2733,6 +2742,16 @@ scr_animtree_t __cdecl CScr_RetrieveAnimTree(
             }
             if (iAnimIx == pCurrTree->numIndices)
             {
+                // mod (coop): a client without a local server has the host's trees with only the anims this machine
+                // knows are used (ConnectScriptToAnim), not those the host's scripts used. A client script anim that
+                // is not among them plays the tree's root (nothing) instead of ending the load.
+                if ( com_sv_running && !com_sv_running->current.enabled && Com_IsSPLevel() )
+                {
+                    Com_PrintWarning(14, "coop: client script anim '%s' is not in the host's tree '%s' here: it will not play\n",
+                        strName, strAnimTreeName);
+                    ConnectScriptToAnim(SCRIPTINSTANCE_CLIENT, names, 0, filename, name, iOurTreeIx);
+                    continue;
+                }
                 v5 = va(
                     "Client Script uses anim '%s' from tree '%s' that doesn't exist on the server.",
                     strName,

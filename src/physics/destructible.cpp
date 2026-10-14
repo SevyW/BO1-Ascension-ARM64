@@ -3313,6 +3313,17 @@ void __cdecl Destructible_ReadGameState(msg_t *msg, int localClientNum)
     s_num_destructible_gamestates[localClientNum] = 0;
     for ( entityNum = MSG_ReadShort(msg); entityNum != 1023; entityNum = MSG_ReadShort(msg) )
     {
+#ifdef BO1_NATIVE
+        // mod (native): a message that ends early reads as -1 for ever, and the loop then writes past the table
+        // (the server sends at most 32 entries)
+        if ( msg->overflowed || s_num_destructible_gamestates[localClientNum] >= 32 )
+        {
+            Com_PrintError(1, "Destructible_ReadGameState: bad game state (entity %i, %i entries, read %i of %i)\n", entityNum,
+                s_num_destructible_gamestates[localClientNum], msg->readcount, msg->cursize);
+            s_num_destructible_gamestates[localClientNum] = 0;
+            return;
+        }
+#endif
         numPieces = MSG_ReadByte(msg);
         dgs = &s_destructible_gamestates[localClientNum][s_num_destructible_gamestates[localClientNum]];
         dgs->entityNum = entityNum;

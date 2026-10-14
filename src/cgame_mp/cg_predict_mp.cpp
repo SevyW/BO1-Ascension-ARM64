@@ -518,7 +518,7 @@ void __cdecl CG_PredictPlayerState_Internal(int localClientNum)
         cg_pmove[localClientNum].handler = 0;
         // zombies: predict with the local server's SP stance permissions (the server's pmove gets the same,
         // g_active_mp.cpp); SP keeps them in the networked pm_flags, KB has no free networked bits.
-        cg_pmove[localClientNum].spDisabledStances = (zombiemode && zombiemode->current.enabled && com_sv_running->current.enabled)
+        cg_pmove[localClientNum].spDisabledStances = (Com_SPPlayerRules() && com_sv_running->current.enabled)   // mod (native): was zombiemode
             ? (G_SP_PlayerBuiltinState(cg_pmove[localClientNum].ps->clientNum).disabledActions & 0x1C00000) : 0;
         // mod (coop): without a local server the host sends them as the client dvar bo1_sp_stances (g_scr_sp_players.cpp
         // SP_SendRemoteStances; CG_Init clears it)

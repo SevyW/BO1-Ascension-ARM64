@@ -1902,7 +1902,7 @@ void __cdecl destroy_broad_phase_info_list(broad_phase_info *list_bpi)
             if ( v1->m_sap_node && _tlAssert("source/phys_broad_phase.cpp", 131, "bpi->m_sap_node == NULL", "") )
                 __debugbreak();
             m_list_bpb_next = (broad_phase_info *)v1->m_list_bpb_next;
-            p_m_gjk_geom = (char *)&v1[-1].m_gjk_geom;
+            p_m_gjk_geom = (char *)PHYS_T_INTERNAL(v1, m_gjk_geom);
             p_g_list_broad_phase_info = &G_BPM->g_list_broad_phase_info;
             PMM_VALIDATE(p_m_gjk_geom, 0x90u, 0x10u);
             if ( !p_m_gjk_geom )
@@ -1965,9 +1965,9 @@ void __cdecl destroy_broad_phase_collision_pair(broad_phase_collision_pair *bpcp
     p_g_list_broad_phase_collision_pair = &G_BPM->g_list_broad_phase_collision_pair;
     if ( bpcp )
     {
-        PMM_VALIDATE((char *)&bpcp[-1].m_bpi2, 0x18u, 4u);
+        PMM_VALIDATE((char *)PHYS_T_INTERNAL(bpcp, m_bpi2), 0x18u, 4u);
         //phys_free_list<broad_phase_collision_pair>::remove(p_g_list_broad_phase_collision_pair, (phys_free_list<broad_phase_collision_pair>::T_internal *)&bpcp[-1].m_bpi2);
-        p_g_list_broad_phase_collision_pair->remove((phys_free_list<broad_phase_collision_pair>::T_internal *) &bpcp[-1].m_bpi2);
+        p_g_list_broad_phase_collision_pair->remove((phys_free_list<broad_phase_collision_pair>::T_internal *) PHYS_T_INTERNAL(bpcp, m_bpi2));
     }
 }
 
@@ -1986,9 +1986,9 @@ void __cdecl destroy_broad_phase_collision_pair_list(broad_phase_collision_pair 
         do
         {
             m_next_bpcp = v1->m_next_bpcp;
-            p_m_bpi2 = (phys_free_list<broad_phase_collision_pair>::T_internal *)&v1[-1].m_bpi2;
+            p_m_bpi2 = (phys_free_list<broad_phase_collision_pair>::T_internal *)PHYS_T_INTERNAL(v1, m_bpi2);
             p_g_list_broad_phase_collision_pair = &G_BPM->g_list_broad_phase_collision_pair;
-            PMM_VALIDATE((char *)&v1[-1].m_bpi2, 0x18u, 4u);
+            PMM_VALIDATE((char *)PHYS_T_INTERNAL(v1, m_bpi2), 0x18u, 4u);
             if ( !p_m_bpi2 )
             {
                 if ( _tlAssert("c:\\projects_pc\\cod\\codsrc\\tl\\physics\\include\\phys_mem.h", 477, "data", "") )
@@ -2052,9 +2052,9 @@ void __cdecl destroy_broad_phase_group(broad_phase_group *bpg)
     p_g_list_broad_phase_group = &G_BPM->g_list_broad_phase_group;
     if ( bpg )
     {
-        PMM_VALIDATE((char *)&bpg[-1].m_list_bpi_head, 0x80u, 0x10u);
+        PMM_VALIDATE((char *)PHYS_T_INTERNAL(bpg, m_list_bpi_head), 0x80u, 0x10u);
         //phys_free_list<broad_phase_group>::remove(p_g_list_broad_phase_group, (phys_free_list<broad_phase_group>::T_internal *)&bpg[-1].m_list_bpi_head);
-        p_g_list_broad_phase_group->remove((phys_free_list<broad_phase_group>::T_internal *) &bpg[-1].m_list_bpi_head);
+        p_g_list_broad_phase_group->remove((phys_free_list<broad_phase_group>::T_internal *) PHYS_T_INTERNAL(bpg, m_list_bpi_head));
     }
 }
 
@@ -3668,7 +3668,10 @@ void    axis_aligned_sweep_and_prune::process_active_pair_list()
                     &v19->m_trace_aabb_max_whace,
                     &hit_time))
                 {
-                    for (i = (broad_phase_info *)LODWORD(v19[1].m_trace_aabb_min_whace.x);
+                    // web: the group's bpi list by name. The decompiler's `v19[1].m_trace_aabb_min_whace.x` (the word after the
+                    // base class) is that field only in MSVC's layout; the Itanium ABI starts the derived members 4 bytes
+                    // earlier, in the base's tail padding.
+                    for (i = v19->get_bpg()->m_list_bpi_head;
                         i;
                         i = (broad_phase_info *)i->m_list_bpb_next)
                     {
@@ -3751,7 +3754,10 @@ void    axis_aligned_sweep_and_prune::process_active_pair_list()
                 {
                     __debugbreak();
                 }
-                for (j = (broad_phase_info *)LODWORD(v26[1].m_trace_aabb_min_whace.x);
+                // web: the group's bpi list by name. The decompiler's `v26[1].m_trace_aabb_min_whace.x` (the word after the
+                    // base class) is that field only in MSVC's layout; the Itanium ABI starts the derived members 4 bytes
+                    // earlier, in the base's tail padding.
+                    for (j = v26->get_bpg()->m_list_bpi_head;
                     j;
                     j = (broad_phase_info *)j->m_list_bpb_next)
                 {

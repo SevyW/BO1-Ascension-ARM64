@@ -187,12 +187,71 @@ const char *__cdecl SE_GetString_FastFile(char *psPackageAndStringReference)
         return 0;
 }
 
+#ifdef BO1_NATIVE
+// mod (native menus): texts of the retail menus that are wrong for a phone or a controller, replaced by what they
+// say (the menus and their strings are in the player's fastfiles; this changes what is drawn, not the files).
+//   "Press Any Key" (title screen): "Press any button" with a controller connected, "Tap the screen" on Android
+//   without one, unchanged on a desktop without one.
+//   "CAMPAIGN" (main menu): "COMING SOON": the campaign is not playable in this build yet.
+//   "Shader Warming" (graphics menu): "FPS Counter", what that row sets here.
+#include <client/gpad_core.h>
+extern "C" int bo1_native_touch_is_pad(void);
+static const char *SEH_NativeText(const char *text)
+{
+    if ( !text )
+        return text;
+    if ( !I_stricmp(text, "Press Any Key") )
+    {
+        // (the on-screen touch controls fill a pad slot too, src/native/native_touch.cpp: not a controller)
+        if ( gpad_enabled && gpad_enabled->current.enabled && !bo1_native_touch_is_pad() )
+            return "Press any button";
+#ifdef __ANDROID__
+        return "Tap the screen";
+#endif
+    }
+    else if ( !I_stricmp(text, "CAMPAIGN") )
+    {
+        return "COMING SOON";
+    }
+    else if ( !I_stricmp(text, "Shader Warming") )
+    {
+        // the graphics menu row that is the FPS counter in these builds (UI_ModFov_PatchMenus, ui_main.cpp)
+        return text[1] == 'H' ? "FPS COUNTER" : "FPS Counter";
+    }
+    return text;
+}
+#endif
+
+#ifdef BO1_NATIVE
+// mod (native menus): a menu item whose text is one of the entries that are not available yet ("CAMPAIGN", drawn as
+// "COMING SOON"). Item_Action (ui_shared.cpp) does nothing for it; the menu's own script stays as it is.
+bool SEH_NativeItemDisabled(const char *text)
+{
+    if ( !text || !*text )
+        return false;
+    const char *plain = text;
+    if ( *text == '@' && text[1] && text[2] )
+    {
+        plain = SE_GetString((char *)text + 1);
+        if ( !plain )
+            return false;
+    }
+    return !I_stricmp(plain, "CAMPAIGN");
+}
+#endif
+
 const char *__cdecl SEH_StringEd_GetString(char *pszReference)
 {
     if ( !loc_translate || !loc_translate->current.enabled )
         return pszReference;
     if ( *pszReference && pszReference[1] )
+    {
+#ifdef BO1_NATIVE
+        return SEH_NativeText(SE_GetString(pszReference)); // mod (native menus)
+#else
         return SE_GetString(pszReference);
+#endif
+    }
     return pszReference;
 }
 

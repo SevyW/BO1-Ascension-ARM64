@@ -83,7 +83,7 @@ void R_WarnOncePerFrame(GfxWarningType warnType, ...)
         s_warnCount[warnType] = rg.frontEndFrameCount + (int)(float)(frameRate * r_warningRepeatDelay->current.value);
         va_copy(vargs, va);
         _vsnprintf(message, 0x400u, s_warnFormat[warnType], va);
-        vargs = 0;
+        va_end(vargs);
         Com_PrintWarning(8, "%s", message);
     }
 }

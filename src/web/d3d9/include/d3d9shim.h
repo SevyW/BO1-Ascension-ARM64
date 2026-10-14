@@ -51,6 +51,23 @@ typedef struct d3d9shim_stats {
 } d3d9shim_stats;
 void d3d9shim_get_stats(d3d9shim_stats *out);
 
+/* Native builds (no browser): the platform layer provides the OpenGL ES 3 context and the window. Register this
+ * before Direct3DCreate9. create_context makes a GLES 3.0 context current on the calling thread (the device
+ * thread), creating the window on first use and resizing it afterwards; it returns nonzero on success and may be
+ * called again. resize sets the drawable size; swap shows the default framebuffer (called by Present). The
+ * struct is copied. Without a host, CreateDevice fails with D3DERR_NOTAVAILABLE. */
+typedef struct d3d9shim_host {
+    int (*create_context)(int width, int height);
+    void (*resize)(int width, int height);
+    void (*swap)(void);
+} d3d9shim_host;
+void d3d9shim_set_host(const d3d9shim_host *host);
+
+/* The size of the default framebuffer when it is not the back buffer's (Android: the window is the display, whatever
+ * mode the engine asked for). Present then scales the back buffer into it, keeping the aspect ratio and clearing
+ * the rest. 0x0 (the default): the default framebuffer has the back buffer's size. Any thread. */
+void d3d9shim_set_present_size(int width, int height);
+
 #ifdef __cplusplus
 }
 #endif

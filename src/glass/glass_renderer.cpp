@@ -80,7 +80,17 @@ GlassRenderer::GlassRenderer(const Glasses *glasses)
                  16 * smallAllocatorBlocks,
                  "C:\\projects_pc\\cod\\codsrc\\src\\glass\\glass_renderer.cpp",
                  70);
+#if defined(BO1_WEB) && defined(__LP64__)
+    // web: 64-bit native builds. The blocks hold std::list nodes, which are two native pointers and the element
+    // there (24 bytes): 32-byte blocks from a second allocation of twice the size.
+    v2 = GlassesClient::Allocate(
+                 32 * smallAllocatorBlocks,
+                 "C:\\projects_pc\\cod\\codsrc\\src\\glass\\glass_renderer.cpp",
+                 70);
+    this->smallAllocator.Init(v2, 0x20u, smallAllocatorBlocks);
+#else
     this->smallAllocator.Init(v2, 0x10u, smallAllocatorBlocks);
+#endif
 
 
     //v23 = GlassesClient::Allocate(28, "C:\\projects_pc\\cod\\codsrc\\src\\glass\\glass_renderer.cpp", 72);

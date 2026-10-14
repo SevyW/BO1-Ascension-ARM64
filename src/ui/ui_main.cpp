@@ -1,3 +1,6 @@
+#ifdef BO1_NATIVE
+extern "C" int bo1_native_video_show_pointer(void); // mod (native): src/native/native_video.cpp
+#endif
 #include "ui_main.h"
 #include <universal/assertive.h>
 #include <qcommon/com_clients.h>
@@ -836,8 +839,13 @@ void __cdecl UI_Refresh(int localClientNum)
         if ( UI_ShouldDrawBuildNumber(localClientNum) )
             UI_DrawBuildNumber(contextIndex);
         // zombies mouse-1: SP UI_Refresh also hides the cursor while the focused menu is a 3D one (SP 0x004AFE00 -> 0x0069AA20)
+        // mod (native): and not on a touch screen without a mouse (src/native/native_video.cpp)
         if ( uiInfo->uiDC.isCursorVisible && !UI_KeysBypassMenu(localClientNum) && !UI_IsFocusedMenu3D(localClientNum)
-            && !CG_IsShowingZombieMap() )
+            && !CG_IsShowingZombieMap()
+#ifdef BO1_NATIVE
+            && bo1_native_video_show_pointer()
+#endif
+            )
             UI_DrawHandlePic(
                 &scrPlaceView[contextIndex],
                 uiInfo->uiDC.cursor.x
@@ -3913,9 +3921,106 @@ static void UI_ModFov_PatchMenus(UiContext *dc)
         menu = dc->Menus[m];
         if ( !menu )
             continue;
+        if ( getenv("BO1_MENU_TRACE") ) // mod (native menus): the menus this UI has
+            fprintf(stderr, "menu-name: %s (%d items)\n", menu->window.name ? menu->window.name : "-", menu->itemCount);
         for ( i = 0; i < menu->itemCount; ++i )
         {
             item = menu->items[i];
+            if ( item && item->dvar && getenv("BO1_MENU_TRACE") ) // mod (native menus): what the settings menus hold
+                fprintf(stderr, "menu-item: %s | %s | type %d | dvar %s | text %s | y %g\n", menu->window.name ? menu->window.name : "-",
+                    item->window.name ? item->window.name : "-", item->type, item->dvar,
+                    "-", item->window.rect.y);
+#ifdef BO1_NATIVE
+            // mod (native menus): the settings menus' Voice Chat entry opens the Extras screen in these builds
+            // (ui_shared.cpp Item_Action, client_mp/cl_extras.cpp): its label, the button text at the third place
+            // of the left column of every options_* menu.
+            // (two items carry the text, as in the rows of the graphics menu; those without one are the row's boxes)
+            if ( item && menu->window.name && !I_strnicmp(menu->window.name, "options_", 8)
+                && item->window.rect.x > -267.5f && item->window.rect.x < -265.5f
+                && item->window.rect.y > -97.0f && item->window.rect.y < -95.0f
+                && Item_GetTextDef(item) && (Item_GetTextDef(item)->text || Item_GetTextDef(item)->textExpData) )
+            {
+                Item_GetTextDef(item)->text = "EXTRAS";
+                Item_GetTextDef(item)->textExpData = 0;
+                continue;
+            }
+            // mod (native menus): the graphics menu's "shader warming" row does nothing in these builds (shaders are
+            // translated when a level loads). It becomes "FPS Counter": None / Simple / Advanced / Full
+            // (bo1_fpscounter 0..3, cl_scrn_mp.cpp). The row's label is the text item at the same height.
+            if ( item && item->dvar && item->type == 10 && !I_stricmp(item->dvar, "r_shaderWarming") && Item_GetMultiDef(item) )
+            {
+                static const char *const names[4] = { "None", "Simple", "Advanced", "Full" };
+                multiDef_s *multi = Item_GetMultiDef(item);
+                for ( j = 0; j < 4; ++j )
+                {
+                    multi->dvarList[j] = names[j];
+                    multi->dvarStr[j] = 0;
+                    multi->dvarValue[j] = (float)j;
+                }
+                multi->count = 4;
+                multi->strDef = 0;
+                item->dvar = "bo1_fpscounter";
+                Com_Printf(13, "native menus: %s item %s is the FPS counter row\n", menu->window.name, item->window.name ? item->window.name : "-");
+                if ( getenv("BO1_MENU_TRACE") )
+                    for ( j = 0; j < menu->itemCount; ++j )
+                        if ( menu->items[j] && menu->items[j]->window.rect.y > item->window.rect.y - 14.0f && menu->items[j]->window.rect.y < item->window.rect.y + 14.0f )
+                            fprintf(stderr, "menu-row: #%d %s type %d y %g x %g dvar %s text %s\n", j, menu->items[j]->window.name ? menu->items[j]->window.name : "-", menu->items[j]->type,
+                                menu->items[j]->window.rect.y, menu->items[j]->window.rect.x, menu->items[j]->dvar ? menu->items[j]->dvar : "-",
+                                (menu->items[j]->type == 0 || menu->items[j]->type == 1) && menu->items[j]->typeData.textDef && menu->items[j]->typeData.textDef->text ? menu->items[j]->typeData.textDef->text : "-");
+                // the label: the button of the same name in the row (its text is an expression in the retail menu)
+                for ( j = 0; j < menu->itemCount; ++j )
+                {
+                    other = menu->items[j];
+                    if ( !other || other == item || other->type != 1 || !other->window.name || !item->window.name
+                        || I_stricmp(other->window.name, item->window.name) || !other->typeData.textDef )
+                        continue;
+                    other->typeData.textDef->text = "FPS COUNTER";
+                    other->typeData.textDef->textExpData = 0;
+                }
+                continue;
+            }
+#ifdef BO1_DXVK
+            // mod (native menus): the "fullscreen" row has no meaning in these builds (the window is the display on
+            // Android, r_fullscreen 0 elsewhere). It becomes "Renderer": OpenGL ES / Vulkan (bo1_renderer 0/1,
+            // src/web/web_input.cpp), read when the renderer starts: the choice applies at the next start of the game.
+            // Only in builds that have the Vulkan renderer (cmake BO1_NATIVE_DXVK).
+            if ( item && item->dvar && item->type == 10 && !I_stricmp(item->dvar, "ui_r_fullscreen") && Item_GetMultiDef(item) )
+            {
+                static const char *const renderers[2] = { "OpenGL ES", "Vulkan" };
+                multiDef_s *multi = Item_GetMultiDef(item);
+                for ( j = 0; j < 2; ++j )
+                {
+                    multi->dvarList[j] = renderers[j];
+                    multi->dvarStr[j] = 0;
+                    multi->dvarValue[j] = (float)j;
+                }
+                multi->count = 2;
+                multi->strDef = 0;
+                item->dvar = "bo1_renderer";
+                Com_Printf(13, "native menus: %s item %s is the renderer row\n", menu->window.name, item->window.name ? item->window.name : "-");
+                if ( getenv("BO1_MENU_TRACE") )
+                    for ( j = 0; j < menu->itemCount; ++j )
+                        if ( menu->items[j] && menu->items[j]->window.rect.y > item->window.rect.y - 14.0f && menu->items[j]->window.rect.y < item->window.rect.y + 14.0f )
+                            fprintf(stderr, "menu-row: #%d %s type %d y %g x %g w %g dvar %s text %s exp %p\n", j, menu->items[j]->window.name ? menu->items[j]->window.name : "-", menu->items[j]->type,
+                                menu->items[j]->window.rect.y, menu->items[j]->window.rect.x, menu->items[j]->window.rect.w, menu->items[j]->dvar ? menu->items[j]->dvar : "-",
+                                (menu->items[j]->type == 0 || menu->items[j]->type == 1) && menu->items[j]->typeData.textDef && menu->items[j]->typeData.textDef->text ? menu->items[j]->typeData.textDef->text : "-",
+                                (menu->items[j]->type == 0 || menu->items[j]->type == 1) && menu->items[j]->typeData.textDef ? (void *)menu->items[j]->typeData.textDef->textExpData : (void *)0);
+                // the labels: the two buttons at the row's place (one of them has the row's name); their text is an
+                // expression in the retail menu
+                for ( j = 0; item->window.name && j < menu->itemCount; ++j )
+                {
+                    other = menu->items[j];
+                    if ( !other || other == item || other->type != 1 || !other->typeData.textDef
+                        || other->window.rect.x > item->window.rect.x + 1.0f || other->window.rect.x < item->window.rect.x - 1.0f
+                        || other->window.rect.y > item->window.rect.y + 1.5f || other->window.rect.y < item->window.rect.y - 1.5f )
+                        continue;
+                    other->typeData.textDef->text = "RENDERER (RESTART)";
+                    other->typeData.textDef->textExpData = 0;
+                }
+                continue;
+            }
+#endif
+#endif
             if ( !item || !item->dvar || I_stricmp(item->dvar, "cg_fov_default") )
                 continue;
             editDef = Item_GetEditFieldDef(item);

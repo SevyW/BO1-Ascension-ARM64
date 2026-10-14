@@ -29,7 +29,7 @@ StateEnt stateEntries[6] =
   { Ragdoll_EnterDead, Ragdoll_ExitDead, NULL },
   { Ragdoll_EnterDobjWait, Ragdoll_ExitDObjWait, Ragdoll_UpdateDObjWait },
   { NULL, NULL, Ragdoll_UpdateVelocityCapture },
-  { Ragdoll_EnterTunnelTest, NULL, NULL },
+  { (bool (__cdecl *)(RagdollBody *, RagdollBodyState, RagdollBodyState))Ragdoll_EnterTunnelTest, NULL, NULL },
   { NULL, NULL, Ragdoll_UpdateRunning },
   { Ragdoll_EnterIdle, Ragdoll_ExitIdle, NULL }
 };

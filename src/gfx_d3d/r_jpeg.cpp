@@ -27,7 +27,7 @@ void __cdecl R_SaveJpg(
                 unsigned __int8 *output_buffer)
 {
     unsigned __int8 *out; // [esp+0h] [ebp-214h]
-    unsigned __int8 *row_pointer[1]; // [esp+8h] [ebp-20Ch] BYREF
+    bo1_host_bytes row_pointer[1]; // [esp+8h] [ebp-20Ch] BYREF
     jpeg_compress_struct cinfo; // [esp+Ch] [ebp-208h] BYREF
     jpeg_error_mgr jerr; // [esp+17Ch] [ebp-98h] BYREF
 
@@ -144,7 +144,7 @@ void Jpeg_Error()
 
 char __cdecl R_ReadJpg(jpeg_decompress_struct *context, unsigned __int8 *pixels, int pitch, int height)
 {
-    unsigned __int8 *scanline; // [esp+8h] [ebp-Ch] BYREF
+    bo1_host_bytes scanline; // [esp+8h] [ebp-Ch] BYREF
     jpeg_decompress_struct *cinfo; // [esp+Ch] [ebp-8h]
     unsigned int i; // [esp+10h] [ebp-4h]
 

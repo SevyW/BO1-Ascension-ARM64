@@ -803,6 +803,13 @@ int __cdecl NET_GetLoopPacket_Real(netsrc_t sock, netadr_t *net_from, msg_t *net
         loop->get = loop->send - 16;
     if ( loop->get >= loop->send )
         return 0;
+#ifdef BO1_NATIVE
+    // mod (native): these queues are written by one thread and read by another without a lock (the server thread and
+    // the client's). The writer fills the slot and then counts it with an interlocked add; on x86 a reader that sees
+    // the count also sees the slot. A weakly ordered CPU (ARM) may run the reader's loads of the slot before its load
+    // of the count and read the bytes of an older packet. A full barrier between the two orders them.
+    __sync_synchronize();
+#endif
     i = loop->get & 0xF;
     _InterlockedExchangeAdd(&loop->get, 1u);
     memcpy(net_message->data, loop->msgs[i].data, loop->msgs[i].datalen);
@@ -873,6 +880,9 @@ bool __cdecl NET_GetDeferredClientPacket(netadr_t *net_from, msg_t *net_message)
 
     if ( deferredQueue.get >= deferredQueue.send )
         return false;
+#ifdef BO1_NATIVE
+    __sync_synchronize();   // mod (native): as in NET_GetLoopPacket_Real
+#endif
 
     msg = &deferredQueue.msgs[deferredQueue.get & 0xF];
     memcpy(net_message->data, msg->data, msg->datalen);

@@ -349,9 +349,24 @@ bool __cdecl Com_IsSPFrontEndLevel(const char *mapName)
 // script callbacks, ...) for every level, including its front end, which runs with zombiemode 0 (SP 0x008338F0
 // leaves zombiemode alone for "frontend"). KB picks those paths per level: an SP level is a zombies level
 // (zombiemode, still the gate for zombie-only rules) or the SP front end loaded with bo1_zombies. MP maps: false.
+bool __cdecl Com_IsSPLevel();
 bool __cdecl Com_IsSPFrontEndRunning()
 {
     return sv_mapname && Com_IsSPFrontEndLevel(sv_mapname->current.string);
+}
+
+// mod (native): the SP player rules that came over gated on zombiemode: the view clamp of a player linked with
+// PlayerLinkTo (bg_pmove.cpp), AllowStand / AllowCrouch / AllowProne (g_active_mp.cpp, cg_predict_mp.cpp) and the
+// turn cap while linked (cl_input_mp.cpp). The SP front end runs with zombiemode 0: the player strapped in the chair
+// in front of the TV menus looked around without limits and could crouch. Native builds apply them on every SP
+// level; elsewhere the gate stays zombiemode.
+bool __cdecl Com_SPPlayerRules()
+{
+#ifdef BO1_NATIVE
+    return Com_IsSPLevel();
+#else
+    return zombiemode && zombiemode->current.enabled;
+#endif
 }
 
 bool __cdecl Com_IsSPLevel()
@@ -2303,7 +2318,11 @@ void Com_InitDvars()
     if (dedicated->current.integer)
         _Dvar_RegisterEnum("dedicated", g_dedicatedEnumNames, 0, 64, "Dedicated Server");
 #endif
+#ifdef BO1_NATIVE
+    com_maxfps = _Dvar_RegisterInt("com_maxfps", 0, 0, 1000, 1u, "Cap frames per second");   // mod (native): no cap by default (gfx_d3d/r_init.cpp)
+#else
     com_maxfps = _Dvar_RegisterInt("com_maxfps", 85, 0, 1000, 1u, "Cap frames per second");
+#endif
     arcademode = _Dvar_RegisterBool("arcademode", 0, 0x100u, "Current game is an arcade mode game");
     zombiemode = _Dvar_RegisterBool("zombiemode", 0, 0x40u, "Current game is an zombie game");
     // zombies: command-line switch that adds SP's code zones (code_post_gfx, patch; SP exe 0x00571DB0) after the MP
@@ -3225,7 +3244,11 @@ static void Com_AssetLoadUIWithMsg(const char *finalmsg)
 {
     if ( useFastFile->current.enabled )
     {
-        Com_LoadCommonFastFile();
+        // mod (coop): with the SP front end no common zone belongs to the UI (the level picks common_zombie when it
+        // loads). A client that connects to a host from the front end comes through here with zombiemode still 0, and
+        // common_mp next to the SP and MP code zones overflows the font pool ("Exceeded limit of 16 'font' assets").
+        if ( !Com_UseSPFrontEnd() )
+            Com_LoadCommonFastFile();
         Com_LoadUiFastFile();
     }
     UI_SetMap((char *)"", "");
@@ -3274,6 +3297,9 @@ void __cdecl Com_CheckSyncFrame()
     UI_ViewerCheckStreamer();
 }
 
+#ifdef BO1_NATIVE
+extern "C" void bo1_native_poll_commands(void);   // mod (native)
+#endif
 void __cdecl Com_Frame()
 {
     void *Value; // eax
@@ -3407,6 +3433,12 @@ unsigned int Com_Frame_Try_Block_Function()
     for ( localControllerIndex = 0; localControllerIndex < 1; ++localControllerIndex )
         TaskManager2_ProcessTasks(localControllerIndex);
 
+#ifdef BO1_NATIVE
+    {
+        // mod (native): TEST SWITCH: console commands from the file named by BO1_CMD_FILE (src/native/native_extras.cpp)
+        bo1_native_poll_commands();
+    }
+#endif
     Cbuf_Execute(0, Com_LocalClient_GetControllerIndex(0));
     ProcessStringEdCmds();
     ProcessGDTCmds();

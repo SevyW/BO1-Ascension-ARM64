@@ -223,7 +223,9 @@ struct broad_phase_memory // sizeof=0xCD8
     void list_bpb_remove(broad_phase_base *bpb_to_remove);
     static broad_phase_memory *allocate_buffer(const broad_phase_memory_info *bpmi);
 };
+#ifndef BO1_P32   // 64-bit builds (tools/p32): the vtable pointer is 8 bytes, the class is larger than MSVC's
 static_assert(sizeof(broad_phase_memory) == 0xCD8);
+#endif
 
 struct bpi_environment_collision_info // sizeof=0x10
 {                                       // XREF: ?broad_phase_process_object_environment_collision@@YAXXZ/r

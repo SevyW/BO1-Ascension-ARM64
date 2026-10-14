@@ -1,3 +1,4 @@
+#include "cl_joinmenu.h" // mod (coop)
 #include <qcommon/actor_model_state.h>
 #include <cgame_mp/cg_anim_commands.h>
 #include "cl_main_mp.h"
@@ -2358,6 +2359,11 @@ char    CL_DispatchConnectionlessPacket(int localClientNum, netadr_t from, msg_t
     char mapname[68]; // [esp+880h] [ebp-48h] BYREF
 
     c = Cmd_Argv(0);
+    if ( !I_stricmp(c, "bo1here") ) // mod (coop): a host on the local network answering the join screen
+    {
+        CL_JoinMenu_Found(from, Cmd_Argv(1), Cmd_Argv(2), Cmd_Argv(3));
+        return 1;
+    }
     if ( CL_HandleVoiceTypePacket(localClientNum, msg) )
         return 1;
     if ( !I_strcmp(c, "RA") )

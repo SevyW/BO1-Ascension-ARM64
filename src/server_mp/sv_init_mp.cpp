@@ -927,7 +927,13 @@ void __cdecl SV_AllocateClientMemory(HunkUser *hunk, int maxLocalClients, int ma
     svs.clients = (client_t *)Hunk_UserAlloc(hunk, sizeof(client_t) * maxClients, 4, "svs.clients");
     memset((unsigned __int8 *)svs.clients, 0, sizeof(client_t) * maxClients);
     svs.numSnapshotMatchStates = 32 * maxClients;
+#ifdef BO1_WEB
+    // web: MatchState is __declspec(align(64)). clang copies such a type with aligned SSE moves, which fault on the
+    // 4-aligned block MSVC's code was happy with (SV_BuildClientSnapshot's memcpy; native x86 crashed there).
+    svs.snapshotMatchStates = (MatchState *)Hunk_UserAlloc(hunk, maxClients << 12, alignof(MatchState), "svs.snapshotMatchStates");
+#else
     svs.snapshotMatchStates = (MatchState *)Hunk_UserAlloc(hunk, maxClients << 12, 4, "svs.snapshotMatchStates");
+#endif
     memset((unsigned __int8 *)svs.snapshotMatchStates, 0, svs.numSnapshotMatchStates << 7);
     svs.numSnapshotEntities = 2688 * maxClients;
     svs.snapshotEntities = (entityState_s *)Hunk_UserAlloc(hunk, 602112 * maxClients, 4, "svs.snapshotEntities");

@@ -5068,7 +5068,7 @@ void RB_BO1PresentEnd(long long presentStart)
     if (s_kgCyclesPerMs && s_ktCount && e->presentMs >= 10.0f)
         RB_BO1ThreadsAfter(e->threads, sizeof(e->threads), s_kgCyclesPerMs);
     else if (s_ktRefreshed)
-        strcpy_s(e->threads, "thread list refreshed");
+        strcpy_s(e->threads, sizeof(e->threads), "thread list refreshed");
     for (int k = 0; k < BO1_FIRST_KINDS; ++k)
         e->first[k] = _InterlockedExchange(&g_bo1RenderFirstUse[k], 0);
     _InterlockedExchange(&e->frame, f);

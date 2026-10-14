@@ -1,0 +1,23 @@
+AArch64: keep a truncating store truncating when its __ptr32 address is widened.
+
+performSTORECombine casts a ptr32 (address space 270/271) base pointer to the default address space and re-creates
+the store with DAG.getStore, which stores the whole value operand. After type legalization an i8/i16 store is a
+truncating store of an i32 value, so `*(unsigned short *__ptr32)p = v` wrote 4 bytes and cleared the two after it
+(seen as the script memory tree losing its free lists: head[n + 1] zeroed by every write to head[n]).
+
+Applies to llvm-project 21.1.8 on top of clang-21-x86_64-ptr32-abi.patch (independent of it).
+
+--- a/llvm/lib/Target/AArch64/AArch64ISelLowering.cpp
++++ b/llvm/lib/Target/AArch64/AArch64ISelLowering.cpp
+@@ -24002,6 +24002,11 @@
+     MVT PtrVT = TLI.getPointerTy(DAG.getDataLayout());
+     if (PtrVT != Ptr.getSimpleValueType()) {
+       SDValue Cast = DAG.getAddrSpaceCast(DL, PtrVT, Ptr, AddrSpace, 0);
++      if (ST->isTruncatingStore())
++        return DAG.getTruncStore(Chain, DL, Value, Cast, ST->getPointerInfo(),
++                                 MemVT, ST->getBaseAlign(),
++                                 ST->getMemOperand()->getFlags(),
++                                 ST->getAAInfo());
+       return DAG.getStore(Chain, DL, Value, Cast, ST->getPointerInfo(),
+                           ST->getBaseAlign(), ST->getMemOperand()->getFlags(),
+                           ST->getAAInfo());

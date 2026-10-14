@@ -63,7 +63,7 @@ const RadiantCommandProcessor gCommandProcessors[9] =
     "script_struct"
   },
   { &G_ProcessCoronaCommand, &G_ClearSelectedCorona, NULL, "info_corona" },
-  { &NULLSUB, &BLOPS_NULLSUB, NULL, "light" },
+  { (void (__cdecl *)(const RadiantCommand *, SpawnVar *))&NULLSUB, (void (__cdecl *)())&BLOPS_NULLSUB, NULL, "light" },
   {
     &G_ProcessEntityCommand,
     &G_ClearSelectedEntity,

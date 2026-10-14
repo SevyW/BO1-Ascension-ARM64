@@ -6,6 +6,7 @@
 #include "d3d9_internal.h"
 
 #include <algorithm>
+#include <atomic>
 #include <stdlib.h>
 
 namespace d3d9shim {
@@ -322,6 +323,8 @@ static GLuint compilePresentShader(GLenum type, const char *src)
 }
 
 // Back buffer -> canvas through the gamma ramp (a 256-entry RGB LUT), flipping vertically.
+static bool presentRect(GLint w, GLint h, GLint rect[4]);
+
 bool Device::presentWithGamma(Surface *bb)
 {
     if (m_presentProgFailed)
@@ -391,17 +394,24 @@ bool Device::presentWithGamma(Surface *bb)
         m_gammaLutValid = true;
     }
     const GLint w = (GLint)bb->width(), h = (GLint)bb->height();
+    GLint rect[4];
+    const bool scaled = presentRect(w, h, rect);
     bindDrawFbo(0);
     setFullWriteMasks();
     setScissorTest(false);
+    if (scaled) {
+        glClearColor(0.f, 0.f, 0.f, 1.f);
+        glClear(GL_COLOR_BUFFER_BIT);
+    }
     setCap(GL_BLEND, m_cache.blend, false);
     setCap(GL_DEPTH_TEST, m_cache.depthTest, false);
     setCap(GL_STENCIL_TEST, m_cache.stencilTest, false);
     setCap(GL_CULL_FACE, m_cache.cull, false);
     setCap(GL_POLYGON_OFFSET_FILL, m_cache.polygonOffset, false);
-    if (m_cache.viewport[0] != 0 || m_cache.viewport[1] != 0 || m_cache.viewport[2] != w || m_cache.viewport[3] != h) {
-        glViewport(0, 0, w, h);
-        m_cache.viewport[0] = 0, m_cache.viewport[1] = 0, m_cache.viewport[2] = w, m_cache.viewport[3] = h;
+    if (m_cache.viewport[0] != rect[0] || m_cache.viewport[1] != rect[1] || m_cache.viewport[2] != rect[2] ||
+        m_cache.viewport[3] != rect[3]) {
+        glViewport(rect[0], rect[1], rect[2], rect[3]);
+        m_cache.viewport[0] = rect[0], m_cache.viewport[1] = rect[1], m_cache.viewport[2] = rect[2], m_cache.viewport[3] = rect[3];
     }
     for (int i = 0; i < 16; ++i)
         if (m_cache.attribs[i].enabled) {
@@ -411,7 +421,8 @@ bool Device::presentWithGamma(Surface *bb)
     useProgram(m_presentProg);
     glUniform1i(m_presentLocSrc, 0);
     glUniform1i(m_presentLocLut, 1);
-    SamplerParams sp = {GL_NEAREST, GL_NEAREST, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE, 1.f, 0.f};
+    const GLenum filter = scaled ? GL_LINEAR : GL_NEAREST;
+    SamplerParams sp = {filter, filter, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE, 1.f, 0.f};
     const GLuint s = samplerObjectFor(sp);
     bindTextureUnit(0, GL_TEXTURE_2D, bb->storage()->tex);
     bindTextureUnit(1, GL_TEXTURE_2D, m_gammaLut);
@@ -424,6 +435,35 @@ bool Device::presentWithGamma(Surface *bb)
     m_viewportDirty = true;
     m_rasterDirty = true;
     m_fboDirty = true;
+    return true;
+}
+
+} // namespace d3d9shim
+
+static std::atomic<int> s_presentWidth{0}, s_presentHeight{0};
+
+extern "C" void d3d9shim_set_present_size(int width, int height)
+{
+    s_presentWidth = width;
+    s_presentHeight = height;
+}
+
+namespace d3d9shim {
+
+// Where a w x h back buffer goes in the default framebuffer: x, y, width, height. Returns true when that is not
+// simply the whole of a framebuffer of the same size (d3d9shim_set_present_size).
+static bool presentRect(GLint w, GLint h, GLint rect[4])
+{
+    const int pw = s_presentWidth, ph = s_presentHeight;
+    rect[0] = 0, rect[1] = 0, rect[2] = w, rect[3] = h;
+    if (pw <= 0 || ph <= 0 || w <= 0 || h <= 0 || (pw == w && ph == h))
+        return false;
+    long long sw = pw, sh = (long long)pw * h / w;
+    if (sh > ph) {
+        sh = ph;
+        sw = (long long)ph * w / h;
+    }
+    rect[0] = (GLint)((pw - sw) / 2), rect[1] = (GLint)((ph - sh) / 2), rect[2] = (GLint)sw, rect[3] = (GLint)sh;
     return true;
 }
 
@@ -445,8 +485,15 @@ void Device::presentBlit()
     setScissorTest(false);
     setFullWriteMasks();
     const GLint w = (GLint)bb->width(), h = (GLint)bb->height();
+    GLint rect[4];
+    const bool scaled = presentRect(w, h, rect);
+    if (scaled) {
+        glClearColor(0.f, 0.f, 0.f, 1.f);
+        glClear(GL_COLOR_BUFFER_BIT);
+    }
     // Flip: our row 0 is the top of the image, the canvas' row 0 is the bottom.
-    glBlitFramebuffer(0, 0, w, h, 0, h, w, 0, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+    glBlitFramebuffer(0, 0, w, h, rect[0], rect[1] + rect[3], rect[0] + rect[2], rect[1], GL_COLOR_BUFFER_BIT,
+                      scaled ? GL_LINEAR : GL_NEAREST);
     D3D9_GLCHECK("Present");
     m_fboDirty = true;
     m_rasterDirty = true;

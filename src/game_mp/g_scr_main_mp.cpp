@@ -11785,6 +11785,13 @@ bool __cdecl GScr_IsItemPurchasedForClientNum(unsigned int clientNum, unsigned i
     {
         __debugbreak();
     }
+#ifdef BO1_NATIVE
+    // mod (native): bo1_offline_menus: every item is free (bgame/bg_unlockable_items.cpp). The server's list of a
+    // client's purchases came from the online service's class validation and stays empty here: the scripts took
+    // every item of a custom class for not purchased and the player spawned without a weapon.
+    if ( Dvar_GetInt("bo1_offline_menus") )
+        return clientNum < 0x20 && itemIndex < 0x100;
+#endif
     return clientNum < 0x20
             && itemIndex < 0x100
             && ((1 << (itemIndex & 7)) & svs.clients[clientNum].purchasedItems[(int)itemIndex >> 3]) == 1 << (itemIndex & 7);
@@ -11949,7 +11956,7 @@ void __cdecl GScr_GetLoadoutItemFromProfile(scr_entref_t entref)
 
 void __cdecl GScr_GetDStat(scr_entref_t entref)
 {
-#ifdef BO1_LIVE
+#if defined(BO1_LIVE) || defined(BO1_WEB) // mod (profile): the stats are local files there (web_stats.cpp)
     char *String; // eax
     char *v2; // eax
     const char *v3; // eax
@@ -12022,6 +12029,18 @@ void __cdecl GScr_GetDStat(scr_entref_t entref)
             case 1:
             case 2:
                 ClientDIntStat = SV_GetClientDIntStat(playerEnt->s.number, &searchState);
+#ifdef BO1_NATIVE
+                // mod: TEST SWITCH: +set bo1_statdebug 1 prints every integer stat a script reads
+                if ( Dvar_GetInt("bo1_statdebug") )
+                {
+                    char path[256];
+                    path[0] = 0;
+                    for ( int k = 0; k < argc; ++k )
+                        I_strncat(path, sizeof(path), va("%s ", Scr_GetType(k, SCRIPTINSTANCE_SERVER) == 2 ? Scr_GetString(k, SCRIPTINSTANCE_SERVER)
+                            : va("%i", (int)Scr_GetInt(k, SCRIPTINSTANCE_SERVER))));
+                    Com_Printf(15, "getdstat: client %i %s= %u\n", playerEnt->s.number, path, ClientDIntStat);
+                }
+#endif
                 Scr_AddInt(ClientDIntStat, SCRIPTINSTANCE_SERVER);
                 break;
             case 3:
@@ -16414,7 +16433,7 @@ BuiltinFunctionDef functions[] =
   { "spawnplane", GScr_SpawnPlane, 0 },
   { "spawnturret", GScr_SpawnTurret, 0 },
   { "precacheturret", GScr_PrecacheTurret, 0 },
-  { "spawnstruct", Scr_AddStruct, 0 },
+  { "spawnstruct", (void (__cdecl *)())Scr_AddStruct, 0 },
   { "spawnhelicopter", GScr_SpawnHelicopter, 0 },
   { "assert", assertCmd_0, 1 },
   { "assertex", assertexCmd_0, 1 },
@@ -16563,7 +16582,7 @@ BuiltinFunctionDef functions[] =
   { "newteamhudelem", GScr_NewTeamHudElem, 0 },
   { "newscorehudelem", GScr_NewScoreHudElem, 0 },
   { "newdebughudelem", GScr_NewDebugHudElem, 0 },
-  { "resettimeout", Scr_ResetTimeout, 0 },
+  { "resettimeout", (void (__cdecl *)())Scr_ResetTimeout, 0 },
   { "weaponfiretime", GScr_WeaponFireTime, 0 },
   { "weaponreloadtime", GScr_WeaponReloadTime, 0 },
   { "isweaponcliponly", GScr_IsWeaponClipOnly, 0 },

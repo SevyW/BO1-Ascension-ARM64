@@ -137,7 +137,12 @@ int __cdecl UI_Project_FeederCount(int localClientNum, int contextIndex, float f
                 __debugbreak();
             }
             sharedUiInfo.itemIndex = BG_UnlockablesGetItemIndexInSlot(listPtr->cursorPos[contextIndex]);
+// mod (native): the decompile assigns the row number over the item found for the row (two fields of
+// the original read as one?): the row number replaced the item, and a row chosen in a Create-a-Class list
+// named another item (row 2 of the submachine guns: item 2, a pistol). Native builds keep the item.
+#ifndef BO1_NATIVE
             sharedUiInfo.itemIndex = listPtr->cursorPos[contextIndex];
+#endif
             result = sharedUiInfo.numAttachments;
             break;
         case 55:
@@ -1369,7 +1374,9 @@ char *__cdecl UI_FeederItemText_ItemInSlot(
     if ( listPtr->cursorPos[contextIndex] == index && !item->animInfo->animating )
     {
         sharedUiInfo.itemIndex = itemIndex;
+#ifndef BO1_NATIVE
         sharedUiInfo.itemIndex = index;
+#endif
         isSelectedItem = Window_HasFocus(contextIndex, &item->window);
     }
     cost = BG_UnlockablesGetItemCost(itemIndex);
@@ -1420,7 +1427,9 @@ char *__cdecl UI_FeederItemText_CustomPerksInSlot(
     if ( Item_GetListBoxDef(item)->cursorPos[contextIndex] == index )
     {
         sharedUiInfo.itemIndex = itemIndex;
+#ifndef BO1_NATIVE
         sharedUiInfo.itemIndex = index;
+#endif
         isSelectedItem = Window_HasFocus(contextIndex, &item->window);
     }
     isTweakable = UI_Gametype_Custom_IsPerkTweakable(itemIndex);
@@ -1777,7 +1786,7 @@ const char *__cdecl UI_FeederItemText_AARScoreboard(
                 goto LABEL_33;
             ddlState = *LiveStats_GetRootDDLState();
             v10 = va("%d", index);
-            DDL_MoveTo(&ddlState, &ddlState, 3, "AfterActionReportStats", "payouts", v10);
+            DDL_MoveTo(&ddlState, &ddlState, 3, "AfterActionReportStats", "wagerAwards", v10);   // mod (ddl): path restored (stats.ddl has no "payouts"; wagerAwards is the array of 3)
             DIntStat = LiveStats_GetDIntStat(controllerIndex, &ddlState);
             v11 = UI_SafeTranslateString("MENU_POINTS");
             result = UI_ReplaceConversionInt(v11, DIntStat);
@@ -3105,7 +3114,7 @@ bool __cdecl UI_FeederItemColor_AARScoreboard(
         {
             ddlState = *LiveStats_GetRootDDLState();
             v11 = va("%d", index);
-            DDL_MoveTo(&ddlState, &ddlState, 3, "AfterActionReportStats", "payouts", v11);
+            DDL_MoveTo(&ddlState, &ddlState, 3, "AfterActionReportStats", "wagerAwards", v11);   // mod (ddl): path restored (stats.ddl has no "payouts"; wagerAwards is the array of 3)
             payout = LiveStats_GetDIntStat(controllerIndex, &ddlState);
             v12 = CG_GetMatchScoreboardInfo(localClientNum, 0, index, TEAM_FREE);
             currClientXuid = I_atoi64(v12);
@@ -3709,7 +3718,9 @@ void __cdecl UI_Project_FeederSelection(int localClientNum, int contextIndex, fl
         case 'a':
         case 'd':
             sharedUiInfo.itemIndex = BG_UnlockablesGetItemIndexInSlot(index);
+#ifndef BO1_NATIVE
             sharedUiInfo.itemIndex = index;
+#endif
             break;
         case '9':
             sharedUiInfo.attachmentNum = BG_UnlockablesGetItemAttachmentNumWithAttachPoint(

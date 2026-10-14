@@ -3,8 +3,7 @@
 #include "bo1_win_internal.h"
 #include <tlhelp32.h>
 #include <winsock2.h>
-#include <emscripten.h>
-#include <emscripten/threading.h>
+#include "bo1_platform.h"
 #include <sys/time.h>
 #include <time.h>
 #include <unistd.h>
@@ -20,7 +19,7 @@ int s_moduleAnchor;   // GetModuleHandleA(NULL) points here
 
 int CoreCount()
 {
-    int n = emscripten_num_logical_cores();
+    int n = bo1_plat_core_count();
     if (n < 2)
         n = 2;
     if (n > 8)

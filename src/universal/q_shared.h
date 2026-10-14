@@ -23,7 +23,9 @@
 // through 4-parameter table slots, ...). x86 cdecl tolerates that; WebAssembly traps on an indirect call whose type
 // is not the callee's. Windows: the plain cast. Web: a thunk of type T calling fn with the arguments it declares
 // (src/web/web_fncast.h; candidates: src/web/tools/fnptr_audit.py).
-#ifdef BO1_WEB
+// native (BO1_NATIVE): the plain cast again. The C calling conventions there tolerate the mismatch as x86 cdecl
+// does (arguments in registers / caller-cleaned stack), and the thunk templates do not survive 32-bit pointers.
+#if defined(BO1_WEB) && !defined(BO1_NATIVE)
 #include <web/web_fncast.h>
 #define BO1_FNCAST(T, fn) (bo1_web_fncast<T, fn>())
 #else
@@ -230,6 +232,15 @@ typedef ull                         uint64;
 // Punish Aurelio if you don't like these performance enhancements. :-)
 #define DEG2RAD( a ) ( ( (a) * PI_DIV_180 ) )
 #define RAD2DEG( a ) ( ( (a) * INV_PI_DIV_180 ) )
+
+// web: the size of a player's stats buffer (ddl_mp/stats.ddl plus its header). 40168 in the 7.0.61 exe this
+// source is from; the current game files (with the map packs) define 40548 bytes, and DDL_AssociateBuffer drops
+// the client with "buffer is not large enough to accommodate this DDL" when a multiplayer match starts.
+#ifdef BO1_WEB
+#define BO1_STATS_SIZE 40548
+#else
+#define BO1_STATS_SIZE 40168
+#endif
 
 // Some convenience macros to make partial accesses nicer
 #define LAST_IND(x,part_type)        (sizeof(x)/sizeof(part_type) - 1)

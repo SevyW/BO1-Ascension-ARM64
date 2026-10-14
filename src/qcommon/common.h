@@ -107,6 +107,7 @@ bool __cdecl Com_IsRunningMenuLevel(const char *name);
 bool __cdecl Com_IsMenuLevel(const char *name);
 bool __cdecl Com_IsZombieMap(const char *mapName); // zombies: zombie_* / zombietron are SP maps
 bool __cdecl Com_IsSPFrontEndLevel(const char *mapName); // zombies: SP "frontend" / menu_* (SP 0x004C88F3)
+bool __cdecl Com_SPPlayerRules(); // mod (native): zombiemode, or any SP level on native builds (common.cpp)
 bool __cdecl Com_IsSPLevel(); // zombies: the running level is an SP level (zombiemode, or the SP front end)
 bool __cdecl Com_IsSPFrontEndRunning(); // zombies: Com_IsSPFrontEndLevel(sv_mapname)
 // zombies: actor corpse slots. SP keeps 32 (G_FindFreeCorpse 0x00498630 walks 0x01C7AF00, stride 0x630, which ends

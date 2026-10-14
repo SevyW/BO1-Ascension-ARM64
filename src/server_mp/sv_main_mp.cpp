@@ -1,3 +1,4 @@
+#include <client_mp/cl_joinmenu.h> // mod (coop): LAN discovery answers
 #include <universal/profile.h>
 #include <game_sp/g_sp_loadgame.h>
 #include <game_sp/g_sp_measure.h>
@@ -815,6 +816,20 @@ void __cdecl SV_ConnectionlessPacket(netadr_t from, msg_t *msg)
     //{
     //    // removed in blops
     //}
+    // mod (coop): a join screen on the local network asks who hosts (client_mp/cl_joinmenu.cpp broadcasts it).
+    // Answered by a server that takes players by address: bo1here "<map>" <players> <max> "<host name>"
+    else if ( !I_stricmp(c, "bo1find") )
+    {
+        if ( com_sv_running && com_sv_running->current.enabled && (Dvar_GetBool("systemlink") || Dvar_GetInt("dedicated")) )
+            NET_OutOfBandPrint(NS_SERVER, from, va("bo1here \"%s\" %i %i \"%s\"", Dvar_GetVariantString("mapname"),
+                (int)SV_GetClientCount(), Dvar_GetInt("sv_maxclients"), Dvar_GetVariantString("sv_hostname")));
+    }
+    // mod (coop): ... and the answers to this program's own question arrive here while its local server (the front
+    // end) reads the socket
+    else if ( !I_stricmp(c, "bo1here") )
+    {
+        CL_JoinMenu_Found(from, SV_Cmd_Argv(1), SV_Cmd_Argv(2), SV_Cmd_Argv(3));
+    }
     else if (!I_stricmp(c, "getchallenge"))
     {
         SV_GetChallenge(from);

@@ -5,6 +5,9 @@
 #include <atomic>
 #include <stdint.h>
 #include <string>
+#ifdef BO1_NATIVE
+#include <native_posix.h>   // stat / fstat through a layout-stable struct (-malign-double, cmake/native.cmake)
+#endif
 
 // win_crt.cpp: the page's lifecycle hooks (docs/web-engine-interface.md section 5)
 extern "C" __attribute__((noreturn)) void bo1_web_exit(int code);

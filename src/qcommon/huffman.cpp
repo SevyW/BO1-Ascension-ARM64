@@ -1,3 +1,11 @@
+#ifdef BO1_WEB
+// web: the tree must be the Windows build's on every machine; qsort's order of equal weights is the C library's
+// (src/web/compat/msvc_qsort.cpp)
+extern "C" void bo1_msvc_qsort(void *base, size_t count, size_t width, int (*compare)(const void *, const void *));
+#define BO1_HUFF_QSORT bo1_msvc_qsort
+#else
+#define BO1_HUFF_QSORT qsort
+#endif
 #include "huffman.h"
 #include <universal/com_shared.h>
 #include <cstdlib>
@@ -111,7 +119,7 @@ void __cdecl Huff_BuildFromData(huff_t *huff, const int *msg_hData)
         inited = Huff_initNode(huff, i, msg_hData[i]);
         heap[i] = inited;
     }
-    qsort(heap, 0x100u, 4u, nodeCmp);
+    BO1_HUFF_QSORT(heap, 0x100u, 4u, nodeCmp);
     v3 = Huff_initNode(huff, 257, 1);
     v3->left = huff->tree;
     v3->right = heap[0];
@@ -121,7 +129,7 @@ void __cdecl Huff_BuildFromData(huff_t *huff, const int *msg_hData)
     heap[0] = v3;
     while ( numNodes > 1 )
     {
-        qsort(&heap[heapHead], 256 - heapHead, 4u, nodeCmp);
+        BO1_HUFF_QSORT(&heap[heapHead], 256 - heapHead, 4u, nodeCmp);
         v4 = Huff_initNode(huff, 257, 1);
         v4->left = heap[heapHead];
         v4->right = heap[heapHead + 1];

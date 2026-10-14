@@ -1,3 +1,6 @@
+#include <client_mp/cl_joinmenu.h> // mod (coop)
+#include <client_mp/cl_extras.h> // mod (native menus)
+#include <client_mp/cl_play.h> // mod (native menus)
 #include <game_sp/g_sp_loadgame.h>
 #include "cl_keys.h"
 #include <gfx_d3d/r_font.h>
@@ -1933,6 +1936,11 @@ void __cdecl CL_KeyEvent(int localClientNum, int key, int down, unsigned int tim
     LocSelInputState *locSelInputState; // [esp+ACh] [ebp-40Ch]
     char cmd[1028]; // [esp+B0h] [ebp-408h] BYREF
 
+    // mod (coop): the join-by-address screen takes every key while it is open, and F4 opens it
+    // mod (native menus): and so does the Extras screen (client_mp/cl_extras.cpp)
+    if ( (down && (CL_Play_Key(localClientNum, key) || CL_Extras_Key(localClientNum, key) || CL_JoinMenu_Key(localClientNum, key)))
+        || (!down && (CL_JoinMenu_IsOpen() || CL_Extras_IsOpen() || CL_Play_IsOpen())) )
+        return;
     keys = playerKeys[localClientNum].keys;
     kb = keys[key].binding;
     keys[key].down = down;
@@ -2357,6 +2365,12 @@ void __cdecl CL_CharEvent(int localClientNum, int key)
     clientUIActive_t *LocalClientUIGlobals; // [esp+0h] [ebp-8h]
 
     if ( DevGui_IsActive() || key == 96 || key == 126 )
+        return;
+    if ( CL_JoinMenu_Char(key) ) // mod (coop): typing an address on the join screen
+        return;
+    if ( CL_Extras_Char(key) ) // mod (native menus): typing the player name on the Extras screen
+        return;
+    if ( CL_Play_IsOpen() ) // mod (native menus)
         return;
     LocalClientUIGlobals = CL_GetLocalClientUIGlobals(localClientNum);
     if ( (LocalClientUIGlobals->keyCatchers & 1) != 0 )

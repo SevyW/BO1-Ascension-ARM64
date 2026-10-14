@@ -19,6 +19,13 @@ if (EMSCRIPTEN)
     return()
 endif()
 
+# Native Linux / Android build (-DBO1_NATIVE=ON): cmake/native.cmake, the web build's sources without Emscripten.
+option(BO1_NATIVE "Native POSIX build (Linux, Android) instead of the Windows (MSVC) build" OFF)
+if (BO1_NATIVE)
+    include(cmake/native.cmake)
+    return()
+endif()
+
 # phys_gjk.cpp specific flag (experimental)
 set_source_files_properties(
     "${SRC_DIR}/physics/phys_gjk.cpp"

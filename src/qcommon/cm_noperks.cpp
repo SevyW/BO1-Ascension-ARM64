@@ -101,7 +101,7 @@ static const char *Np_NextEnt(const char *p, NpEnt *e)
         else if (!strcmp(key, "origin"))
         {
             e->hasOrigin = true;
-            char *q = value;
+            bo1_host_str q = value;
             for (int k = 0; k < 3; ++k)
                 e->origin[k] = (float)strtod(q, &q);
         }

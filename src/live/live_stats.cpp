@@ -129,7 +129,7 @@ int __cdecl LiveStats_GetDDLHeaderVersion(unsigned __int8 *statsBuffer)
 
 int __cdecl LiveStats_ValidateGlobalWithDDL(int controllerIndex)
 {
-    char backupBuffer[40172]; // [esp+0h] [ebp-9CF8h] BYREF
+    char backupBuffer[(BO1_STATS_SIZE + 4)]; // [esp+0h] [ebp-9CF8h] BYREF
     char *buffer; // [esp+9CF0h] [ebp-8h]
     int bufferSize; // [esp+9CF4h] [ebp-4h]
 
@@ -145,8 +145,8 @@ int __cdecl LiveStats_ValidateGlobalWithDDL(int controllerIndex)
         LiveStorage_SetStatsDDLValidated(controllerIndex, STATS_LOCATION_NORMAL, 1);
         return 1;
     }
-    else if ( DDL_FixBufferVersion(buffer, g_statsDDL, "ddl_mp/stats.ddl", backupBuffer, 40168)
-                 || DDL_FixBufferVersion(buffer, g_statsDDL, "ddl_mp/stats_archive.ddl", backupBuffer, 40168) )
+    else if ( DDL_FixBufferVersion(buffer, g_statsDDL, "ddl_mp/stats.ddl", backupBuffer, BO1_STATS_SIZE)
+                 || DDL_FixBufferVersion(buffer, g_statsDDL, "ddl_mp/stats_archive.ddl", backupBuffer, BO1_STATS_SIZE) )
     {
         DDL_NoCheckPrintWarning(
             "DDL: Stats buffer updated to version %d for controller index %d.\n",
@@ -161,8 +161,118 @@ int __cdecl LiveStats_ValidateGlobalWithDDL(int controllerIndex)
     }
 }
 
+#ifdef BO1_NATIVE
+// mod (native): bo1_offline_menus: the player's Multiplayer stats (rank, Create-a-Class loadouts, ...) live in
+// <fs_homepath>/players/mpstats_offline.bin, where the retail game kept them on its online service. Read on the
+// first stat operation (a missing or unusable file gives new stats: mp/stats_init.cfg), written by uploadStats.
+static bool s_offlineStatsLoaded;
+
+static const char *LiveStats_OfflinePath()
+{
+    return va("%s/players/mpstats_offline.bin", Dvar_GetVariantString("fs_h"));
+}
+
+// Combat Training keeps stats of its own (rank, COD points, classes), as in retail: a second file
+static const char *LiveStats_OfflinePathCT()
+{
+    return va("%s/players/mpstats_offline_ct.bin", Dvar_GetVariantString("fs_h"));
+}
+
+void LiveStats_OfflineSave()
+{
+    if ( !s_offlineStatsLoaded || !Dvar_GetInt("bo1_offline_menus") )
+        return;
+    FILE *file = fopen(LiveStats_OfflinePath(), "wb");
+    if ( !file )
+    {
+        Com_PrintError(16, "offline stats: cannot write %s\n", LiveStats_OfflinePath());
+        return;
+    }
+    fwrite(LiveStorage_GetStatsBuffer(0, STATS_LOCATION_FORCE_NORMAL, 0), 1, LiveStorage_GetStatsBufferSize(), file);
+    fclose(file);
+    file = fopen(LiveStats_OfflinePathCT(), "wb");
+    if ( file )
+    {
+        fwrite(LiveStorage_GetStatsBuffer(0, STATS_LOCATION_BASICTRAINING, 0), 1, LiveStorage_GetStatsBufferSize(), file);
+        fclose(file);
+    }
+    Com_Printf(16, "offline stats: written\n");
+}
+
+static void LiveStats_OfflineLoad()
+{
+    if ( s_offlineStatsLoaded || !g_statsDDL )
+        return;
+    s_offlineStatsLoaded = 1;   // first: the calls below come back through LiveStats_CanPerformStatOperation
+    LiveStorage_SetStatsFetched(0, STATS_LOCATION_FORCE_NORMAL, 1);
+    LiveStorage_SetStatsFetched(0, STATS_LOCATION_BASICTRAINING, 1);
+    bool read = 0;
+    FILE *file = fopen(LiveStats_OfflinePath(), "rb");
+    if ( file )
+    {
+        static unsigned char data[BO1_STATS_SIZE];
+        const size_t size = fread(data, 1, sizeof(data), file);
+        fclose(file);
+        if ( size == sizeof(data) )
+        {
+            memcpy(LiveStorage_GetStatsBuffer(0, STATS_LOCATION_FORCE_NORMAL, 0), data, sizeof(data));
+            LiveStats_SetBufferInitialised(0, 1);
+            read = LiveStorage_ValidateWithDDL(0, STATS_LOCATION_NORMAL) != 0;
+            if ( read )
+                LiveStorage_SetStatsChecksumValid(0, STATS_LOCATION_NORMAL, 1);
+        }
+    }
+    Com_Printf(16, "offline stats: %s\n", read ? "read" : "new");
+    if ( !read )
+        LiveStats_ResetStats(0, 0);
+    // Combat Training's stats: their file, or a copy of the Multiplayer stats (the same classes) with no progress
+    unsigned __int8 *ct = (unsigned __int8 *)LiveStorage_GetStatsBuffer(0, STATS_LOCATION_BASICTRAINING, 0);
+    bool readCT = 0;
+    file = fopen(LiveStats_OfflinePathCT(), "rb");
+    if ( file )
+    {
+        static unsigned char data[BO1_STATS_SIZE];
+        const size_t size = fread(data, 1, sizeof(data), file);
+        fclose(file);
+        if ( size == sizeof(data) && DDL_AssociateBuffer((char *)data, sizeof(data), g_statsDDL) )
+        {
+            memcpy(ct, data, sizeof(data));
+            readCT = 1;
+        }
+    }
+    if ( !readCT )
+        memcpy(ct, LiveStorage_GetStatsBuffer(0, STATS_LOCATION_FORCE_NORMAL, 0), BO1_STATS_SIZE);
+    LiveStats_SetBasicTrainingState(ct, 1);
+    LiveStats_SetOnlineRankedState(ct, 0);
+    LiveStorage_SetStatsDDLValidated(0, STATS_LOCATION_BASICTRAINING, 1);
+    LiveStorage_SetStatsChecksumValid(0, STATS_LOCATION_BASICTRAINING, 1);
+    Com_Printf(16, "offline stats: Combat Training %s\n", readCT ? "read" : "new");
+    if ( !read || !readCT )
+        LiveStats_OfflineSave();
+}
+#endif
+
+#ifdef BO1_NATIVE
+// The listen server's copy of the host's stats (web/web_stats.cpp) starts from the menus' buffer and comes back to
+// it when the server saves: the class made in Create a Class is the one the match hands out, and what a match
+// earns shows in the menus. combatTraining: that mode's buffer. 0 when bo1_offline_menus is off.
+unsigned char *LiveStats_OfflineBuffer(int combatTraining)
+{
+    if ( !Dvar_GetInt("bo1_offline_menus") || !g_statsDDL )
+        return 0;
+    LiveStats_OfflineLoad();
+    return (unsigned char *)LiveStorage_GetStatsBuffer(
+        0, combatTraining ? STATS_LOCATION_BASICTRAINING : STATS_LOCATION_FORCE_NORMAL, 0);
+}
+#endif
+
 int __cdecl LiveStats_CanPerformStatOperation(int controllerIndex)
 {
+#ifdef BO1_NATIVE
+    if ( Dvar_GetInt("bo1_offline_menus") && g_statsDDL )
+        LiveStats_OfflineLoad();   // mod (native): no sign-in to wait for
+    else
+#endif
     if ( !Live_IsUserSignedInToLive() || !Live_IsUserSignedInToDemonware(controllerIndex) )
         return 0;
     if ( LiveStorage_DoWeHaveCurrentStats(controllerIndex) )
@@ -810,7 +920,7 @@ void __cdecl LiveStats_SetStatChanged(int controllerIndex, const char *hexMsg)
             statChangeCommand[runCount] = hexMsg[i];
             if ( sizeFound && runCount == 2 * size - 1 )
             {
-                LiveStats_ProcessStatChangedData(controllerIndex, (char *)buffer, 40168, startOffset, size, statChangeCommand);
+                LiveStats_ProcessStatChangedData(controllerIndex, (char *)buffer, BO1_STATS_SIZE, startOffset, size, statChangeCommand);
                 runCount = 0;
                 offsetFound = 0;
                 sizeFound = 0;
@@ -1566,7 +1676,7 @@ char __cdecl LiveStats_MoveToProItemVersion(ddlState_t *searchState, int itemInd
     va("%d", challengeIndex);
     v5 = va("%d", itemIndex);
     RootDDLState = LiveStats_GetRootDDLState();
-    if ( DDL_MoveTo(RootDDLState, searchState, 4, "itemStats", v5) )
+    if ( DDL_MoveTo(RootDDLState, searchState, 4, "itemStats", v5, "isProVersionUnlocked", va("%d", challengeIndex)) ) // mod (ddl): path argument restored
         return 1;
     DDL_PrintError("DDL: Error could not find item version unlocked %d challenge %d\n", itemIndex, challengeIndex);
     return 0;
@@ -1661,7 +1771,7 @@ void __cdecl LiveStats_CompareStatsVsStableBuffer(int controllerIndex)
                 BG_UnlockablesSetItemNew(controllerIndex, itemNumber);
             }
             v1 = va("%d", itemNumber);
-            if ( DDL_MoveTo(&g_statsRootState, &searchStateStats, 3, "ItemStats", v1)
+            if ( DDL_MoveTo(&g_statsRootState, &searchStateStats, 3, "ItemStats", v1, "stats") // mod (ddl): path argument restored
                 && DDL_IterateFirst(&searchStateStats, &searchStateStats) )
             {
                 do
@@ -2760,7 +2870,7 @@ void __cdecl LiveStats_AddChallenge(
     ddlState_t searchStateStats; // [esp+0h] [ebp-10h] BYREF
 
     v4 = va("%d", itemNumber);
-    if ( DDL_MoveTo(&g_statsRootState, &searchStateStats, 3, "ItemStats", v4)
+    if ( DDL_MoveTo(&g_statsRootState, &searchStateStats, 3, "ItemStats", v4, "stats") // mod (ddl): path argument restored
         && DDL_IterateFirst(&searchStateStats, &searchStateStats) )
     {
         do
@@ -3293,7 +3403,7 @@ void __cdecl LiveStats_BuildKillstreakChallengeList(
             if ( !I_stricmp(killstreakType, ItemName) && BG_UnlockablesGetItemCost(itemNumber) != -1 )
             {
                 v4 = va("%d", itemNumber);
-                if ( DDL_MoveTo(&g_statsRootState, &searchStateStats, 3, "ItemStats", v4) )
+                if ( DDL_MoveTo(&g_statsRootState, &searchStateStats, 3, "ItemStats", v4, "stats") ) // mod (ddl): path argument restored
                 {
                     if ( DDL_IterateFirst(&searchStateStats, &searchStateStats) )
                     {
@@ -3658,7 +3768,7 @@ void __cdecl LiveStats_AddUnderBarrelAttachments(int controllerIndex, char *live
              || BG_UnlockablesGetItemGroupEnum(itemNumber) == 13) )
         {
             v2 = va("%d", itemNumber);
-            if ( DDL_MoveTo(&g_statsRootState, &searchStateStats, 3, "ItemStats", v2)
+            if ( DDL_MoveTo(&g_statsRootState, &searchStateStats, 3, "ItemStats", v2, "stats") // mod (ddl): path argument restored
                 && DDL_IterateFirst(&searchStateStats, &searchStateStats) )
             {
                 do
@@ -4164,6 +4274,10 @@ char __cdecl LiveStats_WriteXUIDToStats(int controllerIndex)
 
     LODWORD(v1) = Live_GetXuid(controllerIndex);
     myXuid = v1;
+#ifdef BO1_NATIVE
+    if ( !v1 && Dvar_GetInt("bo1_offline_menus") )   // mod (native): no account, no XUID: the stats keep 0
+        return 0;
+#endif
     if ( !v1 && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\live\\live_stats.cpp", 4478, 0, "%s", "myXuid") )
         __debugbreak();
     if ( myXuid )
@@ -4577,7 +4691,7 @@ void __cdecl LiveStats_PresetigeStatsResetCmd()
         if ( BG_UnlockablesIsItemValidNotNull(itemNumber) )
         {
             v0 = va("%d", itemNumber);
-            if ( DDL_MoveTo(&g_statsRootState, &searchStateStats, 3, "ItemStats", v0)
+            if ( DDL_MoveTo(&g_statsRootState, &searchStateStats, 3, "ItemStats", v0, "stats") // mod (ddl): path argument restored
                 && DDL_IterateFirst(&searchStateStats, &searchStateStats) )
             {
                 do
@@ -4694,7 +4808,7 @@ void __cdecl SV_UpdatePersonalBestsForClient(int clientnum)
                     SV_SetItemNewForClient(liveStatsBuffer, itemNumber, newRank, newPrestige);
                 }
                 v1 = va("%d", itemNumber);
-                if ( DDL_MoveTo(&g_statsRootState, &searchStateStats, 3, "ItemStats", v1)
+                if ( DDL_MoveTo(&g_statsRootState, &searchStateStats, 3, "ItemStats", v1, "stats") // mod (ddl): path argument restored
                     && DDL_IterateFirst(&searchStateStats, &searchStateStats) )
                 {
                     do

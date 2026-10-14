@@ -634,11 +634,29 @@ HMONITOR MonitorFromRect(LPCRECT rect, DWORD flags)
     return (HMONITOR)&s_monitorAnchor;
 }
 
+// Native builds: the display's size, when the platform layer knows it (bo1_web_set_monitor_size, called by
+// src/native/native_video.cpp on Android). The monitor is then that and not the canvas: the engine clamps a
+// windowed mode to the monitor (R_SetWndParms), and the canvas starts at 1280x720 whatever the display is.
+static std::atomic<int> s_monitorWidth{0};
+static std::atomic<int> s_monitorHeight{0};
+
+extern "C" void bo1_web_set_monitor_size(int width, int height)
+{
+    s_monitorWidth.store(width);
+    s_monitorHeight.store(height);
+}
+
 BOOL GetMonitorInfoA(HMONITOR monitor, LPMONITORINFO info)
 {
     if (!info)
         return FALSE;
     CanvasRect(&info->rcMonitor);
+    if (s_monitorWidth.load() > 0 && s_monitorHeight.load() > 0)
+    {
+        info->rcMonitor.left = info->rcMonitor.top = 0;
+        info->rcMonitor.right = s_monitorWidth.load();
+        info->rcMonitor.bottom = s_monitorHeight.load();
+    }
     info->rcWork = info->rcMonitor;
     info->dwFlags = MONITORINFOF_PRIMARY;
     if (info->cbSize >= sizeof(MONITORINFOEXA))

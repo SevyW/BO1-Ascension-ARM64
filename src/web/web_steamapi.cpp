@@ -29,6 +29,20 @@ S_API void S_CALLTYPE SteamAPI_UnregisterCallback(class CCallbackBase *pCallback
 {
 }
 
+// The three below were left as aborting imports by the Emscripten link (ERROR_ON_UNDEFINED_SYMBOLS=0); a native link
+// needs them. Nothing registers a call result or shuts Steam down when SteamAPI_Init failed.
+S_API void S_CALLTYPE SteamAPI_RegisterCallResult(class CCallbackBase *pCallback, SteamAPICall_t hAPICall)
+{
+}
+
+S_API void S_CALLTYPE SteamAPI_UnregisterCallResult(class CCallbackBase *pCallback, SteamAPICall_t hAPICall)
+{
+}
+
+S_API void S_CALLTYPE SteamAPI_Shutdown()
+{
+}
+
 S_API HSteamUser S_CALLTYPE SteamAPI_GetHSteamUser()
 {
     return 0;

@@ -558,12 +558,12 @@ struct __declspec(align(4)) bdCommonAddr : bdReferencable
         //bdAddr lhs = bdInetAddr::isValid(&m_publicAddr.m_address)
         bdAddr lhs = m_publicAddr.m_address.isValid()
             ? m_publicAddr
-            : (m_localAddrs.m_size ? m_localAddrs.m_data[0] : bdAddr());
+            : (m_localAddrs.m_size ? bdAddr(m_localAddrs.m_data[0]) : bdAddr());   // explicit copy: both arms one type (tools/p32)
 
         //bdAddr rhs = bdInetAddr::isValid(&other.m_publicAddr.m_address)
         bdAddr rhs = other.m_publicAddr.m_address.isValid()
             ? other.m_publicAddr
-            : (other.m_localAddrs.m_size ? other.m_localAddrs.m_data[0] : bdAddr());
+            : (other.m_localAddrs.m_size ? bdAddr(other.m_localAddrs.m_data[0]) : bdAddr());
 
         return lhs == rhs;
     }

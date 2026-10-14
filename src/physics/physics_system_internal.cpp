@@ -297,7 +297,7 @@ void __cdecl IPN_verify_rigid_bodies(rigid_body *rb_partition_head)
             }
             else
             {
-                p_m_partition_head = (char *)&b1[-1].m_partition_node.m_partition_head;
+                p_m_partition_head = (char *)PHYS_T_INTERNAL(b1, m_partition_node.m_partition_head);
                 if ( (m_flags & 0x20) != 0 )
                     PMM_VALIDATE(p_m_partition_head, 0x1D0u, 0x10u);
                 else
@@ -322,7 +322,7 @@ void __cdecl IPN_verify_rigid_bodies(rigid_body *rb_partition_head)
             }
             else
             {
-                v8 = (char *)&b2[-1].m_partition_node.m_partition_head;
+                v8 = (char *)PHYS_T_INTERNAL(b2, m_partition_node.m_partition_head);
                 if ( (v7 & 0x20) != 0 )
                     PMM_VALIDATE(v8, 0x1D0u, 0x10u);
                 else
@@ -350,7 +350,7 @@ void __cdecl IPN_verify_rigid_bodies(rigid_body *rb_partition_head)
             }
             else
             {
-                v12 = (char *)&v10[-1].m_partition_node.m_partition_head;
+                v12 = (char *)PHYS_T_INTERNAL(v10, m_partition_node.m_partition_head);
                 if ( (v11 & 0x20) != 0 )
                     PMM_VALIDATE(v12, 0x1D0u, 0x10u);
                 else
@@ -375,7 +375,7 @@ void __cdecl IPN_verify_rigid_bodies(rigid_body *rb_partition_head)
             }
             else
             {
-                v15 = (char *)&v13[-1].m_partition_node.m_partition_head;
+                v15 = (char *)PHYS_T_INTERNAL(v13, m_partition_node.m_partition_head);
                 if ( (v14 & 0x20) != 0 )
                     PMM_VALIDATE(v15, 0x1D0u, 0x10u);
                 else
@@ -403,7 +403,7 @@ void __cdecl IPN_verify_rigid_bodies(rigid_body *rb_partition_head)
             }
             else
             {
-                v19 = (char *)&v17[-1].m_partition_node.m_partition_head;
+                v19 = (char *)PHYS_T_INTERNAL(v17, m_partition_node.m_partition_head);
                 if ( (v18 & 0x20) != 0 )
                     PMM_VALIDATE(v19, 0x1D0u, 0x10u);
                 else
@@ -428,7 +428,7 @@ void __cdecl IPN_verify_rigid_bodies(rigid_body *rb_partition_head)
             }
             else
             {
-                v22 = (char *)&v20[-1].m_partition_node.m_partition_head;
+                v22 = (char *)PHYS_T_INTERNAL(v20, m_partition_node.m_partition_head);
                 if ( (v21 & 0x20) != 0 )
                     PMM_VALIDATE(v22, 0x1D0u, 0x10u);
                 else
@@ -456,7 +456,7 @@ void __cdecl IPN_verify_rigid_bodies(rigid_body *rb_partition_head)
             }
             else
             {
-                v26 = (char *)&v24[-1].m_partition_node.m_partition_head;
+                v26 = (char *)PHYS_T_INTERNAL(v24, m_partition_node.m_partition_head);
                 if ( (v25 & 0x20) != 0 )
                     PMM_VALIDATE(v26, 0x1D0u, 0x10u);
                 else
@@ -481,7 +481,7 @@ void __cdecl IPN_verify_rigid_bodies(rigid_body *rb_partition_head)
             }
             else
             {
-                v29 = (char *)&v27[-1].m_partition_node.m_partition_head;
+                v29 = (char *)PHYS_T_INTERNAL(v27, m_partition_node.m_partition_head);
                 if ( (v28 & 0x20) != 0 )
                     PMM_VALIDATE(v29, 0x1D0u, 0x10u);
                 else
@@ -511,7 +511,7 @@ void __cdecl IPN_verify_rigid_bodies(rigid_body *rb_partition_head)
             }
             else
             {
-                v33 = (char *)&v31[-1].m_partition_node.m_partition_head;
+                v33 = (char *)PHYS_T_INTERNAL(v31, m_partition_node.m_partition_head);
                 if ( (v32 & 0x20) != 0 )
                     PMM_VALIDATE(v33, 0x1D0u, 0x10u);
                 else
@@ -536,7 +536,7 @@ void __cdecl IPN_verify_rigid_bodies(rigid_body *rb_partition_head)
             }
             else
             {
-                v36 = (char *)&v34[-1].m_partition_node.m_partition_head;
+                v36 = (char *)PHYS_T_INTERNAL(v34, m_partition_node.m_partition_head);
                 if ( (v35 & 0x20) != 0 )
                     PMM_VALIDATE(v36, 0x1D0u, 0x10u);
                 else
@@ -564,7 +564,7 @@ void __cdecl IPN_verify_rigid_bodies(rigid_body *rb_partition_head)
             }
             else
             {
-                v40 = (char *)&v38[-1].m_partition_node.m_partition_head;
+                v40 = (char *)PHYS_T_INTERNAL(v38, m_partition_node.m_partition_head);
                 if ( (v39 & 0x20) != 0 )
                     PMM_VALIDATE(v40, 0x1D0u, 0x10u);
                 else
@@ -589,7 +589,7 @@ void __cdecl IPN_verify_rigid_bodies(rigid_body *rb_partition_head)
             }
             else
             {
-                v43 = (char *)&v41[-1].m_partition_node.m_partition_head;
+                v43 = (char *)PHYS_T_INTERNAL(v41, m_partition_node.m_partition_head);
                 if ( (v42 & 0x20) != 0 )
                     PMM_VALIDATE(v43, 0x1D0u, 0x10u);
                 else
@@ -619,7 +619,7 @@ void __cdecl IPN_verify_rigid_bodies(rigid_body *rb_partition_head)
             }
             else
             {
-                v47 = (char *)&v45[-1].m_partition_node.m_partition_head;
+                v47 = (char *)PHYS_T_INTERNAL(v45, m_partition_node.m_partition_head);
                 if ( (v46 & 0x20) != 0 )
                     PMM_VALIDATE(v47, 0x1D0u, 0x10u);
                 else
@@ -644,7 +644,7 @@ void __cdecl IPN_verify_rigid_bodies(rigid_body *rb_partition_head)
             }
             else
             {
-                v50 = (char *)&v48[-1].m_partition_node.m_partition_head;
+                v50 = (char *)PHYS_T_INTERNAL(v48, m_partition_node.m_partition_head);
                 if ( (v49 & 0x20) != 0 )
                     PMM_VALIDATE(v50, 0x1D0u, 0x10u);
                 else
@@ -674,7 +674,7 @@ void __cdecl IPN_verify_rigid_bodies(rigid_body *rb_partition_head)
             }
             else
             {
-                v54 = (char *)&v52[-1].m_partition_node.m_partition_head;
+                v54 = (char *)PHYS_T_INTERNAL(v52, m_partition_node.m_partition_head);
                 if ( (v53 & 0x20) != 0 )
                     PMM_VALIDATE(v54, 0x1D0u, 0x10u);
                 else
@@ -699,7 +699,7 @@ void __cdecl IPN_verify_rigid_bodies(rigid_body *rb_partition_head)
             }
             else
             {
-                v57 = (char *)&v55[-1].m_partition_node.m_partition_head;
+                v57 = (char *)PHYS_T_INTERNAL(v55, m_partition_node.m_partition_head);
                 if ( (v56 & 0x20) != 0 )
                     PMM_VALIDATE(v57, 0x1D0u, 0x10u);
                 else
@@ -727,7 +727,7 @@ void __cdecl IPN_verify_rigid_bodies(rigid_body *rb_partition_head)
             }
             else
             {
-                v61 = (char *)&v59[-1].m_partition_node.m_partition_head;
+                v61 = (char *)PHYS_T_INTERNAL(v59, m_partition_node.m_partition_head);
                 if ( (v60 & 0x20) != 0 )
                     PMM_VALIDATE(v61, 0x1D0u, 0x10u);
                 else
@@ -754,7 +754,7 @@ void __cdecl IPN_verify_rigid_bodies(rigid_body *rb_partition_head)
             }
             else
             {
-                v64 = (char *)&v62[-1].m_partition_node.m_partition_head;
+                v64 = (char *)PHYS_T_INTERNAL(v62, m_partition_node.m_partition_head);
                 if ( (v63 & 0x20) != 0 )
                     PMM_VALIDATE(v64, 0x1D0u, 0x10u);
                 else

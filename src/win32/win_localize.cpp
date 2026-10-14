@@ -55,6 +55,12 @@ int Win_InitLocalization()
             if (localization.language[i] == 10)
             {
                 localization.language[i] = 0;
+#ifdef BO1_WEB
+                // web: the retail localization.txt has CRLF line ends; MSVC's text-mode fopen ("rt") drops the CR,
+                // POSIX fopen does not, and the language name ("english\r") then names a zone folder that is not there
+                if (i > 0 && localization.language[i - 1] == 13)
+                    localization.language[i - 1] = 0;
+#endif
                 localization.strings = &localization.language[i + 1];
                 SEH_GetLanguageIndexForName(localization.language, &lang);
                 return lang;

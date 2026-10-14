@@ -980,7 +980,7 @@ LABEL_31:
         // zombies: SP PM_UpdateViewAngles (SP 0x005a2810 +0x3e) treats a player linked by PlayerLinkTo (pm_type 1
         // without playerlinktoabsolute's pm_flags 0x4000000) like a turret / vehicle user: only the link's range
         // clamp (0x004cecd0, PM_UpdateViewAngles_RangeLimited), no mantle / ladder / prone view and no lean.
-        if ( zombiemode && zombiemode->current.enabled && ps->pm_type == 1 && (ps->pm_flags & 0x4000000) == 0
+        if ( Com_SPPlayerRules() && ps->pm_type == 1 && (ps->pm_flags & 0x4000000) == 0   // mod (native): was zombiemode
             && (ps->eFlags & 0x4300) == 0 )
         {
             PM_UpdateViewAngles_RangeLimited(ps);

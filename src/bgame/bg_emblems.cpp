@@ -481,7 +481,7 @@ bool __cdecl BG_EmblemsIsIconPurchased(int controllerIndex, __int16 id)
         return 1;
     v4 = va("%d", id);
     RootDDLState = LiveStats_GetRootDDLState();
-    if ( DDL_MoveTo(RootDDLState, &searchState, 4, "emblemStats", "icons", v4) )
+    if ( DDL_MoveTo(RootDDLState, &searchState, 4, "emblemStats", "icons", v4, "purchased") ) // mod (ddl): path argument restored
     {
         buffer = LiveStorage_GetStatsBuffer(controllerIndex, STATS_LOCATION_NORMAL, 1);
         return DDL_GetInt(&searchState, (char *)buffer) != 0;
@@ -520,7 +520,7 @@ char __cdecl BG_EmblemsPurchaseIcon(int controllerIndex, __int16 id)
         {
             v4 = va("%d", id);
             RootDDLState = LiveStats_GetRootDDLState();
-            if ( DDL_MoveTo(RootDDLState, &searchState, 4, "emblemStats", "icons", v4) )
+            if ( DDL_MoveTo(RootDDLState, &searchState, 4, "emblemStats", "icons", v4, "purchased") ) // mod (ddl): path argument restored
             {
                 buffer = LiveStorage_GetStatsBuffer(controllerIndex, STATS_LOCATION_NORMAL, 1);
                 if ( DDL_SetInt(&searchState, 1u, (char *)buffer) )
@@ -840,7 +840,7 @@ bool __cdecl BG_EmblemsIsBackgroundPurchased(int controllerIndex, __int16 id)
         return 1;
     v4 = va("%d", id);
     RootDDLState = LiveStats_GetRootDDLState();
-    if ( DDL_MoveTo(RootDDLState, &searchState, 4, "emblemStats", "backgrounds", v4) )
+    if ( DDL_MoveTo(RootDDLState, &searchState, 4, "emblemStats", "backgrounds", v4, "purchased") ) // mod (ddl): path argument restored
     {
         buffer = LiveStorage_GetStatsBuffer(controllerIndex, STATS_LOCATION_NORMAL, 1);
         return DDL_GetInt(&searchState, (char *)buffer) != 0;
@@ -879,7 +879,7 @@ char __cdecl BG_EmblemsPurchaseBackground(int controllerIndex, __int16 id)
         {
             v4 = va("%d", id);
             RootDDLState = LiveStats_GetRootDDLState();
-            if ( DDL_MoveTo(RootDDLState, &searchState, 4, "emblemStats", "backgrounds", v4) )
+            if ( DDL_MoveTo(RootDDLState, &searchState, 4, "emblemStats", "backgrounds", v4, "purchased") ) // mod (ddl): path argument restored
             {
                 buffer = LiveStorage_GetStatsBuffer(controllerIndex, STATS_LOCATION_NORMAL, 1);
                 if ( DDL_SetInt(&searchState, 1u, (char *)buffer) )
@@ -1199,7 +1199,7 @@ bool __cdecl SV_CACValidate_IsBackgroundPurchased(unsigned __int8 *buffer, int r
         return 1;
     v5 = va("%d", id);
     RootDDLState = LiveStats_GetRootDDLState();
-    if ( DDL_MoveTo(RootDDLState, &searchState, 4, "emblemStats", "backgrounds", v5) )
+    if ( DDL_MoveTo(RootDDLState, &searchState, 4, "emblemStats", "backgrounds", v5, "purchased") ) // mod (ddl): path argument restored
         return DDL_GetInt(&searchState, (char *)buffer) != 0;
     DDL_PrintError("DDL: Error could not find emblem background %d\n", id);
     return 0;
@@ -1222,7 +1222,7 @@ bool __cdecl SV_CACValidate_IsIconPurchased(unsigned __int8 *buffer, int rank, _
         return 1;
     v5 = va("%d", id);
     RootDDLState = LiveStats_GetRootDDLState();
-    if ( DDL_MoveTo(RootDDLState, &searchState, 4, "emblemStats", "icons", v5) )
+    if ( DDL_MoveTo(RootDDLState, &searchState, 4, "emblemStats", "icons", v5, "purchased") ) // mod (ddl): path argument restored
         return DDL_GetInt(&searchState, (char *)buffer) != 0;
     DDL_PrintError("DDL: Error could not find emblem icon %d\n", id);
     return 0;
