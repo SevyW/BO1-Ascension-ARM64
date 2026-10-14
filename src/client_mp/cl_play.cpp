@@ -175,6 +175,21 @@ const char *Map()
     return s_mpCount ? s_mpMaps[s_mpMap] : "";
 }
 
+
+// the video settings of this mode, as "+set name value" arguments for a start in the other mode
+void CarriedVideoArgs(char *video, int size)
+{
+    video[0] = 0;
+    static const char *const kCarried[] = { "bo1_renderer", "r_mode", "r_aaSamples", "r_vsync", "r_displayRefresh", "com_maxfps",
+        "bo1_fpscounter" };   // (few: the engine's command line holds 1024 bytes)
+    for (const char *name : kCarried)
+    {
+        const char *value = Dvar_GetVariantString(name);
+        if (value && value[0])
+            I_strncat(video, size, va("+set %s \"%s\" ", name, value));
+    }
+}
+
 void Start()
 {
     const char *map = Map();
@@ -233,15 +248,7 @@ void Start()
     // in this mode go along, or the other one starts with its own old ones (seen: Vulkan and no anti-aliasing in
     // Zombies, then a Multiplayer match on OpenGL ES with 4 samples).
     char video[512];
-    video[0] = 0;
-    static const char *const kCarried[] = { "bo1_renderer", "r_mode", "r_aaSamples", "r_vsync", "r_displayRefresh", "com_maxfps",
-        "bo1_fpscounter" };   // (few: the engine's command line holds 1024 bytes)
-    for (const char *name : kCarried)
-    {
-        const char *value = Dvar_GetVariantString(name);
-        if (value && value[0])
-            I_strncat(video, sizeof(video), va("+set %s \"%s\" ", name, value));
-    }
+    CarriedVideoArgs(video, sizeof(video));
     char all[2200];
     Com_sprintf(all, sizeof(all), "%s%s%s%s", IsZombies(s_mode) ? "+set bo1_zombies 1 " : "", mod && mod[0] ? va("+set fs_game %s ", mod) : "", video, arguments);
     bo1_native_restart_at_exit(fs_basepath->current.string, fs_homepath->current.string, all);
@@ -322,6 +329,20 @@ void CL_Play_Open(int family)
 bool CL_Play_IsOpen()
 {
     return s_open;
+}
+
+// the front end's Multiplayer entry: the program starts again in Multiplayer mode, on its main menu (as retail's
+// switch to the multiplayer executable), with this mode's video settings
+void CL_Play_StartMultiplayerMenus()
+{
+    char video[512];
+    CarriedVideoArgs(video, sizeof(video));
+    const char *mod = Dvar_GetVariantString("fs_game");
+    char all[1024];
+    Com_sprintf(all, sizeof(all), "%s%s", mod && mod[0] ? va("+set fs_game %s ", mod) : "", video);
+    Com_Printf(0, "play: Multiplayer menus\n");
+    bo1_native_restart_at_exit(fs_basepath->current.string, fs_homepath->current.string, all);
+    Cbuf_AddText(0, "quit\n");
 }
 
 bool CL_Play_Key(int localClientNum, int key)
@@ -448,6 +469,10 @@ void CL_Play_Draw()
 }
 #else
 void CL_Play_Open(int)
+{
+}
+
+void CL_Play_StartMultiplayerMenus()
 {
 }
 

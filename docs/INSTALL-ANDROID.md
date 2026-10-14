@@ -10,7 +10,7 @@ to the device, and the app does not run without them.
 | --- | --- |
 | Game | *Call of Duty: Black Ops* on Steam (PC), installed. Zombies maps from the DLC packs appear only if you own and installed them. |
 | Device | Android 8.0 or newer, 64-bit ARM (arm64-v8a). A recent Snapdragon chip (Adreno GPU) is recommended. |
-| Graphics | Vulkan 1.3 for the default renderer. OpenGL ES 3 also runs the game but is far too slow to play on the tested device. |
+| Graphics | Vulkan 1.3 for the default renderer. Without it the game uses OpenGL ES 3, about a third as fast (54 to 63 FPS on the tested device). |
 | Memory | 6 GB of RAM at least, 8 GB or more recommended. |
 | Storage | About 12 GB free on the device's internal storage (the game folder is about 11 GB). |
 | PC | Windows, Linux or macOS with a USB cable for the device, to copy the files once. |
@@ -93,10 +93,9 @@ Start the app. The first minutes can stutter while the Vulkan renderer prepares 
 time; that settles.
 
 - Without extra settings the app starts **Zombies**: the main menu is the room with the TV. **Solo** starts a map.
-- **Multiplayer**: from the main menu choose **Multiplayer**. It opens the Play screen, where you pick
-  **MULTIPLAYER: BOTS** (an offline match against bots) or **MULTIPLAYER: COMBAT TRAINING** (bots, with rank, unlocks
-  and Create a Class). The app restarts into the Multiplayer game; that is expected. The Multiplayer menus also
-  have **Combat Training** and **Private Match** under **PLAY**.
+- **Multiplayer**: from the main menu choose **Multiplayer**. The app restarts into the Multiplayer game (that is
+  expected) and shows its main menu. **PLAY** has **Combat Training** (bots, with rank, unlocks and Create a Class)
+  and **Private Match**. Settings > EXTRAS > PLAY: MAPS AND MODES starts a bot match on any map directly.
 - **Back to Zombies** from Multiplayer: the Play screen (Settings > EXTRAS > PLAY: MAPS AND MODES), mode **ZOMBIES: SOLO**.
 - Progress (rank, classes, unlocks) is saved on the device. Combat Training keeps its own progress, as in the
   original game.
@@ -113,8 +112,8 @@ time; that settles.
 
 - **Settings > Graphics > Video Mode**: the default is 720 lines in your screen's shape. Higher looks sharper and
   costs frame rate.
-- **Settings > Graphics > RENDERER (RESTART)**: Vulkan (default). OpenGL ES 3 is only a fallback: on the tested
-  device it draws correctly but stalls to about 1 FPS. Devices without Vulkan 1.3 use it by themselves.
+- **Settings > Graphics > RENDERER (RESTART)**: Vulkan (default, fastest) or OpenGL ES 3 (for devices without
+  Vulkan 1.3, which use it by themselves, or when Vulkan shows problems; about a third as fast).
 - **Settings > EXTRAS**: FRAME RATE LIMIT (30 to no limit), FPS COUNTER, bots, mod, PLAYER NAME, JOIN A GAME BY
   ADDRESS, SEND LOG.
 - Zombies and Multiplayer keep separate settings files. The graphics settings carry over when the app switches mode.
@@ -138,7 +137,7 @@ joining by code.
 | --- | --- |
 | "Game files not found" | `game/localization.txt` must exist. Check you copied the *contents* of the folder (step 4). |
 | The app closes on start | Check the free space and that the copy finished; copy again over the old files. Then send the log (below). |
-| Black screen or broken graphics | Report it with the log. As a last resort switch the renderer to OpenGL ES 3 (it draws correctly but is very slow). If the menu is unreachable, create `files/args.txt` containing `+set bo1_zombies 1 +set bo1_renderer 0` (one line), start once, then delete the file. |
+| Black screen or broken graphics | Switch the renderer to OpenGL ES 3, and report it with the log. If the menu is unreachable, create `files/args.txt` containing `+set bo1_zombies 1 +set bo1_renderer 0` (one line), start once, then delete the file. |
 | Low frame rate | Lower Video Mode; check EXTRAS > frame rate limit. |
 | No sound effects in a few places | Report it with the log. |
 | Multiplayer menu items are disabled | Server Browser, Ranked and Wager need the online service and stay disabled. Use Combat Training or Private Match. |

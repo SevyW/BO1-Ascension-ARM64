@@ -457,17 +457,19 @@ extern "C" int bo1_native_renderer_is_vulkan(void)
         bo1_renderer = _Dvar_RegisterInt("bo1_renderer", byDefault, 0, 1, 1u, "mod: renderer: 0 OpenGL ES 3, 1 Vulkan (restart to apply)");
         // bo1_vk_async (archived, default 1; restart to apply): how the Vulkan renderer gets a pipeline (shaders +
         // render state) it has not used before, on drivers without graphics pipeline libraries (Adreno):
-        //   1  compiled on background threads; the draws that need it are left out until it is ready (measured on
-        //      an Adreno 830: 2 frames at 60 Hz; a surface lit by a new light shows the cleared colour for that
-        //      long, once: DXVK's state cache keeps the pipeline for later sessions)
+        //   1  blended and depth-only draws (effects, decals, shadows) are compiled on background threads and left
+        //      out until ready; a draw that writes colour without blending (a surface's base pass) waits for its
+        //      pipeline. Leaving base passes out showed surfaces as flat orange or blue for a frame or two (the light
+        //      added over a surface that was not drawn).
+        //   2  every new pipeline in the background (the earlier default; those flashes)
         //   0  compiled at the draw: nothing is left out, the frame waits (a stutter instead)
-        // DXVK reads BO1_DXVK_ASYNC (tools/native/build-dxvk.sh, the BO1_ASYNC patch).
+        // DXVK reads BO1_DXVK_ASYNC (tools/native/build-dxvk.sh, the BO1_ASYNC and BO1_ASYNC2 patches).
         // bo1_offline_menus (default 1, 0 or 1): the Multiplayer menus treat the player as signed in to the retail
         // online service (universal/com_expressions_eval.cpp), so PLAY and the menus behind it open.
         _Dvar_RegisterInt("bo1_offline_menus", 1, 0, 1, 0, "mod: Multiplayer menus work without the retail online service");
-        const dvar_t *bo1_vk_async = _Dvar_RegisterInt("bo1_vk_async", 1, 0, 1, 1u, "mod: Vulkan: 1 new pipelines compile in the background (no stutter; a surface may flicker once), 0 at the draw (restart to apply)");
-        if (!bo1_vk_async->current.integer && !getenv("BO1_DXVK_ASYNC"))
-            setenv("BO1_DXVK_ASYNC", "0", 1);
+        const dvar_t *bo1_vk_async = _Dvar_RegisterInt("bo1_vk_async", 1, 0, 2, 1u, "mod: Vulkan: new pipelines: 1 effects in the background, surfaces wait; 0 all wait (stutter); 2 all in the background (a surface may flash a flat colour) (restart to apply)");
+        if (bo1_vk_async->current.integer != 1 && !getenv("BO1_DXVK_ASYNC"))
+            setenv("BO1_DXVK_ASYNC", bo1_vk_async->current.integer ? "2" : "0", 1);
         // bo1_vk_resolve (archived, default 2, 0 to 3; restart to apply; measured on an Adreno 830 with r_aaSamples 4:
         // 0 loses every effect, 1 gives a black scene, 2 and 3 are right): how the Vulkan renderer resolves the
         // multisampled scene (r_aaSamples above 1); DXVK reads BO1_DXVK_RESOLVE (tools/native/build-dxvk.sh).

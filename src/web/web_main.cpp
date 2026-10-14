@@ -111,6 +111,10 @@ void __cdecl Sys_HitchWatchEnd()
 {
 }
 
+#ifdef BO1_NATIVE
+// mod (native): weak: the D3D9 shim is not linked without the renderer (cmake BO1_NATIVE_RENDERER)
+extern "C" __attribute__((weak)) void d3d9shim_set_draw_profile(int enabled);
+#endif
 unsigned int __cdecl Sys_FramePerfHitchMs()
 {
 #ifdef BO1_NATIVE
@@ -123,6 +127,8 @@ unsigned int __cdecl Sys_FramePerfHitchMs()
         ms = at ? atoi(at + 14) : 0;
         if (ms < 0)
             ms = 0;
+        if (ms > 0 && d3d9shim_set_draw_profile)
+            d3d9shim_set_draw_profile(1);   // the OpenGL ES renderer's DRAWPROF lines (src/web/d3d9/d3d9_device.cpp)
     }
     return (unsigned int)ms;
 #else

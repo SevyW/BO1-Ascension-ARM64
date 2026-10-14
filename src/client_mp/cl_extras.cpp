@@ -16,7 +16,7 @@
 //   FRAME RATE LIMIT    com_maxfps 30 / 45 / 60 / 90 / 120 / 144 / 0 (no limit)
 //   FPS COUNTER         bo1_fpscounter 0..3                    (client_mp/cl_scrn_mp.cpp)
 //   RENDERER            bo1_renderer 0 / 1, at the next start  (web/web_input.cpp)
-//   NEW SHADERS         bo1_vk_async 0 / 1, at the next start  (web/web_input.cpp; Vulkan only)
+//   NEW SHADERS         bo1_vk_async 0 / 1 / 2, at the next start  (web/web_input.cpp; Vulkan only)
 //   PLAY                the Play screen: maps and modes (cl_play.cpp)
 //   BOT ENEMIES / BOT FRIENDS / BOT DIFFICULTY   bo1_bot_enemies / _friends / _difficulty, used by the Play screen
 //   MOD                 the mod folder (<fs_basepath>/mods/<name> or <fs_homepath>/mods/<name>) the next start
@@ -85,7 +85,7 @@ const char *const kFpsNames[] = { "30", "45", "60", "90", "120", "144", "No limi
 const int kFpsValues[] = { 30, 45, 60, 90, 120, 144, 0 };
 const char *const kCounter[] = { "None", "Simple", "Advanced", "Full" };
 const char *const kRenderer[] = { "OpenGL ES", "Vulkan" };
-const char *const kShaderCompile[] = { "Wait (stutter)", "Background (flicker once)" };   // bo1_vk_async 0 / 1
+const char *const kShaderCompile[] = { "Wait (stutter)", "Effects in background", "All in background (flashes)" };   // bo1_vk_async 0 / 1 / 2
 const char *const kBots[] = { "0", "1", "2", "3", "4", "5", "6", "7", "8", "9" };
 const char *const kDifficulty[] = { "Recruit", "Regular", "Hardened", "Veteran" };   // easy, normal, hard, fu
 
@@ -102,7 +102,7 @@ const Row kRows[] = {
     { "FPS COUNTER", CHOICE, "bo1_fpscounter", 0, 0, 0, 0, kCounter, 0, 4, ACT_NONE },
 #ifdef BO1_DXVK
     { "RENDERER (RESTART)", CHOICE, "bo1_renderer", 0, 0, 0, 0, kRenderer, 0, 2, ACT_NONE },
-    { "NEW SHADERS (RESTART)", CHOICE, "bo1_vk_async", 0, 0, 0, 0, kShaderCompile, 0, 2, ACT_NONE },
+    { "NEW SHADERS (RESTART)", CHOICE, "bo1_vk_async", 0, 0, 0, 0, kShaderCompile, 0, 3, ACT_NONE },
 #endif
     { "BOT ENEMIES", CHOICE, "bo1_bot_enemies", 0, 0, 0, 0, kBots, 0, 10, ACT_NONE },
     { "BOT FRIENDS", CHOICE, "bo1_bot_friends", 0, 0, 0, 0, kBots, 0, 9, ACT_NONE },

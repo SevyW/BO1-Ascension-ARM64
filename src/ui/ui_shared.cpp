@@ -6503,14 +6503,14 @@ void __cdecl Item_Action(int localClientNum, UiContext *dc, itemDef_s *item)
             Menus_OpenByName(localClientNum, dc, "error_popmenu");
             return;
         }
-        // mod (native menus): the front end's Multiplayer entry (main_button2 of main_text). Retail asks to switch to
-        // the other executable, whose Play entry needs the online service; here it opens the Play screen on its
-        // multiplayer modes (client_mp/cl_play.cpp), which starts the match and the other mode with it.
+        // mod (native menus): the front end's Multiplayer entry (main_button2 of main_text). Retail switches to the
+        // multiplayer executable; here the program starts again in Multiplayer mode, on its main menu
+        // (client_mp/cl_play.cpp). The Play screen stays in Settings > EXTRAS.
         if ( item && item->window.name && item->parent && item->parent->window.name
             && !I_stricmp(item->window.name, "main_button2") && !I_stricmp(item->parent->window.name, "main_text") )
         {
-            extern void CL_Play_Open(int family);
-            CL_Play_Open(1);
+            extern void CL_Play_StartMultiplayerMenus();
+            CL_Play_StartMultiplayerMenus();
             return;
         }
         // mod (native menus): Zombies > Online. The retail entry needs the platform's online service ("No network

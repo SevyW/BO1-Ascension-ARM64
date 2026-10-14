@@ -1,21 +1,35 @@
-# BO1 Zombies
+# BO1 Decompiled Android
 
-Decompiled engine code for Black Ops 1 Zombies, so mods can change the engine itself, not just scripts and maps.
-This fork adds a native **Android** version: Zombies and Multiplayer (bots, Combat Training, Private Match, the
-original menus) on arm64 phones and handhelds, with a Vulkan renderer (DXVK), controller and touch controls.
+*Call of Duty: Black Ops* (2010) running natively on Android: **Zombies and Multiplayer** on arm64 phones and
+handhelds, built from the decompiled PC engine. Vulkan renderer (DXVK), controller and touch controls, the original
+menus, offline Combat Training and Private Match, co-op over the local network or by address. 150 to 250 FPS at
+1080p on a Snapdragon 8 Elite.
+
+**[Download the APK (latest release)](https://github.com/Zephelinn/bo1-decompiled-android/releases/latest)** ·
+**[Install guide](docs/INSTALL-ANDROID.md)** · [Requirements](#devices-and-requirements) · [Benchmarks](#benchmarks)
 
 **You need your own copy of *Call of Duty: Black Ops* (PC, Steam).** No game files are in this repository or in the
-app; you copy them from your install.
+app: you copy your Steam install to the device once. Not affiliated with Activision, Microsoft or Xbox
+([NOTICE.md](NOTICE.md)).
 
-![](images/1.webp)
+Screenshots from this build on an AYN Odin 3 (1920x1080, Vulkan):
 
-![](images/2.webp)
+| | |
+| --- | --- |
+| ![Zombies main menu, the room with the TV](images/android-zombies-menu.jpg) | ![Zombies: Five](images/android-zombies-five.jpg) |
+| Zombies: the original main menu | Zombies: Five |
+| ![Multiplayer: Nuketown with bots](images/android-mp-nuketown.jpg) | ![Multiplayer main menu](images/android-mp-menu.jpg) |
+| Multiplayer: Nuketown, a bot match | Multiplayer: the original menus, offline |
 
-## Android: get started
+## Get started
 
-1. Download the APK from **Releases**.
+1. Download `bo1-port-<version>.apk` from the **[latest release](https://github.com/Zephelinn/bo1-decompiled-android/releases/latest)**.
 2. Follow **[docs/INSTALL-ANDROID.md](docs/INSTALL-ANDROID.md)**: install the app, copy your Steam game folder to the
    device, play.
+
+This repository is a fork of [spacemandev-git/bo1-zombies-decompiled](https://github.com/spacemandev-git/bo1-zombies-decompiled),
+the decompiled engine with Zombies on Windows and in the browser; its Windows and web versions are still here
+(see Documentation).
 
 ## What works
 
@@ -55,10 +69,10 @@ Settings > Graphics > RENDERER (RESTART). Both translate the game's Direct3D 9 t
 | How | DXVK 2.6.1 (D3D9 on Vulkan) with the project's patches | the project's own D3D9 layer with MojoShader (shaders to GLSL ES) |
 | Needs | Vulkan 1.3 and `VK_EXT_robustness2` | OpenGL ES 3.0 |
 | Picture | complete | complete (the same scene as Vulkan) |
-| Speed on the Odin 3 | 150 to 250 FPS at 1920x1080 (benchmarks below) | unplayable: drops to about 1 FPS, frames of up to 1.3 s in Kino der Toten |
+| Speed on the Odin 3 | 150 to 250 FPS at 1920x1080 (benchmarks below) | 54 to 63 FPS at 1920x1080 (benchmarks below) |
 | Anti-aliasing (`r_aaSamples` 2 / 4) | yes (4x: about 60 FPS in Kino der Toten) | not tested |
-| Shader compiling | in the background: a new effect can be missing for a frame or two the first time | at the draw |
-| Use it | always, where the device has Vulkan 1.3 | only when Vulkan is not available; the app falls back to it by itself then |
+| Shader compiling | effects in the background (a new effect can be missing for a frame the first time); surfaces wait for theirs (a few short hitches on a map's first visit, once) | at the draw: a hitch the first time a shader combination appears in a session |
+| Use it | always, where the device has Vulkan 1.3 | where Vulkan is not available; the app falls back to it by itself then |
 
 ## Benchmarks
 
@@ -77,8 +91,11 @@ what the device renders.
 | Multiplayer menus (drawn once a display refresh) | 142 | | |
 | Kino der Toten, 4x anti-aliasing | 60 | | |
 | Kino der Toten, 1280x720, vsync on at 120 Hz (first build) | 120 | 108 | 94 |
+| OpenGL ES: Five, in play at the start | 63 | 61 | 61 |
+| OpenGL ES: Kino der Toten, in play | 54 | | |
 
-The GPU was at 99 % in the Zombies runs; the CPU at about 30 %.
+The GPU was at 99 % in the Vulkan Zombies runs; the CPU at about 30 %. On OpenGL ES the GPU was at about 25 %: that renderer is
+limited by the driver's work on the CPU.
 
 ## Documentation
 

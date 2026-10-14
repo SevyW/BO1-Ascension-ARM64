@@ -139,6 +139,12 @@ void d3d9shim_set_canvas_selector(const char *selector) { g_canvasSelector = sel
 void d3d9shim_set_log_level(int level) { g_logLevel = level; }
 void d3d9shim_set_trace(int enabled) { g_trace = enabled != 0; }
 void d3d9shim_set_gl_check(int enabled) { g_glCheck = enabled != 0; }
+void d3d9shim_set_draw_profile(int enabled)
+{
+#ifndef __EMSCRIPTEN__
+    g_drawProfOn = enabled != 0;
+#endif
+}
 void d3d9shim_set_shader_dump(const char *dir, int all)
 {
     g_dumpDir = dir ? dir : "";

@@ -182,8 +182,18 @@ heap of their own above 4 GB (recognized by the caller's address); with lavapipe
 Verified: x86-64 Linux on Mesa lavapipe (software Vulkan): front end, settings menus, zombie_theater in play,
 6-8 FPS at 1280x720 on that driver. Android emulator (x86_64): its Vulkan lacks `VK_EXT_robustness2`; the fallback
 to OpenGL ES was seen there. Measured on the Odin 3 (Adreno 830) since: Vulkan 150 to 250 FPS at 1920x1080 (the
-README's benchmarks); OpenGL ES in zombie_theater draws the same picture but stalls (1 FPS on the counter, frames of
-up to 1.3 s, average frame 26 ms) after 100 s in the map. Not verified: other Android GPUs.
+README's benchmarks). Not verified: other Android GPUs.
+
+OpenGL ES on the Odin 3: 3.3 s frames in zombie_theater at first (0.3 FPS), all of it updating the engine's dynamic
+index buffer: about 4900 small writes a frame into a 3 MB buffer, each 0.65 ms with `glBufferSubData` or an
+unsynchronized `glMapBufferRange` (the driver copies the buffer still in use). A small `glBufferData` per draw cost
+19 us. Now a draw from a dynamic index buffer passes its indices from the CPU copy as a client-side array (the default
+vertex array of OpenGL ES 3; `DrawIndexedPrimitive`, `src/web/d3d9/d3d9_draw.cpp`), and dynamic vertex buffers take
+new storage on a DISCARD lock and an unsynchronized write on a NOOVERWRITE lock (`BufferStorage::flush`). Measured:
+54 FPS in zombie_theater (18.5 ms frames, GPU at about 25 %), 63 FPS in zombie_pentagon, at 1920x1080. What remains
+on the CPU: the dynamic vertex buffer writes (about 10 ms a frame) and linking a program the first time a shader
+combination is drawn (up to 250 ms in one frame). `+set bo1_frameperf <ms>` also prints `DRAWPROF` lines (the draw
+path's time by stage) for frames of 100 ms or more and every 300th frame.
 Not done: letting DXVK's lock memory be used directly (the copy per lock stays), DXVK configuration tuning
 (`DXVK_CONFIG`), MSAA under Vulkan checked.
 
@@ -203,13 +213,17 @@ still shows 120.
 
 ### New pipelines on Vulkan
 
-`bo1_vk_async` (archived, default 1, 0 or 1, read at start; Extras: NEW SHADERS). The Adreno driver has no graphics
+`bo1_vk_async` (archived, default 1, 0 to 2, read at start; Extras: NEW SHADERS). The Adreno driver has no graphics
 pipeline libraries, so a pipeline (shaders + render state) used for the first time takes a compile.
 
-- 1: compiled on background threads. The draws that need it are left out until it is ready. Measured on the Odin 3:
-  the first muzzle flash of a session lit the view model's arms and a nearby beam with new pipelines; both showed
-  one flat colour for 2 frames of a 60 Hz recording, once. DXVK's state cache keeps the pipelines: a later session
-  did not show it for the same shot.
+- 1: blended and depth-only draws (effects, decals, shadow maps, the depth pre-pass) are compiled on background
+  threads and left out until ready; a draw that writes colour without blending (the base pass of a surface) waits
+  for its pipeline (the `BO1_ASYNC2` patch of `build-dxvk.sh`).
+- 2: every new pipeline in the background (the default before). A surface is drawn in passes: its base colour, then
+  light, glow and decals added over it. With the base pass left out and the added passes drawn, the surface showed
+  as one flat colour (orange, blue) for a frame or two. Measured on the Odin 3: the first muzzle flash of a session
+  lit the view model's arms and a nearby beam with new pipelines; both showed one flat colour for 2 frames of a
+  60 Hz recording; reported in Multiplayer as blue flashes.
 - 0: compiled at the draw. Nothing is left out; the frame waits (a stutter).
 
 ### Anti-aliasing on Vulkan
@@ -279,8 +293,9 @@ All applied at run time to the menus of the player's fastfiles (`ui/ui_main.cpp`
 `ui/ui_shared.cpp` `Item_Action`, `stringed/stringed_hooks.cpp`); the files are not changed.
 
 * Title: "Press Any Key" reads "Tap the screen" on Android without a controller, "Press any button" with one.
-* Main menu: Campaign reads COMING SOON and opens a notice. Multiplayer opens the Play screen on its multiplayer
-  modes. Zombies > Online opens the join-by-address screen.
+* Main menu: Campaign reads COMING SOON and opens a notice. Multiplayer starts the program again in Multiplayer
+  mode, on its main menu, with the video settings (`CL_Play_StartMultiplayerMenus`, `client_mp/cl_play.cpp`), as
+  retail switches to the multiplayer executable. Zombies > Online opens the join-by-address screen.
 * Settings > Graphics: `RENDERER (RESTART)` (was Full Screen), `FPS COUNTER` (was Shader Warming).
 * Settings: Voice Chat reads EXTRAS and opens `client_mp/cl_extras.cpp` (also command `extras`): the Play screen,
   touch settings, hold to fire, layout editing, `com_maxfps` (30 / 45 / 60 / 90 / 120 / 144 / no limit), FPS

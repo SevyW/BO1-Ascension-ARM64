@@ -6,6 +6,10 @@
 #include <emscripten.h>
 #include <emscripten/html5.h>
 #endif
+#ifndef __EMSCRIPTEN__
+#include <stdio.h>
+#include <time.h>
+#endif
 
 namespace d3d9shim {
 
@@ -213,8 +217,14 @@ HRESULT Device::init(D3DPRESENT_PARAMETERS *pp)
     fillPresentDefaults(pp);
     setCanvasSize(pp->BackBufferWidth, pp->BackBufferHeight);
 
+#ifdef __EMSCRIPTEN__
     glGenVertexArrays(1, &m_vao);
     glBindVertexArray(m_vao);
+#else
+    // native: OpenGL ES 3 has the default vertex array, which (unlike a vertex array object) takes client-side
+    // indices: the draws from a dynamic index buffer use them (DrawIndexedPrimitive, d3d9_draw.cpp)
+    glBindVertexArray(0);
+#endif
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     glPixelStorei(GL_PACK_ALIGNMENT, 1);
     glFrontFace(GL_CCW);
@@ -639,16 +649,45 @@ HRESULT Device::Reset(D3DPRESENT_PARAMETERS *pp)
     return D3D_OK;
 }
 
+#ifndef __EMSCRIPTEN__
+double drawProfNowUs()
+{
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return ts.tv_sec * 1e6 + ts.tv_nsec / 1e3;
+}
+
+#endif
 HRESULT Device::Present(const RECT *, const RECT *, HWND, const struct _RGNDATA *)
 {
     DEVICE_THREAD_CHECK("Present");
     D3D9_TRACE("Present (frame %u, %u draws)", m_frame, g_stats.drawsThisFrame);
+#ifndef __EMSCRIPTEN__
+    DRAWPROF_BEGIN(present);
+#endif
     presentBlit();
 #ifndef __EMSCRIPTEN__
     // native: nothing shows the default framebuffer for us (the browser does at the end of the task)
     if (const d3d9shim_host *host = nativeHost())
         if (host->swap)
             host->swap();
+    DRAWPROF_END(present);
+    {
+        // a slow frame: where the draw path's time went (DRAWPROF, with d3d9shim_set_draw_profile)
+        static double last = 0;
+        const double now = drawProfNowUs();
+        const double frameMs = last > 0 ? (now - last) / 1000.0 : 0;
+        last = now;
+        const DrawProf &d = g_drawProf;
+        if (g_drawProfOn && (frameMs >= 100.0 || m_frame % 300 == 0))
+            fprintf(stdout, "DRAWPROF frame %u: %.0f ms, %u draws, programs linked %u; ms: rt %.1f program %.1f state %.1f "
+                    "uniforms %.1f attribs %.1f samplers %.1f ibflush %.1f draw %.1f present %.1f; buffers: orphan %u %.0fKB %.1fms, map %u %.0fKB %.1fms, sub %u %.0fKB %.1fms, init %u\n", m_frame, frameMs,
+                    g_stats.drawsThisFrame, g_stats.programsLinked, d.rt / 1000, d.program / 1000, d.state / 1000,
+                    d.uniforms / 1000, d.attribs / 1000, d.samplers / 1000, d.ibflush / 1000, d.draw / 1000,
+                    d.present / 1000, d.nOrphan, d.kbOrphan, d.msOrphan, d.nMap, d.kbMap, d.msMap, d.nSub, d.kbSub, d.msSub,
+                    d.nInit);
+        g_drawProf = DrawProf();
+    }
 #endif
     ++m_frame;
     g_stats.frame = m_frame;

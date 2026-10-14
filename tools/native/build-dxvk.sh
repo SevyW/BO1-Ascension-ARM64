@@ -123,6 +123,58 @@ if "#include <cstdlib>" not in s:
 open(p, "w").write(s)
 EOF
 
+# Which draws may be left out while their pipeline compiles (BO1_ASYNC2). A surface is drawn in several passes: a
+# base pass that writes its colour, then passes that add light, glow or decals over it. With every new pipeline in the
+# background, a base pass could be left out while the passes over it drew: for a frame or two a surface showed only
+# its added light, as a flat orange or blue (reported on the Odin 3 in Zombies and Multiplayer). BO1_DXVK_ASYNC:
+#   0  every draw waits for its pipeline (stutter)
+#   1  (default) blended and depth-only draws are left out until ready; draws that write colour without blending
+#      (base passes) wait for theirs
+#   2  every new pipeline in the background (the first version of this patch)
+grep -q BO1_ASYNC2 $G || python3 - "$G" <<'EOF2' || exit 1
+import sys
+p = sys.argv[1]
+s = open(p).read()
+old = "        bool bo1Async = !canCreateBasePipeline && bo1AsyncPipelines();\n"
+new = """        // BO1_ASYNC2: base passes (colour written without blending) wait in mode 1
+        bool bo1Async = !canCreateBasePipeline && bo1AsyncPipelines()
+          && (bo1AsyncPipelines() == 2 || !bo1WritesOpaqueColor(state));
+"""
+assert s.count(old) == 1
+s = s.replace(old, new)
+old = """  static bool bo1AsyncPipelines() {
+    static int enabled = -1;
+    if (enabled < 0) {
+      const char* env = std::getenv("BO1_DXVK_ASYNC");
+      enabled = env ? std::atoi(env) != 0 : 1;
+    }
+    return enabled != 0;
+  }
+"""
+new = """  static int bo1AsyncPipelines() {
+    static int mode = -1;
+    if (mode < 0) {
+      const char* env = std::getenv("BO1_DXVK_ASYNC");
+      mode = env ? std::atoi(env) : 1;
+      mode = mode < 0 ? 0 : mode > 2 ? 2 : mode;
+    }
+    return mode;
+  }
+
+  // BO1_ASYNC2: a draw that writes a colour target without blending (the base pass of a surface)
+  static bool bo1WritesOpaqueColor(const DxvkGraphicsPipelineStateInfo& state) {
+    for (uint32_t i = 0; i < DxvkLimits::MaxNumRenderTargets; i++) {
+      if (state.writesRenderTarget(i) && !state.omBlend[i].blendEnable())
+        return true;
+    }
+    return false;
+  }
+"""
+assert s.count(old) == 1
+s = s.replace(old, new)
+open(p, "w").write(s)
+EOF2
+
 # How a multisample resolve is done (StretchRect from the 4x back buffer). BO1_DXVK_RESOLVE in the environment:
 #   0  DXVK's choice: folded into the render pass that is open on the source, else a pass of its own
 #   1  always a pass of its own with a resolve attachment

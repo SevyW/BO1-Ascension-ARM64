@@ -709,6 +709,10 @@ HRESULT BufferStorage::lock(UINT offset, UINT len, void **pp, DWORD flags)
     std::lock_guard<std::mutex> g(mtx);
     *pp = shadow.data() + offset;
     if (!(flags & D3DLOCK_READONLY) && len) {
+        if (flags & D3DLOCK_DISCARD)
+            discardPending = true;
+        else if (!(flags & D3DLOCK_NOOVERWRITE))
+            onlyNoOverwrite = false;
         if (lockEnd <= lockBegin) {
             lockBegin = offset;
             lockEnd = offset + len;
@@ -754,11 +758,49 @@ void BufferStorage::flush(Device *dev)
                      (usage & D3DUSAGE_DYNAMIC) ? GL_DYNAMIC_DRAW : GL_STATIC_DRAW);
         glAllocated = true;
         g_stats.bufferUploadBytes += size;
+#ifndef __EMSCRIPTEN__
+        ++g_drawProf.nInit;
+#endif
     } else if (dirtyEnd > dirtyBegin) {
-        glBufferSubData(target, (GLintptr)dirtyBegin, (GLsizeiptr)(dirtyEnd - dirtyBegin), shadow.data() + dirtyBegin);
-        g_stats.bufferUploadBytes += dirtyEnd - dirtyBegin;
+#ifndef __EMSCRIPTEN__
+        const bool dynamic = (usage & D3DUSAGE_DYNAMIC) != 0;
+        void *mapped = nullptr;
+        const double t0 = g_drawProfOn ? drawProfNowUs() : 0.0;
+        if (dynamic && discardPending) {
+            // new storage for the whole buffer (the shadow holds all of it): draws in flight keep the old one
+            glBufferData(target, (GLsizeiptr)size, shadow.data(), GL_DYNAMIC_DRAW);
+            g_stats.bufferUploadBytes += size;
+            if (g_drawProfOn) {
+                ++g_drawProf.nOrphan; g_drawProf.kbOrphan += size / 1024.0; g_drawProf.msOrphan += (drawProfNowUs() - t0) / 1000;
+            }
+        } else if (dynamic && onlyNoOverwrite
+                   && (mapped = glMapBufferRange(target, (GLintptr)dirtyBegin, (GLsizeiptr)(dirtyEnd - dirtyBegin),
+                           GL_MAP_WRITE_BIT | GL_MAP_UNSYNCHRONIZED_BIT | GL_MAP_INVALIDATE_RANGE_BIT)) != nullptr) {
+            // NOOVERWRITE: the caller promises not to touch data a draw in flight uses; no wait
+            memcpy(mapped, shadow.data() + dirtyBegin, dirtyEnd - dirtyBegin);
+            glUnmapBuffer(target);
+            g_stats.bufferUploadBytes += dirtyEnd - dirtyBegin;
+            if (g_drawProfOn) {
+                ++g_drawProf.nMap; g_drawProf.kbMap += (dirtyEnd - dirtyBegin) / 1024.0; g_drawProf.msMap += (drawProfNowUs() - t0) / 1000;
+            }
+        } else
+#endif
+        {
+#ifndef __EMSCRIPTEN__
+            const double t1 = g_drawProfOn ? drawProfNowUs() : 0.0;
+#endif
+            glBufferSubData(target, (GLintptr)dirtyBegin, (GLsizeiptr)(dirtyEnd - dirtyBegin), shadow.data() + dirtyBegin);
+            g_stats.bufferUploadBytes += dirtyEnd - dirtyBegin;
+#ifndef __EMSCRIPTEN__
+            if (g_drawProfOn) {
+                ++g_drawProf.nSub; g_drawProf.kbSub += (dirtyEnd - dirtyBegin) / 1024.0; g_drawProf.msSub += (drawProfNowUs() - t1) / 1000;
+            }
+#endif
+        }
     }
     dirtyBegin = dirtyEnd = 0;
+    discardPending = false;
+    onlyNoOverwrite = true;
     dirty = false;
 }
 

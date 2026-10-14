@@ -7,8 +7,8 @@
      No largeHeap: the Java heap's reservation is below 4 GB, where the engine needs the room. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="org.bo1port.zombies"
-    android:versionCode="1"
-    android:versionName="0.1"
+    android:versionCode="2"
+    android:versionName="0.2"
     android:installLocation="auto">
 
     <uses-sdk android:minSdkVersion="26" android:targetSdkVersion="34" />

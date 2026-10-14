@@ -23,6 +23,8 @@ void d3d9shim_set_trace(int enabled);
 /* Debugging: call glGetError after every draw, clear, copy and present and log GL errors with the D3D call that
  * caused them (slow: forces synchronization). Also enabled by D3D9SHIM_GLCHECK=1. */
 void d3d9shim_set_gl_check(int enabled);
+// native: time the draw path by stage and print a DRAWPROF line for slow frames (and every 300th) to stdout
+void d3d9shim_set_draw_profile(int enabled);
 
 /* Shader dump for bring-up: writes <dir>/<vs|ps>_<hash>.bin (D3D bytecode), .glsl (translation) and .log (errors)
  * for every shader (all != 0) or only for shaders that fail to translate, compile or link. The directory must exist

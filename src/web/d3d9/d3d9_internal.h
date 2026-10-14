@@ -76,6 +76,22 @@ struct Stats {
     unsigned long long textureUploadBytes = 0, bufferUploadBytes = 0;
 };
 extern Stats g_stats;
+#ifndef __EMSCRIPTEN__
+// native: draw-path time of the current frame by stage, in microseconds (d3d9_draw.cpp, printed in Present)
+struct DrawProf {
+    double rt = 0, program = 0, state = 0, uniforms = 0, attribs = 0, samplers = 0, ibflush = 0, draw = 0, present = 0;
+    unsigned nOrphan = 0, nMap = 0, nSub = 0, nInit = 0;
+    double kbOrphan = 0, kbMap = 0, kbSub = 0, msOrphan = 0, msMap = 0, msSub = 0;
+};
+extern DrawProf g_drawProf;
+extern bool g_drawProfOn; // d3d9shim_set_draw_profile (the engine's bo1_frameperf)
+double drawProfNowUs();
+#define DRAWPROF_BEGIN(k) const double drawProf_##k = ::d3d9shim::g_drawProfOn ? ::d3d9shim::drawProfNowUs() : 0.0
+#define DRAWPROF_END(k) (::d3d9shim::g_drawProfOn ? (void)(::d3d9shim::g_drawProf.k += ::d3d9shim::drawProfNowUs() - drawProf_##k) : (void)0)
+#else
+#define DRAWPROF_BEGIN(k) (void)0
+#define DRAWPROF_END(k) (void)0
+#endif
 extern unsigned g_occlusionVisibleCount;
 extern int g_displayWidth, g_displayHeight;
 extern std::string g_canvasSelector;
@@ -442,6 +458,11 @@ struct BufferStorage {
     UINT dirtyBegin = 0, dirtyEnd = 0;     // pending upload
     UINT lockBegin = 0, lockEnd = 0;       // union of outstanding write locks
     int lockCount = 0;
+    // D3D's lock hints since the last upload (dynamic buffers, not the browser build): a DISCARD lock lets the upload
+    // give the buffer new storage, and only NOOVERWRITE locks let it write without waiting for draws in flight.
+    // Without them the driver waits for the GPU at every update of a buffer it still reads (Adreno: 3 s frames).
+    bool discardPending = false;
+    bool onlyNoOverwrite = true;
     std::atomic<bool> dirty{false};
     HRESULT lock(UINT offset, UINT size, void **pp, DWORD flags);
     HRESULT unlock();

@@ -7,6 +7,11 @@
 
 namespace d3d9shim {
 
+#ifndef __EMSCRIPTEN__
+// native: where a slow frame's draw time goes (DRAWPROF, printed by Present for a frame of 300 ms or more)
+DrawProf g_drawProf;
+bool g_drawProfOn = false;
+#endif
 static constexpr int kScratchUnit = 31; // WebGL2 guarantees 32 combined texture units
 
 // ------------------------------------------------------------------------------------------------ GL state cache
@@ -749,7 +754,9 @@ bool Device::prepareDraw(GLuint upBuffer, UINT upStride, INT baseVertex)
     }
     if (!m_vs->base().ok || !m_ps->tr().ok)
         return false;
+    DRAWPROF_BEGIN(rt);
     bindRenderTargets();
+    DRAWPROF_END(rt);
     if (m_bgraDirty) {
         uint32_t mask = 0;
         if (m_decl) {
@@ -765,20 +772,30 @@ bool Device::prepareDraw(GLuint upBuffer, UINT upStride, INT baseVertex)
     }
     if (!m_curProgram || m_curProgram->vs != m_vs || m_curProgram->ps != m_ps ||
         m_curProgram->variant != m_curBgraMask) {
+        DRAWPROF_BEGIN(program);
         m_curProgram = programFor(m_vs, m_ps, m_curBgraMask);
+        DRAWPROF_END(program);
         m_samplerDirtyMask = 0xffffffffu;
     }
     Program *p = m_curProgram;
     if (!p->ok)
         return false;
+    DRAWPROF_BEGIN(state);
     useProgram(p->prog);
     if (m_viewportDirty)
         applyViewport();
     if (m_rasterDirty)
         applyRasterState();
+    DRAWPROF_END(state);
+    DRAWPROF_BEGIN(uniforms);
     uploadUniforms(p);
+    DRAWPROF_END(uniforms);
+    DRAWPROF_BEGIN(attribs);
     setupVertexAttribs(p, upBuffer, upStride, baseVertex);
+    DRAWPROF_END(attribs);
+    DRAWPROF_BEGIN(samplers);
     bindSamplers(p);
+    DRAWPROF_END(samplers);
     return true;
 }
 
@@ -791,7 +808,9 @@ HRESULT Device::DrawPrimitive(D3DPRIMITIVETYPE PrimitiveType, UINT StartVertex, 
         return D3D_OK;
     if (!prepareDraw(0, 0, 0))
         return D3D_OK;
+    DRAWPROF_BEGIN(draw);
     glDrawArrays(mode, (GLint)StartVertex, count);
+    DRAWPROF_END(draw);
     D3D9_GLCHECK("DrawPrimitive");
     ++g_stats.drawsThisFrame;
     return D3D_OK;
@@ -810,11 +829,41 @@ HRESULT Device::DrawIndexedPrimitive(D3DPRIMITIVETYPE PrimitiveType, INT BaseVer
         return D3D_OK;
     if (!prepareDraw(0, 0, BaseVertexIndex))
         return D3D_OK;
+#ifndef __EMSCRIPTEN__
+    // native: a dynamic index buffer is not updated in GL at all; each draw sends its own indices in a stream buffer,
+    // as the *UP draws do. The engine writes a few hundred bytes of its 3 MB dynamic index buffer before most draws;
+    // on the Adreno 830 every update of a GL buffer still in use cost about 0.65 ms whether by glBufferSubData or an
+    // unsynchronized glMapBufferRange (4900 of them a frame in zombie_theater: 3.2 s frames), while new storage
+    // (glBufferData) costs next to nothing.
+    {
+        BufferStorage &ibs = m_ib->buffer();
+        const size_t isz = m_ib->format() == D3DFMT_INDEX32 ? 4 : 2;
+        const size_t first = (size_t)startIndex * isz, bytes = (size_t)count * isz;
+        if ((ibs.usage & D3DUSAGE_DYNAMIC) && first + bytes <= ibs.size) {
+            // client-side indices (no element buffer bound, the default vertex array): the driver copies them in the
+            // call; measured cheaper than a small glBufferData per draw (19 us each on the Adreno 830)
+            bindElementBuffer(0);
+            DRAWPROF_BEGIN(draw);
+            {
+                std::lock_guard<std::mutex> g(ibs.mtx);
+                glDrawElements(mode, count, isz == 4 ? GL_UNSIGNED_INT : GL_UNSIGNED_SHORT, ibs.shadow.data() + first);
+            }
+            DRAWPROF_END(draw);
+            D3D9_GLCHECK("DrawIndexedPrimitive");
+            ++g_stats.drawsThisFrame;
+            return D3D_OK;
+        }
+    }
+#endif
+    DRAWPROF_BEGIN(ibflush);
     m_ib->buffer().flush(this);
+    DRAWPROF_END(ibflush);
     bindElementBuffer(m_ib->buffer().buf);
     const bool i32 = m_ib->format() == D3DFMT_INDEX32;
+    DRAWPROF_BEGIN(draw);
     glDrawElements(mode, count, i32 ? GL_UNSIGNED_INT : GL_UNSIGNED_SHORT,
                    (const void *)(uintptr_t)(startIndex * (i32 ? 4u : 2u)));
+    DRAWPROF_END(draw);
     D3D9_GLCHECK("DrawIndexedPrimitive");
     ++g_stats.drawsThisFrame;
     return D3D_OK;
