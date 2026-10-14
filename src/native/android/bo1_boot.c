@@ -374,10 +374,43 @@ int SDL_main(int argc, char **argv)
             static char firstMode[32], configPath[1100];
             struct stat info;
             // (Zombies keeps its configuration in config.cfg, Multiplayer in config_mp.cfg)
-            int zombies = 0;
+            int zombies = 0, sharedConfig = 0;
+            const char *modDir = NULL;
             for (int i = 0; i + 2 < engineArgc; ++i)
+            {
                 zombies |= !strcmp(engineArgv[i + 1], "bo1_zombies") && strcmp(engineArgv[i + 2], "0");
-            snprintf(configPath, sizeof(configPath), "%s/players/%s", home, zombies ? "config.cfg" : "config_mp.cfg");
+                sharedConfig |= !strcmp(engineArgv[i + 1], "bo1_mod_sharedconfig") && strcmp(engineArgv[i + 2], "0");
+                if (!strcmp(engineArgv[i + 1], "fs_game"))
+                    modDir = engineArgv[i + 2];
+            }
+            // mod (custom maps): with a mod the configuration is a per-mod copy (players/mods/<x>/, unless
+            // bo1_mod_sharedconfig); the mod comes from the command line or the Extras screen's bo1_mod.txt
+            static char modFromFile[128];
+            if (!modDir)
+            {
+                char path[1100];
+                snprintf(path, sizeof(path), "%s/bo1_mod.txt", home);
+                FILE *f = fopen(path, "r");
+                if (f)
+                {
+                    char name[64] = "";
+                    if (fgets(name, sizeof(name), f))
+                    {
+                        name[strcspn(name, "\r\n")] = 0;
+                        if (name[0])
+                        {
+                            snprintf(modFromFile, sizeof(modFromFile), "mods/%s", name);
+                            modDir = modFromFile;
+                        }
+                    }
+                    fclose(f);
+                }
+            }
+            if (modDir && modDir[0] && !sharedConfig)
+                snprintf(configPath, sizeof(configPath), "%s/players/%s/%s", home, modDir,
+                         zombies ? "config.cfg" : "config_mp.cfg");
+            else
+                snprintf(configPath, sizeof(configPath), "%s/players/%s", home, zombies ? "config.cfg" : "config_mp.cfg");
             if (stat(configPath, &info) != 0 && engineArgc + 3 < 96)
             {
                 snprintf(firstMode, sizeof(firstMode), "%s", getenv("BO1_DEFAULT_MODE"));

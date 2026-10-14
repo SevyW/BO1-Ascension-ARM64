@@ -632,6 +632,29 @@ bool Assert_MyHandler(const char *filename, int line, int type, const char *fmt,
         _vsnprintf(assertText, sizeof(assertText) - 1, fmt, va);
         va_end(va);
         assertText[sizeof(assertText) - 1] = 0;
+#ifdef BO1_NATIVE
+        // mod (custom maps): retail has no asserts, and fastfiles built with the mod tools trip debug checks retail
+        // never ran (duplicate assets, sound bank order). With a community mod (fs_game) log each one once and go on.
+        static int modAsserts = -1;
+        if ( modAsserts < 0 )
+            modAsserts = I_stristr(GetCommandLineA(), "fs_game") ? 1 : 0;
+        if ( modAsserts )
+        {
+            static const char *seenFile[64];
+            static int seenLine[64];
+            static int seenCount;
+            for ( int i = 0; i < seenCount; ++i )
+                if ( seenLine[i] == line && seenFile[i] == filename )
+                    return 1;
+            if ( seenCount < 64 )
+            {
+                seenFile[seenCount] = filename;
+                seenLine[seenCount++] = line;
+            }
+            Com_Printf(16, "mod: assert ignored (retail has none): %s(%d): %s\n", filename, line, assertText);
+            return 1;
+        }
+#endif
         Sys_HeadlessLogAssert(filename, line, assertText);
     }
     __debugbreak();

@@ -142,9 +142,27 @@ line or `args.txt`), xWMA sounds, memory use on a phone (a match on mp_nuked wit
 * `fs_game` on the command line selects the larger asset pools and adds 256 MB of zone memory, as
   `bo1_mod_zones` does.
 
+* debug asserts do not stop the game while a mod is active (`fs_game` on the command line): retail has none,
+  and mod-tools fastfiles trip some (the same asset twice in `mod.ff`, sound bank order). Each one is logged once
+  (`mod: assert ignored (retail has none): <file>(<line>): <expression>`), and the code goes on as retail's
+  does (a duplicate asset in one zone takes the override path);
+* `forceviewmodelanimation <weapon> <anim>` (SP builtin, used by custom staffs) starts KB's fire (2, ADS 7) or
+  reload (15) viewmodel anim when the player holds that weapon; `NVG_up` / `NVG_down` do nothing (KB has no
+  night-vision viewmodel anims);
+* Android: a mod's first start (no `players/mods/<x>/config.cfg`) gets the display-shaped mode and the refresh
+  rate as the frame limit, as the base game's first start does; the mod comes from `fs_game` in `args.txt` or the
+  Extras screen's `bo1_mod.txt`.
+
 On Android the mod folder goes to `files/game/mods/<name>/` and the arguments into `args.txt`.
 
-Not done: tried with a real community map (only with a retail map moved into a mod folder), loose `.csv` /
+Verified on the Odin 3 (Vulkan, 2026-10-14): Waffen der Schönheit 1.1.0 by Sidzzz (`mods/wds`: `mod.ff`
+50 MB, `wds.iwd` 886 MB of scripts, images, weapon files) with
+`+set bo1_zombies 1 +set fs_game mods/wds +devmap zombie_theater`: `mod.ff` loads in 5.3 s, the map starts with
+the mod's weapons, 115-120 FPS at 1280x720. The mod's Ray Gun Mark 3 script calls
+`weapondualwieldweaponname("none")` every 0.05 s when no weapon is held, which logs a script error each time
+(harmless, retail does the same). Not played with a controller (staffs, perks, box, rounds past 1).
+
+Not done: loose `.csv` /
 `.vision` files outside `mod.ff`, mods that rely on a patched exe or DLL beyond what `game_mod` changes in the
 fastfile loader.
 

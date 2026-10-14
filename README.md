@@ -39,7 +39,7 @@ the decompiled engine with Zombies on Windows and in the browser; its Windows an
 | Multiplayer | Bot matches, Combat Training (rank, unlocks, Create a Class, saved on the device), Private Match, the original menus |
 | Not available | Campaign; online Server Browser, Ranked Match, Wager Match (they need Activision's online service); joining by code |
 | Controls | Controllers (built-in, Bluetooth, USB) as on a console; on-screen touch controls with a layout editor |
-| Mods | The repository's script mods (`mods/`), chosen in Settings > EXTRAS > MOD |
+| Mods | The repository's script mods (`mods/`) and community mods made with the mod tools (tested: Waffen der Schönheit), chosen in Settings > EXTRAS > MOD; see [the install guide](docs/INSTALL-ANDROID.md#7-community-mods-and-custom-maps) |
 | Sound | All game sound, including the xWMA effects (FFmpeg decoder). No reverb or EQ effects |
 | Video | Cinematics (Bink) are skipped |
 

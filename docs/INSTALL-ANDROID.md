@@ -131,7 +131,22 @@ All players need this app (or another build of this project) of the same version
 Not available: the online Server Browser, Ranked Match and Wager Match (they need Activision's online service), and
 joining by code.
 
-## 7. Problems
+## 7. Community mods and custom maps
+
+Mods made with the Black Ops mod tools (a folder with `mod.ff` and usually an `.iwd`) can run, Zombies ones first.
+Tested: Waffen der Schönheit 1.1.0 (a Kino der Toten mod), 115-120 FPS on an Odin 3. Other mods are untested; a mod
+that needs a patched game exe or extra DLLs on PC will not work.
+
+1. Copy the mod's folder (on PC `Call of Duty Black Ops\mods\<name>\`, or the folder inside the mod's download)
+   to `Android/data/org.bo1port.zombies/files/game/mods/<name>/`.
+2. Settings > EXTRAS > MOD: pick it; the app restarts with it. Then start the map the mod changes or adds from the
+   menus. Or start it directly with `files/args.txt` (one line), for example
+   `+set bo1_zombies 1 +set fs_game mods/wds +devmap zombie_theater`.
+3. A mod keeps its own settings (renderer, video mode, FPS counter) apart from the base game's.
+
+If a mod stops with an error, send the log (below) with the mod's name and where to get it.
+
+## 8. Problems
 
 | symptom | what to do |
 | --- | --- |

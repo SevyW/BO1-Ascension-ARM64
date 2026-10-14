@@ -17,6 +17,8 @@
 #include <universal/dvar.h>
 #include <bgame/bg_animation.h>
 #include <bgame/bg_mantle.h>
+#include <bgame/bg_weapons.h>
+#include <bgame/bg_weapons_def.h>
 #include <cgame_mp/cg_predict_mp.h>
 #include <clientscript/scr_const.h>
 #include <game_mp/g_utils_mp.h>
@@ -626,6 +628,35 @@ static void G_m_startfadingblur(scr_entref_t entref)
     SV_GameSendServerCommand(clientNum, SV_CMD_RELIABLE, va("%c %i %f", '|', (int)(time * 1000.0f), blur));
 }
 
+// mod (custom maps): forceviewmodelanimation <weapon> <"reload"|"fire"|"NVG_up"|"NVG_down"> (SP 0x007D9390), used by
+// community maps (Waffen der Schonheit's staffs). Retail sets the SP-only pm_flags bit 0x400000 plus the weapon and
+// anim (SP anims 11 / 6 / 35 / 34) for pmove; in KB that bit is dive-to-prone, so the anim is started here in KB's
+// numbering (PM_Weapon_SetFPSFireAnim: fire 2, ADS 7; PM_SetReloadingState: reload 15) when the weapon is held.
+// NOT PORTED: NVG_up / NVG_down, KB has no night-vision viewmodel anims.
+static void G_m_forceviewmodelanimation(scr_entref_t entref)
+{
+    gentity_s *ent = SP_PlayerEntity(entref);
+    if (!ent)
+        return;
+    const int weapon = BG_GetWeaponIndexForName(Scr_GetString(0, SCRIPTINSTANCE_SERVER));
+    const char *animName = Scr_GetString(1, SCRIPTINSTANCE_SERVER);
+    playerState_s *ps = &ent->client->ps;
+    int anim;
+    if (!I_stricmp(animName, "reload"))
+        anim = 15;
+    else if (!I_stricmp(animName, "fire"))
+        anim = ps->fWeaponPosFrac <= 0.75f ? 2 : 7;
+    else if (!I_stricmp(animName, "NVG_up") || !I_stricmp(animName, "NVG_down"))
+        return;
+    else
+    {
+        Scr_Error(va("forceviewmodelanimation: unknown animation '%s'", animName), false);
+        return;
+    }
+    if (weapon && ps->weapon == weapon)
+        PM_StartWeaponAnim(ps, anim, 0);
+}
+
 // zombies: retail IsGodMode accepts an entity and tests both god/demigod flags (SP 0x007F00F0).
 // The exported builtin metadata reports codeSize 1; the exe has this complete 79-byte body.
 static void G_f_isgodmode()
@@ -686,6 +717,7 @@ const BuiltinMethodDef g_sp_players_methods[] =
     { "playerlinkto", G_m_playerlinkto, 0 },
     { "setblur", G_m_setblur, 0 },
     { "startfadingblur", G_m_startfadingblur, 0 },
+    { "forceviewmodelanimation", G_m_forceviewmodelanimation, 0 }, // mod (custom maps)
     // lane x1 (g_scr_sp_players_x1.cpp)
     { "startrevive", PlayerCmdSP_startrevive, 0 },
     { "stoprevive", PlayerCmdSP_stoprevive, 0 },
