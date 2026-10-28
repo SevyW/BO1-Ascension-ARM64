@@ -26,13 +26,14 @@ These stand-ins give the same versions:
 
 ## Running
 
-- `build-llvm.sh` (patched clang 21.1.8), about 2 h on 4 cores.
+- `build-llvm.sh` (patched clang 21.1.8): almost done (3100/3229 steps).
+- p32 tree generated (`build-p32.sh` regeneration half). The host LLVM tarball has no `libLLVM-21.so`; `libclang-cpp.so` exports
+  LLVM itself, so an empty stub `libLLVM-21.so` satisfies `-lLLVM-21`. `/bo1/src/build/` must exist before `build-p32.sh`.
 
 ## Open problems
 
-- **The fork isn't reachable from the cloud session.** `SevyW/BO1-Ascension-ARM64` isn't visible to the session's
-  GitHub credential (add_repo: "not found / no access"), so I can't push, open issues or publish releases yet. The work
-  is in a local clone of upstream `Zephelinn/BO1-Ascension-ARM64`.
+- (resolved) The fork wasn't reachable from the cloud session at first. Since it was attached, everything is pushed here.
+
 - `build-dxvk.sh linux` builds no library here: `ninja ... src/d3d9/libdxvk_d3d9.so` has no such target (meson names it
   `libdxvk_d3d9.so.0.20601`). That's only the desktop x64 test path, not the Android chain. Skipped.
 - Most scripts under `tools/native/` are mode 644 in git, so `build-all-android.sh` can't exec them on Linux. I run them
