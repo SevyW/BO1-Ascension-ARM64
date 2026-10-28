@@ -13,4 +13,5 @@ $S/build-ffmpeg.sh arm64-v8a
 $S/build-p32.sh
 $S/build-android.sh          # also SDL2 for Android, which DXVK's Android build links
 $S/build-dxvk.sh arm64-v8a
+$S/build-adrenotools.sh       # mod (turnip): libadrenotools, for a custom Vulkan driver
 $S/build-apk.sh

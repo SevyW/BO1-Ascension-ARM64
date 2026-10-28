@@ -3,12 +3,13 @@
      it creates the surface, forwards controllers, and runs SDL_main of libmain.so (src/native/android/bo1_boot.c),
      which loads the engine, libbo1.so, below 4 GB.
 
-     extractNativeLibs: the stub finds libbo1.so next to itself on disk.
+     extractNativeLibs: the stub finds libbo1.so next to itself on disk (and libadrenotools its hook libraries).
+     Turnip variant: its own package, so it installs next to org.bo1port.zombies; the classes keep theirs.
      No largeHeap: the Java heap's reservation is below 4 GB, where the engine needs the room. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="org.bo1port.zombies"
+    package="org.bo1port.zombies.turnip"
     android:versionCode="3"
-    android:versionName="0.3"
+    android:versionName="0.3-turnip"
     android:installLocation="auto">
 
     <uses-sdk android:minSdkVersion="26" android:targetSdkVersion="34" />
@@ -24,7 +25,7 @@
     <uses-permission android:name="android.permission.INTERNET" />
 
     <application
-        android:label="BO1 Port"
+        android:label="BO1 Port Turnip"
         android:allowBackup="false"
         android:hardwareAccelerated="true"
         android:extractNativeLibs="true"
@@ -35,7 +36,7 @@
         <meta-data android:name="SDL_ENV.SDL_ACCELEROMETER_AS_JOYSTICK" android:value="0" />
 
         <activity
-            android:name=".Bo1Activity"
+            android:name="org.bo1port.zombies.Bo1Activity"
             android:exported="true"
             android:screenOrientation="sensorLandscape"
             android:alwaysRetainTaskState="true"

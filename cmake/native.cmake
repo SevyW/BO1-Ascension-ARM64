@@ -285,7 +285,7 @@ if (BO1_NATIVE_ANDROID)
     # (the target stays an "executable" for cmake; -shared above makes the link a library)
     set_target_properties(${BIN_NAME} PROPERTIES OUTPUT_NAME "libbo1" SUFFIX ".so"
         RUNTIME_OUTPUT_DIRECTORY "${BO1_NATIVE_OUTPUT_DIR}" WIN32_EXECUTABLE FALSE)
-    add_library(bo1_boot SHARED "${NATIVE_DIR}/android/bo1_boot.c")
+    add_library(bo1_boot SHARED "${NATIVE_DIR}/android/bo1_boot.c" "${NATIVE_DIR}/android/bo1_driver.c")
     target_include_directories(bo1_boot PRIVATE "${BO1_ANDROID_SDL2}/include")
     target_link_libraries(bo1_boot PRIVATE "${BO1_ANDROID_SDL2}/lib/libSDL2.so" log dl)
     target_link_options(bo1_boot PRIVATE -fuse-ld=lld "-Wl,-z,max-page-size=16384" "-Wl,--no-undefined")

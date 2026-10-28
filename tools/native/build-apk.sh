@@ -53,7 +53,8 @@ L=$W/assets/licenses; mkdir -p $L
 cp /bo1/src/NOTICE.md /bo1/src/THIRD_PARTY_NOTICES.md $L/ || exit 1
 cp /bo1/src/third_party/mojoshader/LICENSE.txt $L/mojoshader.txt; cp /bo1/src/third_party/sse2neon/LICENSE $L/sse2neon.txt
 cp /bo1/src/src/libs/libtommath-1.0/LICENSE $L/libtommath.txt; cp /bo1/src/src/jpeg/README $L/libjpeg.txt
-for f in /bo1/dxvk/src/LICENSE:dxvk.txt $A/SDL2/LICENSE.txt:sdl2.txt /bo1/ffmpeg/src/COPYING.LGPLv2.1:ffmpeg-lgpl-2.1.txt; do
+for f in /bo1/dxvk/src/LICENSE:dxvk.txt $A/SDL2/LICENSE.txt:sdl2.txt /bo1/ffmpeg/src/COPYING.LGPLv2.1:ffmpeg-lgpl-2.1.txt \
+    /bo1/adrenotools/src/LICENSE:libadrenotools.txt; do
   cp ${f%%:*} $L/${f##*:} || exit 1
 done
 $BT/aapt2 link -o $W/base.apk --manifest $MANIFEST -I $JAR $RES -A $W/assets > $W/aapt2.log 2>&1 || { tail -20 $W/aapt2.log; exit 1; }
@@ -64,6 +65,12 @@ $NDK/bin/llvm-strip --strip-unneeded -o $W/pkg/lib/arm64-v8a/libSDL2.so $A/sdl/l
 # the Vulkan renderer: DXVK (build-dxvk.sh), when it was built
 DX=/bo1/dxvk/build-android-arm64-v8a/src/d3d9/libdxvk_d3d9.so
 [ -f $DX ] && { $NDK/bin/llvm-strip --strip-unneeded -o $W/pkg/lib/arm64-v8a/libdxvk_d3d9.so $DX || exit 1; }
+# mod (turnip): libadrenotools and its hook libraries (build-adrenotools.sh), for a custom Vulkan driver (bo1_driver.c)
+AT=/bo1/adrenotools/build
+for lib in $AT/libadrenotools.so $AT/src/hook/libhook_impl.so $AT/src/hook/libmain_hook.so \
+    $AT/src/hook/libfile_redirect_hook.so $AT/src/hook/libgsl_alloc_hook.so; do
+  $NDK/bin/llvm-strip --strip-unneeded -o $W/pkg/lib/arm64-v8a/$(basename $lib) $lib || exit 1
+done
 # X86=1: also the x86_64 build (ABI=x86_64 build-android.sh), for the emulator
 if [ "${X86:-0}" = 1 ]; then
   XB=/bo1/p32tree/build/android-x86_64/bin; mkdir -p $W/pkg/lib/x86_64
@@ -87,7 +94,7 @@ if [ -n "$RELEASE_KEYSTORE" ]; then
 fi
 [ -f $A/debug.keystore ] || keytool -genkeypair -keystore $A/debug.keystore -storepass android -keypass android -alias androiddebugkey \
   -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US" > /dev/null 2>&1
-NAME=bo1-zombies-debug; [ "${X86:-0}" = 1 ] && NAME=bo1-zombies-debug-emulator
+NAME=bo1-zombies-turnip-debug; [ "${X86:-0}" = 1 ] && NAME=bo1-zombies-turnip-debug-emulator
 $BT/apksigner sign --ks $A/debug.keystore --ks-pass pass:android --key-pass pass:android --out $OUT/$NAME.apk $W/aligned.apk || exit 1
 $BT/apksigner verify --verbose $OUT/$NAME.apk | head -4
 $BT/aapt2 dump badging $OUT/$NAME.apk | grep -E "^package|sdkVersion|native-code|launchable"

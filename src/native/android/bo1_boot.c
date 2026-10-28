@@ -231,6 +231,8 @@ int main(int argc, char **argv)
 
 #include <SDL2/SDL.h>
 
+void Bo1SelectVulkanDriver(const char *files, const char *nativeDir);   // bo1_driver.c
+
 // splits a line of arguments at spaces into argv (no quoting: engine arguments do not need it)
 static int SplitArguments(char *text, char **argv, int argc, int capacity)
 {
@@ -281,6 +283,14 @@ int SDL_main(int argc, char **argv)
     snprintf(library, sizeof(library), "%s", self.dli_fname);
     char *slash = strrchr(library, '/');
     snprintf(slash ? slash + 1 : library, sizeof(library) - (size_t)(slash ? slash + 1 - library : 0), "libbo1.so");
+
+    // mod (turnip): the Vulkan driver, the system's or the one files/driver.txt names (bo1_driver.c)
+    if (slash)
+    {
+        *slash = 0;
+        Bo1SelectVulkanDriver(files, library);
+        *slash = '/';
+    }
 
     char marker[1100];
     snprintf(marker, sizeof(marker), "%s/localization.txt", game);

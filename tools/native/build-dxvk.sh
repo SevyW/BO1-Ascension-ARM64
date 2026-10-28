@@ -29,6 +29,70 @@ s = s.replace(a, a + '#elif defined(__ANDROID__)\n        "libSDL2.so"\n')
 open(p, "w").write(s)
 EOF
 
+# A custom Vulkan driver (Mesa Turnip) through libadrenotools: the loader stub (src/native/android/bo1_driver.c) opens
+# a private copy of the system's Vulkan loader whose driver is the custom one, and hands its vkGetInstanceProcAddr over
+# as BO1_VK_GET_INSTANCE_PROC_ADDR (hex). DXVK uses it in place of libvulkan.so; the surface is made through it too,
+# since SDL's vkGetInstanceProcAddr (the system loader) does not know an instance of the other copy.
+V=$D/src/src/vulkan/vulkan_loader.cpp
+grep -q BO1_LOADER $V || python3 - "$V" <<'EOF' || exit 1
+import sys
+p = sys.argv[1]
+s = open(p).read()
+a = "  static std::pair<HMODULE, PFN_vkGetInstanceProcAddr> loadVulkanLibrary() {\n"
+assert s.count(a) == 1
+s = s.replace(a, a + """#ifdef __ANDROID__
+    // BO1_LOADER: see tools/native/build-dxvk.sh
+    if (const char* bo1Proc = std::getenv("BO1_VK_GET_INSTANCE_PROC_ADDR")) {
+      auto proc = reinterpret_cast<PFN_vkGetInstanceProcAddr>(std::strtoull(bo1Proc, nullptr, 16));
+      if (proc) {
+        Logger::info(str::format("Vulkan: vkGetInstanceProcAddr of the custom driver's loader @ 0x", std::hex, reinterpret_cast<uintptr_t>(proc)));
+        return std::make_pair(HMODULE(nullptr), proc);
+      }
+    }
+#endif
+""")
+s = "#include <cstdlib>\n" + s
+open(p, "w").write(s)
+EOF
+W=$D/src/src/wsi/sdl2/wsi_window_sdl2.cpp
+grep -q BO1_LOADER $W || python3 - "$W" <<'EOF' || exit 1
+import sys
+p = sys.argv[1]
+s = open(p).read()
+a = "#include <SDL_vulkan.h>\n"
+assert s.count(a) == 1
+s = s.replace(a, a + """#ifdef __ANDROID__
+#include <cstdlib>
+#include <SDL_syswm.h>
+#include <android/native_window.h>
+#include <vulkan/vulkan_android.h>
+#endif
+""")
+a = "    SDL_Window* window = fromHwnd(hWindow);\n\n    return SDL_Vulkan_CreateSurface("
+assert s.count(a) == 1
+s = s.replace(a, """    SDL_Window* window = fromHwnd(hWindow);
+
+#ifdef __ANDROID__
+    // BO1_LOADER: see tools/native/build-dxvk.sh
+    if (std::getenv("BO1_VK_GET_INSTANCE_PROC_ADDR")) {
+      using GetWMInfo = SDL_bool (SDLCALL *)(SDL_Window*, SDL_SysWMinfo*);
+      auto getWMInfo = reinterpret_cast<GetWMInfo>(GetProcAddress(libsdl, "SDL_GetWindowWMInfo"));
+      auto create = reinterpret_cast<PFN_vkCreateAndroidSurfaceKHR>(
+        pfnVkGetInstanceProcAddr(instance, "vkCreateAndroidSurfaceKHR"));
+      SDL_SysWMinfo info;
+      SDL_VERSION(&info.version);
+      if (!getWMInfo || !create || !getWMInfo(window, &info))
+        return VK_ERROR_INITIALIZATION_FAILED;
+      VkAndroidSurfaceCreateInfoKHR surfaceInfo = { VK_STRUCTURE_TYPE_ANDROID_SURFACE_CREATE_INFO_KHR };
+      surfaceInfo.window = info.info.android.window;
+      return create(instance, &surfaceInfo, nullptr, pSurface);
+    }
+#endif
+
+    return SDL_Vulkan_CreateSurface(""")
+open(p, "w").write(s)
+EOF
+
 # Android says VK_SUBOPTIMAL_KHR for every image of a surface whose transform is not the identity (a display that is
 # portrait by nature, held in landscape: an AYN Odin 3). DXVK would make a new swap chain for every frame; on the
 # Adreno 830 that ended in a crash after 402 of them. The system's compositor rotates the picture either way.
