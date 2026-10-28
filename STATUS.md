@@ -26,9 +26,12 @@ These stand-ins give the same versions:
 
 ## Running
 
-- `build-llvm.sh` (patched clang 21.1.8): almost done (3100/3229 steps).
-- p32 tree generated (`build-p32.sh` regeneration half). The host LLVM tarball has no `libLLVM-21.so`; `libclang-cpp.so` exports
-  LLVM itself, so an empty stub `libLLVM-21.so` satisfies `-lLLVM-21`. `/bo1/src/build/` must exist before `build-p32.sh`.
+- Patched clang 21.1.8 (`build-llvm.sh`): **done**.
+- `build-p32.sh` regeneration, second try. The first p32 tree had no rewrites, so the Android build failed with 421 TUs
+  of layout `static_assert`s (`sizeof(_D3DCAPS9) == 304`, ...). Cause: `p32rewrite` couldn't start
+  (`libclang-cpp.so.21.1: cannot open shared object file`), and `p32tree.py` discards its stderr. Fix (environment
+  only): symlink `libclang-cpp.so.21.1` and an empty stub `libLLVM-21.so` (the GitHub LLVM tarball has no libLLVM;
+  libclang-cpp exports LLVM itself) into `/usr/lib/x86_64-linux-gnu`. `/bo1/src/build/` must exist before `build-p32.sh`.
 
 ## Open problems
 
