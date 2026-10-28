@@ -32,6 +32,13 @@ These stand-ins give the same versions:
   (`libclang-cpp.so.21.1: cannot open shared object file`), and `p32tree.py` discards its stderr. Fix (environment
   only): symlink `libclang-cpp.so.21.1` and an empty stub `libLLVM-21.so` (the GitHub LLVM tarball has no libLLVM;
   libclang-cpp exports LLVM itself) into `/usr/lib/x86_64-linux-gnu`. `/bo1/src/build/` must exist before `build-p32.sh`.
+- Third p32 regeneration. The second tree failed in 4 TUs (glass_renderer, db_registry, ui_shared_obj, d3d9_resources:
+  template arguments with and without `BO1_P32`, `addrspacecast` in static initializers). Cause: inside `p32rewrite`
+  (libtooling, InstalledDir `/usr/bin`) `-stdlib=libc++` looks for `/usr/include/c++/v1`, which Debian's libc++-21-dev
+  provides and the tarball doesn't: `fatal error: 'cstddef' file not found`, so the ASTs were partial. Fix: symlink
+  `/usr/include/c++/v1` and `/usr/include/x86_64-unknown-linux-gnu/c++/v1` to the tarball's libc++ headers (also
+  installed `libstdc++-14-dev` to match Debian 13's GCC 14). Only the expected layout `static_assert`s remain in
+  the rewrite parse.
 
 ## Open problems
 
