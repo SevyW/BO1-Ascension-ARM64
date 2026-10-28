@@ -63,6 +63,7 @@ a = "#include <SDL_vulkan.h>\n"
 assert s.count(a) == 1
 s = s.replace(a, a + """#ifdef __ANDROID__
 #include <cstdlib>
+#include "../../util/util_win32_compat.h"
 #include <SDL_syswm.h>
 #include <android/native_window.h>
 #include <vulkan/vulkan_android.h>
