@@ -4,7 +4,12 @@ Branch `turnip`. Updated by the cloud session at every milestone.
 
 ## Current phase
 
-**Phase 1 (reproduce the official build), in progress.** The Phase 2 code is written and committed, but not yet built.
+**Phase 1 done** (checkpoint reached). **Phase 2 build in progress.**
+
+Phase 1 result: `bo1-zombies-debug.apk` built from unchanged `main` (3401a66) with the repo's scripts:
+9,782,730 bytes, sha256 `c688d91e395cf8f2c28f93922e5079004a8b52f370d558162b53a171a9d1eab0`, package
+`org.bo1port.zombies` 0.3, libs `libbo1.so` (17.9 MB stripped), `libmain.so`, `libSDL2.so`, `libdxvk_d3d9.so`.
+Engine build: 1247 TUs, 0 errors. Not published: it's the official app rebuilt, only a reproducibility check.
 
 ## Build environment (cloud container, Ubuntu 24.04, 4 cores)
 
@@ -23,22 +28,20 @@ These stand-ins give the same versions:
 
 - NDK, SDK, LLVM 21 host toolchain; SDL2 2.32.10 source; FFmpeg n7.1 (linux, arm64-v8a).
 - Phase 2 code (see below), libadrenotools built (`build-adrenotools.sh`).
+- Patched clang, p32 tree, Android engine, DXVK arm64, Phase 1 APK.
 
-## Running
+## Phase 1 environment problems and fixes (all in the container, none in the repo)
 
-- Patched clang 21.1.8 (`build-llvm.sh`): **done**.
-- `build-p32.sh` regeneration, second try. The first p32 tree had no rewrites, so the Android build failed with 421 TUs
-  of layout `static_assert`s (`sizeof(_D3DCAPS9) == 304`, ...). Cause: `p32rewrite` couldn't start
-  (`libclang-cpp.so.21.1: cannot open shared object file`), and `p32tree.py` discards its stderr. Fix (environment
-  only): symlink `libclang-cpp.so.21.1` and an empty stub `libLLVM-21.so` (the GitHub LLVM tarball has no libLLVM;
-  libclang-cpp exports LLVM itself) into `/usr/lib/x86_64-linux-gnu`. `/bo1/src/build/` must exist before `build-p32.sh`.
-- Third p32 regeneration. The second tree failed in 4 TUs (glass_renderer, db_registry, ui_shared_obj, d3d9_resources:
-  template arguments with and without `BO1_P32`, `addrspacecast` in static initializers). Cause: inside `p32rewrite`
-  (libtooling, InstalledDir `/usr/bin`) `-stdlib=libc++` looks for `/usr/include/c++/v1`, which Debian's libc++-21-dev
-  provides and the tarball doesn't: `fatal error: 'cstddef' file not found`, so the ASTs were partial. Fix: symlink
-  `/usr/include/c++/v1` and `/usr/include/x86_64-unknown-linux-gnu/c++/v1` to the tarball's libc++ headers (also
-  installed `libstdc++-14-dev` to match Debian 13's GCC 14). Only the expected layout `static_assert`s remain in
-  the rewrite parse.
+- First p32 tree had no rewrites: `p32rewrite` couldn't start (`libclang-cpp.so.21.1: cannot open shared object
+  file`), and `p32tree.py` discards its stderr. Fix: symlink `libclang-cpp.so.21.1` and an empty stub `libLLVM-21.so`
+  (the GitHub LLVM tarball has no libLLVM; libclang-cpp exports LLVM itself) into `/usr/lib/x86_64-linux-gnu`.
+- Second tree: 4 TUs failed (glass_renderer, db_registry, ui_shared_obj, d3d9_resources: template arguments with and
+  without `BO1_P32`, `addrspacecast` in static initializers). Cause: in libtooling `-stdlib=libc++` looks for
+  `/usr/include/c++/v1`, which Debian's libc++-21-dev provides and the tarball doesn't (`'cstddef' file not found`, so
+  the ASTs were partial). Fix: symlink `/usr/include/c++/v1` and `/usr/include/x86_64-unknown-linux-gnu/c++/v1` to the
+  tarball's libc++ headers; installed `libstdc++-14-dev` (Debian 13 has GCC 14).
+- `/bo1/src/build/` must exist before `build-p32.sh`. The x64 desktop half of `build-p32.sh` was stopped (not needed for
+  the APK).
 
 ## Open problems
 
@@ -69,5 +72,5 @@ These stand-ins give the same versions:
 
 ## Next
 
-Patched clang → `build-p32.sh` → `build-android.sh` → `build-dxvk.sh arm64-v8a` → `build-apk.sh` on unchanged
-`main` (Phase 1 checkpoint), then the same on `turnip`.
+On `turnip`: `build-p32.sh` (regenerate) → `build-android.sh` → `build-dxvk.sh arm64-v8a` (adds BO1_LOADER) →
+`build-adrenotools.sh` → `build-apk.sh` → release `turnip-v0.1`.
