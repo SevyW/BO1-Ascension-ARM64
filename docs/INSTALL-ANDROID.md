@@ -146,6 +146,11 @@ that needs a patched game exe or extra DLLs on PC will not work.
 
 If a mod stops with an error, send the log (below) with the mod's name and where to get it.
 
+Settings > EXTRAS > MOD still lists every folder in `files/game/mods/` and starts the game with the one you pick. The
+script mods made for this port (horde, nightmare, mapkit, noperks, sandbox, zinfo, coop) are not in this fork's
+repository: get them from [Zephelinn's repository](https://github.com/Zephelinn/BO1-Ascension-ARM64/tree/main/mods) and copy a mod's
+folder to `files/game/mods/<name>/` the same way.
+
 ## 8. Problems
 
 | symptom | what to do |

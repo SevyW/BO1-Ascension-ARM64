@@ -1,6 +1,6 @@
 # Native builds: Linux (x86, x86-64, AArch64) and Android (arm64-v8a)
 
-The native build is the web build (docs/web-port.md) without Emscripten: the same engine sources, the same Win32
+The native build is the web build (the browser version, which stays in the upstream repositories) without Emscripten: the same engine sources, the same Win32
 emulation (`src/web/compat`) and the same D3D9 shim on OpenGL ES 3 (`src/web/d3d9`), with `src/native/` (SDL2: window,
 GL context, controller) in place of the browser glue. `cmake -DBO1_NATIVE=ON`, see `cmake/native.cmake`.
 
@@ -104,7 +104,7 @@ Joining:
 Verified: an x86-64 Linux client on an x86-64 dedicated server, and on an AArch64 one run under qemu-user (rounds,
 Game Over, the restart, the client following each time). Not verified: Android or Windows as either side.
 
-Not done: join codes / a lobby (the browser build's lobby server is not used by the native builds), LAN discovery,
+Not done: join codes / a lobby (the browser build's lobby server was not used by the native builds and is not in this fork), LAN discovery,
 more than one remote client in a test, the Android build as a host.
 
 ## Multiplayer with bots, Combat Training

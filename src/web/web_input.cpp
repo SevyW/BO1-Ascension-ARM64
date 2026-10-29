@@ -70,6 +70,7 @@ enum InputType : uint8_t
     INPUT_WHEEL,
     INPUT_FOCUS,
     INPUT_ENGINEKEY,   // native: an engine key code as it is (ui/keycodes.h), e.g. a game pad's d-pad from a touch swipe
+    INPUT_KEYCODE,     // native: an engine key code through the key path (bindings), e.g. AUX1 from a second-screen grip
 };
 
 struct InputEvent
@@ -423,6 +424,17 @@ extern "C" void bo1_native_input_enginekey(int key, int down)
     Push(ev);
 }
 
+// mod (native): a key of the second-screen controller (native_second_screen.cpp), as a keyboard key would be
+extern "C" void bo1_native_input_keycode(int key, int down)
+{
+    InputEvent ev{};
+    ev.type = INPUT_KEYCODE;
+    ev.value = key;
+    ev.down = down ? 1 : 0;
+    ev.time = NowMs();
+    Push(ev);
+}
+
 // 1 while a menu has the keys (the UI key catcher): what the touch gestures of native_video.cpp are for
 extern "C" int bo1_native_ui_active(void)
 {
@@ -543,6 +555,9 @@ extern "C" void bo1_web_input_pump(void)
             CL_GamepadButtonEvent(0, 0, e.value, e.down ? 1 : 0, (unsigned int)g_msgTime, button);
             break;
         }
+        case INPUT_KEYCODE:
+            Sys_QueEvent(g_msgTime, SE_KEY, e.value, e.down, 0, 0);
+            break;
         case INPUT_BUTTONS:
             IN_MouseEvent(e.value);
             break;

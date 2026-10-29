@@ -1,5 +1,11 @@
 # Online co-op
 
+> **In this fork (Android):** co-op starts from the Play screen, and other players join by address or from the local
+> network list (docs/android-port.md, "Playing with others" and "Play screen"). The browser lobby, the Windows
+> launchers (`tools/coop-*.bat`, `coop.ps1`) and `tools/headless.ps1` mentioned below were removed; the upstream
+> repositories keep them. The engine changes described here are what the Android build runs. The `coop` mod (`mods/coop/`, its README) is in
+> [Zephelinn's repo](https://github.com/Zephelinn/BO1-Ascension-ARM64/tree/main/mods), not in this one.
+
 Up to four players with the four characters of the map, and up to eight with duplicate characters. One player hosts:
 their game runs the server and their own client in one process (a listen server); every other player runs a client
 only and connects to the host. The same engine runs natively on Windows and in the browser build; only the packet
@@ -13,9 +19,8 @@ transport differs.
 - **Netchan.** Client and server exchange connectionless commands (`getchallenge`, `connect`, ...) and then sequenced
   netchan packets (src/qcommon/net_chan_mp.cpp): usercmds up, delta-compressed snapshots and reliable server commands
   down. A packet is at most 1264 bytes; larger messages are fragmented.
-- **Transport seam.** Everything goes through `Sys_SendPacket` / `Sys_GetPacket`. Natively that is a UDP socket
-  (src/win32/win_net.cpp); in the browser it is src/web/web_net.cpp, which hands packets to the page (WebRTC data
-  channels or the lobby relay, docs/web-engine-interface.md). Nothing above that seam knows the difference.
+- **Transport seam.** Everything goes through `Sys_SendPacket` / `Sys_GetPacket`. On Android that is a UDP socket
+  (src/web/web_net.cpp with `BO1_NATIVE`); the browser version (not in this fork) handed packets to its page there. Nothing above that seam knows the difference.
 - **Who reads the socket.** While a local server runs, the server's packet loop reads the socket and passes client
   packets on (`Com_ServerPacketEvent`); a client without a local server reads it itself (`Com_ClientPacketEvent`).
   That is why a joining client must not keep its main menu's local server running (see "Changes", 3).
@@ -74,9 +79,7 @@ and four different characters no mod is needed. With duplicates or more than fou
 
 ## Changes (engine; every block is tagged `// mod (coop):`)
 
-1. **Bind (blocker 1).** No code change: the default `net_ip localhost` binds every interface
-   (src/win32/win_net.cpp). Play.bat's `net_ip 127.0.0.1` is for solo; the co-op launchers leave it out, and
-   tools\mod-launcher.hta drops it in its co-op modes. If 28960 is taken the engine binds 28961..28969 and says so
+1. **Bind (blocker 1).** No code change: the default `net_ip localhost` binds every interface. If 28960 is taken the engine binds 28961..28969 and says so
    (`Opening IP socket`).
 2. **Non-LAN hosts (blocker 2).** `CL_Connect_f` (src/client_mp/cl_main_pc_mp.cpp) joins a host outside the LAN
    ranges (the internet, Tailscale 100.64/10, Hamachi 25/8) like a LAN one. Retail waited there for a DemonWare login
@@ -175,56 +178,11 @@ and four different characters no mod is needed. With duplicates or more than fou
 
 ## Verified and not verified
 
-Verified on macOS with `tools/syntax-check.sh` (clang, MinGW-w64 headers, `-fsyntax-only`): every changed C++ file,
+Verified on macOS with `tools/syntax-check.sh` (an upstream tool, not in this fork; clang, MinGW-w64 headers, `-fsyntax-only`): every changed C++ file,
 no errors. tools/mod-launcher.hta's script with `node --check`. Nothing has been built with MSVC or run. The GSC of
 mods/coop is checked by reading only. Everything else needs Windows testing, in particular: the remote client's
 whole load (anim trees, actors, client scripts), the deferred command-line connect, the snapacknowledged pacing, the
 expected-player wait, and mods/coop against the retail scripts.
-
-## Windows test plan
-
-Build Release first. Start the host before any client: a client started first would take port 28960.
-
-1. **Two copies on one PC.**
-   - Host: `tools\coop.ps1 -Host -Name Host -Character 0 -Players 2 -Map zombie_theater`.
-   - Client: `tools\coop.ps1 -Join 127.0.0.1 -Name Guest -Character 1 -HomeDir build\home2` (it binds 28961).
-   - Expect: the client shows the main menu, then loads Kino; both players spawn (Dempsey, Nikolai), round 1 starts
-     when both are in; zombies walk and animate on the client's screen; the score bars have each character's
-     colour; both players see each other move, shoot and buy.
-   - Headless variant (windows on the private desktop, two terminals, separate run folders):
-     `tools\headless.ps1 -Zombies -Client -RunDir build\run\host -AutoQuitMs 120000 -Commands "+set systemlink 1 +set bo1_slot 0 +set sv_maxclients 4 +set bo1_expected_players 2 +set bo1_lobby_chars 0 1 2 3 +map zombie_theater"`
-     (headless slot 0: net_port 29060), then
-     `tools\headless.ps1 -Zombies -Client -RunDir build\run\client -AutoQuitMs 100000 -ShotsAtMs "60000 90000" -Commands "+set systemlink 1 +set bo1_slot 1 +connect 127.0.0.1:29060"`.
-2. **Character by slot.** Host `-Character 2`, client `-Character 0`: the host is client 2 (Takeo), the client
-   client 0 (Dempsey). Check the host's console for `coop: ... gets the client number it asked for`.
-3. **Duplicates / five players.** Host `-Players 3 -Chars "0 1 - - 0"` (needs mods/coop, added by the script),
-   clients `-Character 1` and `-Character 0 -Slot 4`, each with its own `-HomeDir`. Check games_mp.log for
-   `coop: body: wrapped ...` and `coop: client 4 body of character 0`. If it says `is not set on this map`, dump the
-   map script (mods/coop/README.md "Check it").
-4. **A player who never comes.** Host `-Players 2`, no client: round 1 starts after 60 s
-   (`coop: getnumexpectedplayers 1 ... bo1_expected_timeout passed`).
-5. **Two PCs on a LAN.** Host as in 1; the other PC joins with the host's LAN address. Allow the firewall prompt.
-6. **Internet.** Host forwards UDP 28960 (or both use Tailscale); the client joins with the public (or VPN) address.
-   Watch for choppy zombies: the host's `sv_maxRate` must be 25000.
-
-Log lines (console_mp.log, games_mp.log; lines start with `coop:`):
-
-| machine | line | means |
-| --- | --- | --- |
-| host | `coop: host: map ... anim trees N of N published` | settings to compare; every anim tree sent |
-| host | `coop: <addr> gets the client number it asked for: N` | `bo1_slot` honoured |
-| host | `coop: getnumexpectedplayers N (...)` | the round-1 wait (each change) |
-| host | `coop: <addr> admitted without a Steam ticket check` | the host runs Steam |
-| client | `coop: connect <addr> waits for the front end to load`, then `coop: front end loaded; connecting to <addr>` | the deferred connect |
-| client | `coop: <addr> is outside the LAN ranges: connecting over the internet` | internet host |
-| client | `coop: zombiemode 1 for <map> before the gamestate's baselines` | mode set from the gamestate |
-| client | `coop: host layout A actor slots, B entity bits; this machine A, B` | layouts match |
-| client | `coop: client without a local server: N anim trees from the host, N built, actor tree generic_human found` | anim trees ready |
-| games_mp.log | `coop: ...` (mods/coop) | which character each player got |
-
-Failure lines: `coop: ... MISSING (actors are not drawn)`, `coop: the host published no anim trees`,
-`The host runs other mod settings`, `Couldn't find animtree '...' on the server` (a client script needs a tree the
-host did not send).
 
 ## Known issues outside the co-op files
 

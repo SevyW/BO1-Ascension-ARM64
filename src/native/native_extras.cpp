@@ -208,6 +208,14 @@ extern "C" void bo1_native_set_refresh_rate(int hz)
 #endif
 }
 
+#ifdef __ANDROID__
+// mod (native): the same for native_second_screen.cpp
+extern "C" void bo1_native_call_activity(const char *method, const char *text)
+{
+    CallActivity(method, text);
+}
+#endif
+
 extern "C" void bo1_native_restart_at_exit(const char *basePath, const char *homePath, const char *args)
 {
     s_restartBase = basePath ? basePath : "";

@@ -13,7 +13,7 @@
 ![Renderer](https://img.shields.io/badge/renderer-Vulkan%20(DXVK%202.6.1)-a41e22?logo=vulkan&logoColor=white)
 ![Language](https://img.shields.io/badge/code-C%20%7C%20C%2B%2B-00599c?logo=cplusplus&logoColor=white)
 ![Built with](https://img.shields.io/badge/vibe--coded%20with-Claude-d97757?logo=anthropic&logoColor=white)
-![Version](https://img.shields.io/badge/version-0.3--turnip-6e5494)
+![Version](https://img.shields.io/badge/version-0.4--turnip-6e5494)
 ![Downloads](https://img.shields.io/github/downloads/SevyW/BO1-Ascension-ARM64/total)
 ![Status](https://img.shields.io/badge/status-device--tested%20(AYN%20Thor)-3fa35b)
 
@@ -32,6 +32,10 @@
 | models and TV menus,<br>where the stock driver draws them flat | in the Zombies menu on a Thor<br>(stock driver: 96) | `driver.txt` picks the driver;<br>no driver, no change | installs next to the<br>original app |
 
 </div>
+
+## 🆕 New in 0.4-turnip
+
+**🕹️ Second-screen controls.** On a dual-screen handheld like the AYN Thor, the bottom screen becomes a trackpad for aiming, and pressing your thumb flat on it fires. A remapping screen on the same display rebinds every button while you play. More below and in [docs/second-screen.md](docs/second-screen.md).
 
 ## 🆕 New in 0.3-turnip
 
@@ -62,7 +66,7 @@ Uncapped, at 1280x720. Kino der Toten has been played on v27, and v27 also holds
 
 ## 📦 Download
 
-**[Download the latest release](https://github.com/SevyW/BO1-Ascension-ARM64/releases/latest)**: `bo1-port-turnip-v0.3.apk`, with its SHA-256 in the release notes.
+**[Download the latest release](https://github.com/SevyW/BO1-Ascension-ARM64/releases/latest)**: `bo1-port-turnip-v0.4.apk`, with its SHA-256 in the release notes.
 
 | | |
 | --- | --- |
@@ -73,7 +77,7 @@ Uncapped, at 1280x720. Kino der Toten has been played on v27, and v27 also holds
 
 ## 🧭 Set it up
 
-1. **Install** `bo1-port-turnip-v0.3.apk` and open it once, so Android creates its folder.
+1. **Install** `bo1-port-turnip-v0.4.apk` and open it once, so Android creates its folder.
 2. **Copy your game.** Your Steam *Black Ops* folder goes to `Android/data/org.bo1port.zombies.turnip/files/game/`. If you already have the original app with its game files, copy them across:
    ```
    adb shell cp -r /sdcard/Android/data/org.bo1port.zombies/files/game/. \
@@ -106,6 +110,20 @@ They're saved in `home/players/config.cfg` (Zombies) and `config_mp.cfg` (Multip
 | `seta com_maxfps "60"` | Frame cap. Locking to 60 saves battery and heat. |
 | Settings > EXTRAS > FPS COUNTER | The on-screen frame counter. |
 
+## 🕹️ Second-screen controls
+
+On a device with a second display (the AYN Thor's bottom screen), the game puts a trackpad there by itself. On a phone with one screen nothing changes.
+
+| | |
+| --- | --- |
+| 👆 **Look** | slide a finger: the view turns like a mouse, with adjustable sensitivity and acceleration |
+| 🔫 **Fire** | press your thumb flat on the glass. The press is read from the contact size, since the screen has no pressure sensor. Double tap or press-and-hold also work, or turn the click off so the pad only aims |
+| 📳 **Feel** | ten vibrations to choose from for the press, or none |
+| 🎛️ **REMAP** | rebind every button of the built-in pad and the trackpad press. Changes apply at once, with presets per mode and a reset to the console layout |
+| 🙈 **HIDE** | shrinks it to a small button so you can use the launcher. Settings > EXTRAS > SECOND-SCREEN CONTROLS turns it off |
+
+The game keeps the controller's focus while you touch the bottom screen. Details and settings: [docs/second-screen.md](docs/second-screen.md).
+
 ## ⚙️ How it works
 
 - **Loading the driver.** On every start, `bo1_driver.c` reads `driver.txt`. It copies the driver to internal storage, because external storage can't run code, and opens it with **libadrenotools**. Then it checks that a Vulkan device comes up. Any failure falls back to the system driver.
@@ -123,13 +141,14 @@ Everything [the original port](https://github.com/Zephelinn/BO1-Ascension-ARM64)
 | Zombies | All maps of your install. Solo, and co-op by address or on the local network |
 | Multiplayer | Bot matches, Combat Training, Private Match (not yet tried on Turnip) |
 | Not available | Campaign; online matchmaking (it needs Activision's servers) |
-| Controls | Built-in, Bluetooth and USB controllers; on-screen touch controls with a layout editor; pad binds in `config.cfg` ([docs/controllers.md](docs/controllers.md)) |
+| Controls | Built-in, Bluetooth and USB controllers; on-screen touch controls with a layout editor; second-screen trackpad and remapping on dual-screen devices; pad binds in `config.cfg` ([docs/controllers.md](docs/controllers.md)) |
 | Renderers | Vulkan (DXVK, recommended) and OpenGL ES 3 (the fallback): Settings > Graphics > RENDERER |
+| Mods | Settings > EXTRAS > MOD picks a mod from the device's `game/mods/` folder. Community mods work as before; the script mods (horde, nightmare, coop, ...) are in [Zephelinn's repo](https://github.com/Zephelinn/BO1-Ascension-ARM64/tree/main/mods) |
 
 ## 🗺️ What's next
 
-- 🕹️ **Second-screen controls** for dual-screen handhelds like the AYN Thor: Steam Deck-style trackpads and grip buttons on the bottom screen, plus a screen for remapping every button.
 - 📂 **Pick the driver in the app** instead of with a text file.
+- 🎯 **Tune the trackpad**: settle the look speed and the press depth on more devices.
 
 ## 🚀 Building
 
@@ -152,9 +171,10 @@ bash tools/native/build-apk.sh
 - [docs/INSTALL-ANDROID.md](docs/INSTALL-ANDROID.md): installing and playing on Android
 - [docs/android-port.md](docs/android-port.md): how the Android version works, its settings, building it
 - [docs/controllers.md](docs/controllers.md): controllers, default layout, binds
+- [docs/second-screen.md](docs/second-screen.md): the trackpad and remapping screen on a dual-screen device's second display
 - [docs/multiplayer.md](docs/multiplayer.md): co-op
 - [CLAUDE.md](CLAUDE.md): how the engine and the repo are organized
-- Windows and browser versions: [docs/building-windows.md](docs/building-windows.md), [docs/web-port.md](docs/web-port.md)
+- Windows and browser versions: in the upstream repositories (see [Credits](#-credits)); this fork builds for Android only
 
 ## 🐞 Something not working?
 
