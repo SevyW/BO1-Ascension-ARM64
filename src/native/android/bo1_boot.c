@@ -319,12 +319,12 @@ int SDL_main(int argc, char **argv)
     engineArgv[engineArgc++] = (char *)"+set";
     engineArgv[engineArgc++] = (char *)"r_fullscreen";
     engineArgv[engineArgc++] = (char *)"0";
-    // (from the activity: --refresh=<the display's highest refresh rate>, Bo1Activity.getArguments)
-    int refresh = 0;
+    // (from the activity: --rates=<the display's refresh rates>, Bo1Activity.getArguments; --refresh= is from
+    // versions before 0.5-turnip and is not an engine argument)
     for (int i = 1; i < argc && engineArgc < 95; ++i)
     {
         if (!strncmp(argv[i], "--refresh=", 10))
-            refresh = atoi(argv[i] + 10);
+            continue;
         else if (!strncmp(argv[i], "--rates=", 8))
             setenv("BO1_REFRESH_RATES", argv[i] + 8, 1);   // the engine's list of refresh rates (d3d9_direct3d.cpp)
         else
@@ -427,14 +427,13 @@ int SDL_main(int argc, char **argv)
                 engineArgv[engineArgc++] = (char *)"+set";
                 engineArgv[engineArgc++] = (char *)"r_mode";
                 engineArgv[engineArgc++] = firstMode;
-                // ... and the frame rate limit is the display's refresh rate (the engine's default is 85)
-                static char firstFps[16];
-                if (refresh >= 50 && engineArgc + 3 < 96)
+                // ... and no frame rate limit of its own (the engine's default is 85): Settings > Graphics decides,
+                // SCREEN REFRESH RATE with SYNC EVERY FRAME (r_vsync, default 1) or no limit with sync off
+                if (engineArgc + 3 < 96)
                 {
-                    snprintf(firstFps, sizeof(firstFps), "%d", refresh);
                     engineArgv[engineArgc++] = (char *)"+set";
                     engineArgv[engineArgc++] = (char *)"com_maxfps";
-                    engineArgv[engineArgc++] = firstFps;
+                    engineArgv[engineArgc++] = (char *)"0";
                 }
                 // ... and no multisampling (the PC default is 4 samples, which costs a phone's GPU a lot at these
                 // pixel densities); the graphics menu's anti-aliasing row turns it on

@@ -101,16 +101,10 @@ public class Bo1Activity extends SDLActivity {
         }
     }
 
-    /** For the loader stub: the refresh rate above, which a first start uses as the frame rate limit. */
+    /** For the loader stub: the display's refresh rates (the engine's SCREEN REFRESH RATE list). */
     @Override
     protected String[] getArguments() {
-        int refresh = 60;
-        try {
-            refresh = Math.round(fastestMode().getRefreshRate());
-        } catch (Throwable ignored) {
-            // 60
-        }
-        return new String[] { "--refresh=" + refresh, "--rates=" + supportedRates() };
+        return new String[] { "--rates=" + supportedRates() };
     }
 
     /** The display's refresh rates at the current resolution, ascending: "60,90,120". */
