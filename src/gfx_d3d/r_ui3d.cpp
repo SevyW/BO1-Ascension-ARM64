@@ -72,6 +72,10 @@ void __cdecl R_UI3D_CheckRenderTarget()
     ScreenPlacement *scrPlace; // [esp+10h] [ebp-Ch]
     signed int i; // [esp+18h] [ebp-4h]
 
+    // mod (native): the texture's size before a reset (below)
+    const int oldWidth = g_ui3dStatus.width;
+    const int oldHeight = g_ui3dStatus.height;
+
     if (g_ui3dStatus.useDisplaySize)
     {
         g_ui3dStatus.width = vidConfig.displayWidth;
@@ -79,6 +83,24 @@ void __cdecl R_UI3D_CheckRenderTarget()
     }
     if (!gfxRenderTargets[R_RENDERTARGET_UI3D].width && g_ui3dStatus.initialized)
     {
+        // mod (native): a device reset (vid_restart, or a change on the graphics menu) recreates the render target
+        // here, and every texture window is set up again. Retail Multiplayer then gives window 0 the full screen's
+        // placement, as Com_InitUIAndCommonXAssets did at the start. This engine is the MP exe running the SP front
+        // end (r_glob.isMultiplayer is always 1): the front end's script puts the TV's menus in window 0 with
+        // ui3dsetwindow, which replaced that placement, and after a reset the full screen's placement came back. The
+        // TV menus were then drawn at the size of the whole screen, outside the TV's part of the texture, and the TV
+        // showed the empty texture until the app restarted. Window 0 gets the full screen's placement again only if
+        // it had it before the reset: it had it if it differs from the texture window's own placement.
+        bool fullscreenWindow0 = false;
+        if (r_glob.isMultiplayer)
+        {
+            ScreenPlacement own;
+            ScrPlace_SetupUI3D(
+                &own,
+                (int)(float)((float)oldWidth * g_ui3d_windows[0].normW),
+                (int)(float)((float)oldHeight * g_ui3d_windows[0].normH));
+            fullscreenWindow0 = memcmp(&own, &g_ui3d_windows[0].scrPlace, sizeof(ScreenPlacement)) != 0;
+        }
         R_InitUI3DRenderTarget(
             g_ui3dStatus.width,
             g_ui3dStatus.height,
@@ -91,11 +113,15 @@ void __cdecl R_UI3D_CheckRenderTarget()
                 g_ui3d_windows[i].normY,
                 g_ui3d_windows[i].normW,
                 g_ui3d_windows[i].normH);
-        if (r_glob.isMultiplayer)
+        if (fullscreenWindow0)   // mod (native): was r_glob.isMultiplayer (above)
         {
             scrPlace = R_UI3D_ScrPlaceFromTextureWindow(0);
             ScrPlace_SetupUI3DForFullscreen(scrPlace, &scrPlaceFull);
         }
+        // mod (native): what the reset kept, for the log (docs/android-port.md)
+        Com_Printf(8, "ui3d: render target %ix%i recreated; window 0 %.3f %.3f %.3f %.3f, %s placement\n",
+            (int)g_ui3dStatus.width, (int)g_ui3dStatus.height, g_ui3d_windows[0].normX, g_ui3d_windows[0].normY,
+            g_ui3d_windows[0].normW, g_ui3d_windows[0].normH, fullscreenWindow0 ? "full screen" : "texture window");
     }
 }
 
