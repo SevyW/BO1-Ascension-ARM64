@@ -4,6 +4,10 @@ Last update: 2026-10-29.
 
 ## Current state
 
+**0.4-turnip (versionCode 4)**: 0.3-turnip plus the second-screen controls ([docs/second-screen.md](docs/second-screen.md)), device-tested on the AYN Thor by the PC session. The repository is trimmed to the Android port (branch `cleanup`). Release by the PC session.
+
+### 0.3-turnip
+
 **Released and device-tested.** [`v0.3-turnip`](https://github.com/SevyW/BO1-Ascension-ARM64/releases/tag/v0.3-turnip) is the code in this file's "What changed" section, built by a cloud session and tested on an AYN Thor.
 
 | | |
@@ -31,7 +35,7 @@ Vulkan renderer, the Zombies main menu, 1280x720, uncapped:
 
 ### Next
 
-- Second-screen controls: Steam Deck-style trackpads and grip buttons on a dual-screen device's second display, and a remapping screen. Branch `second-screen`: built and unit-tested off-device (2026-10-29), APK on branch `second-screen-apk`, device test pending ([docs/second-screen.md](docs/second-screen.md)).
+- Second-screen controls: done in 0.4-turnip (one look pad, size press to fire, remapping screen).
 - Picking the driver in the app instead of with `driver.txt`.
 
 ## What changed (diff to upstream 3401a66: 8 files, +331 −8)
