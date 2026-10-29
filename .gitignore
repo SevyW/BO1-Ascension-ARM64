@@ -430,7 +430,7 @@ __BO1Zombies
 # Local disc image (never commit or upload game files)
 sr-codbo.iso
 
-# Proprietary SDKs of the Windows build (docs/building-windows.md): supplied by each builder, never committed
+# Proprietary SDKs of the Windows build (upstream docs/building-windows.md): supplied by each builder, never committed
 /src/steam/
 /src/binklib/
 /src/nvapi/

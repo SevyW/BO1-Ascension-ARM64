@@ -28,7 +28,8 @@ renderer bridge, tools, mods, web site, documentation) is the maintainers' own w
 ## Windows build only (not in this repository)
 
 The Windows (MSVC, Direct3D 9) build links proprietary SDKs that may not be redistributed. They are not in this
-repository; `docs/building-windows.md` says where each comes from and where it goes.
+repository; the upstream repository's [docs/building-windows.md](https://github.com/Zephelinn/BO1-Ascension-ARM64/blob/main/docs/building-windows.md) says where each comes from and where it goes
+(this fork builds for Android only).
 
 | component | owner | needed for |
 | --- | --- | --- |
