@@ -3,7 +3,8 @@
 > **In this fork (Android):** co-op starts from the Play screen, and other players join by address or from the local
 > network list (docs/android-port.md, "Playing with others" and "Play screen"). The browser lobby, the Windows
 > launchers (`tools/coop-*.bat`, `coop.ps1`) and `tools/headless.ps1` mentioned below were removed; the upstream
-> repositories keep them. The engine changes described here are what the Android build runs.
+> repositories keep them. The engine changes described here are what the Android build runs. The `coop` mod (`mods/coop/`, its README) is in
+> [Zephelinn's repo](https://github.com/Zephelinn/BO1-Ascension-ARM64/tree/main/mods), not in this one.
 
 Up to four players with the four characters of the map, and up to eight with duplicate characters. One player hosts:
 their game runs the server and their own client in one process (a listen server); every other player runs a client

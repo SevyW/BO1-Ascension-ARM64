@@ -15,7 +15,7 @@ Workstreams. Each has its own doc; read it before working in that area:
 | Vulkan driver choice (Turnip through libadrenotools) | `STATUS.md` | `src/native/android/bo1_driver.c`, `tools/native/build-dxvk.sh` (`BO1_LOADER`), `tools/native/build-adrenotools.sh` |
 | Second-screen controls (look pad, size press, remapping) | `docs/second-screen.md` | `android/java/org/bo1port/zombies/SecondScreen*.java`, `src/native/native_second_screen.cpp` |
 | D3D9 → OpenGL ES 3 shim (MojoShader), Vulkan through DXVK | `src/web/d3d9/README.md`, `docs/android-port.md` (Renderers) | `src/web/d3d9/`, `src/native/vk/`, `third_party/mojoshader/` |
-| Co-op (4 players, up to 8), join by address, local network | `docs/multiplayer.md`, `mods/coop/README.md` | `src/client_mp`, `src/server_mp`, `mods/coop/` |
+| Co-op (4 players, up to 8), join by address, local network | `docs/multiplayer.md` (the coop mod: Zephelinn's repo) | `src/client_mp`, `src/server_mp`, `mods/coop/` |
 | Controllers | `docs/controllers.md` | `src/client/gpad_*`, `src/native/native_gamepad.cpp` |
 
 `src/web/` is not about browsers any more: it is the platform layer the Android build compiles (the Win32 emulation
@@ -67,8 +67,6 @@ Emscripten build and docs) was removed from this fork; the upstream repositories
 | `src/xanim/`, `src/EffectsCore/`, `src/DynEntity/`, `src/glass/`, `src/flame/`, `src/ik/`, `src/ragdoll/`, `src/vehicle/`, `src/turret/`, `src/aim_assist/` | animation, FX, dynamic entities, and the rest of the gameplay systems |
 | `src/live/`, `src/DW/`, `DemonWare/`, `src/steam/` | online services: mostly dead code (`BO1_LIVE`/`BO1_DW` never defined), still in the build (`cmake_files.cmake`) |
 | `src/libs/`, `src/zlib/`, `src/jpeg/`, `src/minilzo/`, `src/speex/`, `third_party/` | third-party (licences: `THIRD_PARTY_NOTICES.md`); `third_party/` holds MojoShader and sse2neon |
-| `mods/` | script mods (GSC/CSC); on Android chosen in Settings > EXTRAS > MOD from the device's `mods/` folders; see "Mods" |
-| `data/main/` | base-game data the install lacks (`playlists_sp.info`) |
 | `tools/native/` | the Android / Linux build scripts (`build-*.sh`, `android-setup.sh`, `get-ndk.sh`, `docker/Dockerfile`) and Linux test harnesses (`coop-test.sh`, `lan-test.sh`, `fx-test.sh`, `run-arm64.sh`, the emulator scripts), `test-second-screen.sh` |
 | `tools/p32/` | the 32-bit-pointer rewrite (`p32rewrite.cpp`, `p32tree.py`) and the clang 21 patches the build needs |
 | `docs/` | `android-port.md`, `INSTALL-ANDROID.md`, `second-screen.md`, `controllers.md`, `multiplayer.md` |
@@ -152,13 +150,16 @@ file). D3D9 shim unit tests: `src/web/d3d9/test/`.
 
 ## Mods
 
-Loaded only with `+set fs_game mods/<x>` (one mod; also moves logs/config) or `+set fs_mods "a b"` (stacked; `mods/_stack`
+The script mods (horde, nightmare, mapkit, noperks, sandbox, zinfo, coop, `_stack`) are not in this repo:
+they live in Zephelinn's repo (https://github.com/Zephelinn/BO1-Ascension-ARM64/tree/main/mods), with the base-game file
+`data/main/playlists_sp.info`. On Android a mod folder goes to the device's `files/game/mods/<name>/` and is chosen in
+Settings > EXTRAS > MOD. Loaded only with `+set fs_game mods/<x>` (one mod; also moves logs/config) or `+set fs_mods "a b"` (stacked; `mods/_stack`
 is appended automatically and must not be named). `_stack` ships the merged retail hook scripts
 (`maps/_zombiemode_ffotd.gsc`, `maps/zombie_pentagon_ffotd.gsc`) that call `maps\_modstack::run(hook)`; each mod registers
 hooks in `maps/<mod>/_hooks.gsc` `register()` with `maps\_modstack::add(hookName, func)`. Hook names:
 `_zombiemode_ffotd::main_start|main_end`, `zombie_pentagon_ffotd::main_start|main_end`, `mod_zones/<zone>::main`.
 Mods: `horde` (rounds chain, big crowds, `bo1_mod_maxactors`), `nightmare` (special enemies from other maps via
-`bo1_mod_zones`), `mapkit` (JSON map layouts on Five's assets, `mods/mapkit/MAPKIT.md`), `noperks`, `sandbox` (Five test
+`bo1_mod_zones`), `mapkit` (JSON map layouts on Five's assets, `MAPKIT.md` in the mod), `noperks`, `sandbox` (Five test
 pads), `zinfo` (Tab zombie counter), `coop` (lobby characters / 5-8 players), `_stack` (base). The retail map scripts are
 not in the repo; `bo1_dumpscript <name>` writes one from the loaded fastfiles to `<fs_h>/dump/` for local reading (never commit dumps).
 

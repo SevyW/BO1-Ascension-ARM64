@@ -123,19 +123,6 @@ set_target_properties(BO1Zombies PROPERTIES
     VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/$<CONFIG>"
 )
 
-# Mods live apart from the base game: mods/<name>/ is copied next to the exe on every build and is only
-# loaded with +set fs_game mods/<name> (see mods/sandbox/README.md), or several at once with +set fs_mods "a b c"
-# (mods/_stack/maps/_modstack.gsc). Without fs_game / fs_mods nothing in it is read.
-add_custom_target(copy_mods ALL
-    COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/mods" "${CMAKE_BINARY_DIR}/$<CONFIG>/mods"
-    COMMENT "Copying mods/ to the run folder")
-
-# Base-game data files the install does not carry (data/main/ -> main/ next to the exe), e.g. playlists_sp.info,
-# the offline stand-in for the retail online WAD entry (see BG_SetZombieExternalDvars in src/bgame/bg_misc.cpp).
-add_custom_target(copy_base_data ALL
-    COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/data/main" "${CMAKE_BINARY_DIR}/$<CONFIG>/main"
-    COMMENT "Copying data/main/ to the run folder")
-
 # Keep the build machine's folder out of the binary: source paths in asserts are trimmed to the project and the
 # PDB is referenced by file name only.
 file(TO_NATIVE_PATH "${CMAKE_CURRENT_SOURCE_DIR}" BO1_SOURCE_DIR_NATIVE)

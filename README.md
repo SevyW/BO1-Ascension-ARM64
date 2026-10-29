@@ -143,6 +143,7 @@ Everything [the original port](https://github.com/Zephelinn/BO1-Ascension-ARM64)
 | Not available | Campaign; online matchmaking (it needs Activision's servers) |
 | Controls | Built-in, Bluetooth and USB controllers; on-screen touch controls with a layout editor; second-screen trackpad and remapping on dual-screen devices; pad binds in `config.cfg` ([docs/controllers.md](docs/controllers.md)) |
 | Renderers | Vulkan (DXVK, recommended) and OpenGL ES 3 (the fallback): Settings > Graphics > RENDERER |
+| Mods | Settings > EXTRAS > MOD picks a mod from the device's `game/mods/` folder. Community mods work as before; the script mods (horde, nightmare, coop, ...) are in [Zephelinn's repo](https://github.com/Zephelinn/BO1-Ascension-ARM64/tree/main/mods) |
 
 ## 🗺️ What's next
 
