@@ -13,7 +13,6 @@
 //   HOLD TO FIRE        bo1_touch_autofire 0 / 1: a held FIRE keeps firing pistols and other one-shot-per-pull weapons
 //   EDIT TOUCH LAYOUT   closes this screen and starts touch_edit
 //   RESET TOUCH LAYOUT  touch_reset
-//   FRAME RATE LIMIT    com_maxfps 30 / 45 / 60 / 90 / 120 / 144 / 0 (no limit)
 //   FPS COUNTER         bo1_fpscounter 0..3                    (client_mp/cl_scrn_mp.cpp)
 //   RENDERER            bo1_renderer 0 / 1, at the next start  (web/web_input.cpp)
 //   NEW SHADERS         bo1_vk_async 0 / 1 / 2, at the next start  (web/web_input.cpp; Vulkan only)
@@ -81,8 +80,6 @@ struct Row
 };
 
 const char *const kOffOn[] = { "Off", "On" };
-const char *const kFpsNames[] = { "30", "45", "60", "90", "120", "144", "No limit" };
-const int kFpsValues[] = { 30, 45, 60, 90, 120, 144, 0 };
 const char *const kCounter[] = { "None", "Simple", "Advanced", "Full" };
 const char *const kRenderer[] = { "OpenGL ES", "Vulkan" };
 const char *const kShaderCompile[] = { "Wait (stutter)", "Effects in background", "All in background (flashes)" };   // bo1_vk_async 0 / 1 / 2
@@ -102,7 +99,8 @@ const Row kRows[] = {
     // mod (native): the trackpads on a dual-screen device's second display (native_second_screen.cpp)
     { "SECOND-SCREEN CONTROLS", CHOICE, "bo1_second_screen", 0, 0, 0, 0, kOffOn, 0, 2, ACT_NONE },
 #endif
-    { "FRAME RATE LIMIT", CHOICE, "com_maxfps", 0, 0, 0, 0, kFpsNames, kFpsValues, 7, ACT_NONE },
+    // mod (native): no FRAME RATE LIMIT row (com_maxfps): Settings > Graphics decides the frame rate (SCREEN REFRESH
+    // RATE with SYNC EVERY FRAME); the console's com_maxfps still works
     { "FPS COUNTER", CHOICE, "bo1_fpscounter", 0, 0, 0, 0, kCounter, 0, 4, ACT_NONE },
 #ifdef BO1_DXVK
     { "RENDERER (RESTART)", CHOICE, "bo1_renderer", 0, 0, 0, 0, kRenderer, 0, 2, ACT_NONE },

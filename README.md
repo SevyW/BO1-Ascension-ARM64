@@ -13,7 +13,7 @@
 ![Renderer](https://img.shields.io/badge/renderer-Vulkan%20(DXVK%202.6.1)-a41e22?logo=vulkan&logoColor=white)
 ![Language](https://img.shields.io/badge/code-C%20%7C%20C%2B%2B-00599c?logo=cplusplus&logoColor=white)
 ![Built with](https://img.shields.io/badge/vibe--coded%20with-Claude-d97757?logo=anthropic&logoColor=white)
-![Version](https://img.shields.io/badge/version-0.4--turnip-6e5494)
+![Version](https://img.shields.io/badge/version-0.5--turnip-6e5494)
 ![Downloads](https://img.shields.io/github/downloads/SevyW/BO1-Ascension-ARM64/total)
 ![Status](https://img.shields.io/badge/status-device--tested%20(AYN%20Thor)-3fa35b)
 
@@ -32,6 +32,27 @@
 | models and TV menus,<br>where the stock driver draws them flat | in the Zombies menu on a Thor<br>(stock driver: 96) | `driver.txt` picks the driver;<br>no driver, no change | installs next to the<br>original app |
 
 </div>
+
+## 🎬 See it work
+
+<table>
+  <tr>
+    <td width="58%"><img src="images/thor-menu-live.gif" alt="The main menu room on an AYN Thor at 1920x1080: the TV's menu highlight moves from Coming Soon down to Settings and back"></td>
+    <td width="42%"><img src="images/thor-kino-pad.gif" alt="Kino der Toten on an AYN Thor: the view pans as a finger slides on the bottom-screen look pad"></td>
+  </tr>
+  <tr>
+    <td><sub><b>The main menu, live</b> on the Thor at 1920x1080, Turnip v27, about 118 FPS: the TV's menu is drawn into a texture on the TV model, as on PC.</sub></td>
+    <td><sub><b>Kino der Toten</b>, aiming with the bottom-screen look pad.</sub></td>
+  </tr>
+</table>
+
+<sub>Recorded on the device with Android's screen recorder; the FPS counter is cropped out of the gameplay clip because recording slows the GPU.</sub>
+
+## 🆕 New in 0.5-turnip
+
+**📺 The TV menu survives a graphics change.** Changing the refresh rate, sync, anti-aliasing or video mode restarts the video, and until now the TV in the main menu room went blank until you reopened the app. It keeps its menu now.
+
+**🎚️ One place for the frame rate.** Settings > Graphics decides it: SCREEN REFRESH RATE with SYNC EVERY FRAME, or no limit with sync off. Switching SYNC EVERY FRAME takes effect when the video restarts, without restarting the app. The EXTRAS row FRAME RATE LIMIT is gone, and the cap it left in your settings is cleared once.
 
 ## 🆕 New in 0.4-turnip
 
@@ -58,15 +79,10 @@ Snapdragon 8 Gen 2 (Adreno 740), Android 13, Vulkan renderer, the Zombies main m
 
 Uncapped, at 1280x720. Kino der Toten has been played on v27, and v27 also holds a 60 FPS cap at 1920x1080.
 
-<p align="center">
-  <img src="images/thor-turnip-menu.jpg" width="720" alt="The Zombies main menu on Turnip v27: the TV shows Coming Soon, Multiplayer, Zombies, Settings, Quit">
-  <br>
-  <sub>The Zombies main menu on the Thor, Turnip v27: the TV and its menu, as the game draws them on PC.</sub>
-</p>
 
 ## 📦 Download
 
-**[Download the latest release](https://github.com/SevyW/BO1-Ascension-ARM64/releases/latest)**: `bo1-port-turnip-v0.4.apk`, with its SHA-256 in the release notes.
+**[Download the latest release](https://github.com/SevyW/BO1-Ascension-ARM64/releases/latest)**: `bo1-port-turnip-v0.5.apk`, with its SHA-256 in the release notes.
 
 | | |
 | --- | --- |
@@ -113,16 +129,19 @@ Everything that sets the frame rate is on one page: **Settings > Graphics**.
 | **ANTI-ALIASING** | Off is best on a handheld: 4x costs about a third of the frame rate at 1080p (78 instead of 118 FPS on a Thor). |
 | **FPS COUNTER** | The on-screen frame counter. |
 
-Leave **Settings > EXTRAS > FRAME RATE LIMIT** on *no limit*, so it doesn't cap the game below what Graphics says.
-
-> [!NOTE]
-> **Known issue:** after you change a graphics setting, the game restarts its video, and the TV menu in the main menu room goes blank. Close and reopen the app and it's back. The fix is in progress.
+Nothing else caps the frame rate: the old EXTRAS row FRAME RATE LIMIT is gone, and 0.5 clears the cap it left in your settings once. (`com_maxfps` still works from the console, for anyone who wants a cap of their own.)
 
 The settings are saved in `home/players/config.cfg` (Zombies) and `config_mp.cfg` (Multiplayer): `r_displayRefresh`, `r_vsync`, `r_mode`, `r_aaSamples` and `com_maxfps`.
 
 ## 🕹️ Second-screen controls
 
 On a device with a second display (the AYN Thor's bottom screen), the game puts a trackpad there by itself. On a phone with one screen nothing changes.
+
+<p align="center">
+  <img src="images/thor-dual-screen.jpg" width="560" alt="Both AYN Thor screens: the game's main menu room on top, the look pad with HIDE and REMAP on the bottom">
+  <br>
+  <sub>Both screens of the Thor: the game on top, the look pad underneath.</sub>
+</p>
 
 | | |
 | --- | --- |
@@ -133,6 +152,12 @@ On a device with a second display (the AYN Thor's bottom screen), the game puts 
 | 🙈 **HIDE** | shrinks it to a small button so you can use the launcher. Settings > EXTRAS > SECOND-SCREEN CONTROLS turns it off |
 
 The game keeps the controller's focus while you touch the bottom screen. Details and settings: [docs/second-screen.md](docs/second-screen.md).
+
+<p align="center">
+  <img src="images/thor-bottom-screen.jpg" width="900" alt="Three views of the bottom screen: the look pad, the REMAP list of buttons and actions, and the PADS tab with the ten click feels">
+  <br>
+  <sub>On the bottom screen: the look pad, <b>REMAP</b> (every button and its action) and <b>PADS</b> (the ten click feels).</sub>
+</p>
 
 ## ⚙️ How it works
 

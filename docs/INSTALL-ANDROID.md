@@ -114,7 +114,7 @@ time; that settles.
   costs frame rate.
 - **Settings > Graphics > RENDERER (RESTART)**: Vulkan (default, fastest) or OpenGL ES 3 (for devices without
   Vulkan 1.3, which use it by themselves, or when Vulkan shows problems; about a third as fast).
-- **Settings > EXTRAS**: FRAME RATE LIMIT (30 to no limit), FPS COUNTER, bots, mod, PLAYER NAME, JOIN A GAME BY
+- **Settings > EXTRAS**: FPS COUNTER, bots, mod, PLAYER NAME, JOIN A GAME BY
   ADDRESS, SEND LOG.
 - Zombies and Multiplayer keep separate settings files. The graphics settings carry over when the app switches mode.
 

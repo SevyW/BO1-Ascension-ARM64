@@ -6075,6 +6075,20 @@ void CScr_SetUI3DTextureWindow()
     y = Scr_GetFloat(2u, SCRIPTINSTANCE_CLIENT);
     w = Scr_GetFloat(3u, SCRIPTINSTANCE_CLIENT);
     h = Scr_GetFloat(4u, SCRIPTINSTANCE_CLIENT);
+    // mod (native): which texture windows the scripts use (the front end's TV), for the log; changes only, at most 64
+    static float s_lastWindow[6][4];
+    static int s_logged;
+    if ( windowId < 6 && s_logged < 64
+        && (s_lastWindow[windowId][0] != x || s_lastWindow[windowId][1] != y
+            || s_lastWindow[windowId][2] != w || s_lastWindow[windowId][3] != h) )
+    {
+        s_lastWindow[windowId][0] = x;
+        s_lastWindow[windowId][1] = y;
+        s_lastWindow[windowId][2] = w;
+        s_lastWindow[windowId][3] = h;
+        ++s_logged;
+        Com_Printf(8, "ui3d: script sets window %u: %.3f %.3f %.3f %.3f\n", windowId, x, y, w, h);
+    }
     R_UI3D_SetupTextureWindow(windowId, x, y, w, h);
 }
 

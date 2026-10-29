@@ -91,3 +91,6 @@ void __cdecl RB_SetUI3DSamplerAndConstants(GfxCmdBufSourceState *cmdBufSrcState,
 void __cdecl RB_UI3D_RenderToTexture(const void *cmds, const GfxUI3DBackend *rbUI3D, const GfxCmdBufInput *input);
 int __cdecl RB_UI3D_GetValidWindows(const GfxUI3DBackend *rbUI3D, int *validWindowsArray);
 bool __cdecl RB_UI3D_ViewportIsValid(const GfxViewport *vp);
+// mod (native): texture windows given a placement from outside (the full screen's) keep it; the state for the log
+bool R_UI3D_HasOwnPlacement(unsigned int windowIndex);
+void R_UI3D_LogState(const char *when);

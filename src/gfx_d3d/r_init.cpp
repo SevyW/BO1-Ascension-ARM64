@@ -384,6 +384,11 @@ void __cdecl R_SetD3DPresentParameters(_D3DPRESENT_PARAMETERS_ *d3dpp, const Gfx
     d3dpp->EnableAutoDepthStencil = 0;
     d3dpp->AutoDepthStencilFormat = dx.depthStencilFormat;
     d3dpp->PresentationInterval = r_vsync->current.enabled ? 1 : 0x80000000;
+#ifdef BO1_NATIVE
+    // mod (native): device creation and every reset (vid_restart): SYNC EVERY FRAME as the device gets it
+    Com_Printf(8, "native: r_vsync %i: present interval %s\n", r_vsync->current.enabled ? 1 : 0,
+        r_vsync->current.enabled ? "one (every vertical blank)" : "immediate");
+#endif
     if ( !wndParms->hwnd
         && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_init.cpp", 425, 0, "%s", "wndParms->hwnd") )
     {
@@ -1482,6 +1487,19 @@ void __cdecl R_EnumDisplayModes(unsigned int adapterIndex)
             if ( Dvar_GetInt("com_maxfps") == 85 )
                 Dvar_SetIntByName("com_maxfps", 0);
             Dvar_SetInt((dvar_s *)bo1_maxfps_set, 1);
+        }
+        // mod (native): 0.5-turnip: the frame rate is Settings > Graphics' (SCREEN REFRESH RATE with SYNC EVERY FRAME,
+        // or no limit with sync off). Configurations from before hold the cap of the removed EXTRAS row FRAME RATE
+        // LIMIT or of the first start (the display's rate). Once: no cap. com_maxfps set by hand later stays.
+        const dvar_t *bo1_maxfps_free = _Dvar_RegisterInt("bo1_maxfps_free", 0, 0, 1, 1u, "mod: com_maxfps was set to 0 once (the frame rate is the graphics menu's)");
+        if ( !bo1_maxfps_free->current.integer )
+        {
+            if ( Dvar_GetInt("com_maxfps") != 0 )
+            {
+                Com_Printf(8, "native: com_maxfps %i set to 0 once: the graphics menu decides the frame rate\n", Dvar_GetInt("com_maxfps"));
+                Dvar_SetIntByName("com_maxfps", 0);
+            }
+            Dvar_SetInt((dvar_s *)bo1_maxfps_free, 1);
         }
         Com_Printf(8, "native: refresh rate %s of %i choices\n", Dvar_EnumToString(r_displayRefresh), refreshRateCount);
     }

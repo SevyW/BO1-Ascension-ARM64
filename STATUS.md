@@ -4,6 +4,10 @@ Last update: 2026-10-29.
 
 ## Current state
 
+**0.5-turnip (versionCode 5)**, branch `video-restart`: the TV menu keeps its picture after a video restart (a UI3D texture window keeps its own placement through `CL_SetupViewport` and a device reset, `src/client_mp/cl_main_mp.cpp`, `src/gfx_d3d/r_ui3d.cpp`; `ui3d:` log lines), SYNC EVERY FRAME applies through a video restart (a new Vulkan surface when the sync interval changes, `BO1_SYNC` in `tools/native/build-dxvk.sh`), and the frame rate is set only by Settings > Graphics (no EXTRAS FRAME RATE LIMIT row; `com_maxfps` 0 on a first start and once for existing configs, `bo1_maxfps_free`). Built here. First device test (PC session, Thor): the frame-rate part passed; the TV stayed blank and sync off did not apply through `vid_restart`; both changed since, second device test pending.
+
+### 0.4-turnip
+
 **0.4-turnip (versionCode 4)**: 0.3-turnip plus the second-screen controls ([docs/second-screen.md](docs/second-screen.md)), device-tested on the AYN Thor by the PC session. The repository is trimmed to the Android port (branch `cleanup`): the browser version, the Windows build with its Windows-only engine code, the Windows launchers, the developer tools, `mods/` and `data/` are gone (licence files kept); the state before is on the branch `archive/pre-cleanup`. Built from scratch after every removal: 1249/1249 TUs, 0 failed; the 0.4 debug APK is on the branch `v0.4-apk`. Release by the PC session.
 
 ### 0.3-turnip

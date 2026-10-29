@@ -5,8 +5,8 @@
 #   arm64-v8a  -> /bo1/dxvk/build-android-arm64-v8a/src/d3d9/libdxvk_d3d9.so   (the NDK's clang, build-android.sh's SDL2)
 #   x86_64     -> /bo1/dxvk/build-android-x86_64/...                       (for the emulator)
 # DXVK is an ordinary 64-bit library: it is not built with the patched clang and not rewritten (tools/p32).
-# Source: DXVK v2.6.1 (zlib licence), cloned on first use. Two changes for Android: the SDL2 library's name, and
-# the presenter keeps a swap chain that Android calls suboptimal.
+# Source: DXVK v2.6.1 (zlib licence), cloned on first use. Changes for Android: the SDL2 library's name, the presenter
+# keeps a swap chain that Android calls suboptimal, a changed sync interval makes a new surface; the blocks below.
 D=/bo1/dxvk; VER=v2.6.1
 TARGET=${1:-linux}
 NDK=/bo1/ndk/ndk-r30/android-ndk-r30
@@ -122,6 +122,27 @@ s = s.replace("m_acquireStatus = m_vkd->vkAcquireNextImageKHR(", "m_acquireStatu
 a = "VkResult status = m_vkd->vkQueuePresentKHR("
 assert s.count(a) == 1
 s = s.replace(a, "VkResult status = BO1_STATUS m_vkd->vkQueuePresentKHR(")
+open(p, "w").write(s)
+EOF
+
+# SYNC EVERY FRAME through a vid_restart (BO1_SYNC). A device reset carries the new present interval (r_vsync) and
+# DXVK applies it to the swap chain it makes next; on the AYN Thor (Android 13, Turnip) switching sync off that way
+# kept 118 FPS at 120 Hz, while a start with sync off gave 128. A changed sync interval now makes a new surface as well
+# as a new swap chain, as at a start.
+grep -q BO1_SYNC $P || python3 - "$P" <<'EOF' || exit 1
+import sys
+p = sys.argv[1]
+s = open(p).read()
+a = """      if (m_dynamicModes.empty())
+        m_dirtySwapchain = true;
+"""
+assert s.count(a) == 1
+s = s.replace(a, a + """#ifdef __ANDROID__
+      // BO1_SYNC: see tools/native/build-dxvk.sh
+      m_dirtySurface = true;
+      Logger::info(str::format("Presenter: sync interval ", syncInterval, ": new surface and swap chain"));
+#endif
+""")
 open(p, "w").write(s)
 EOF
 
