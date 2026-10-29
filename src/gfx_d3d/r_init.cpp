@@ -384,6 +384,11 @@ void __cdecl R_SetD3DPresentParameters(_D3DPRESENT_PARAMETERS_ *d3dpp, const Gfx
     d3dpp->EnableAutoDepthStencil = 0;
     d3dpp->AutoDepthStencilFormat = dx.depthStencilFormat;
     d3dpp->PresentationInterval = r_vsync->current.enabled ? 1 : 0x80000000;
+#ifdef BO1_NATIVE
+    // mod (native): device creation and every reset (vid_restart): SYNC EVERY FRAME as the device gets it
+    Com_Printf(8, "native: r_vsync %i: present interval %s\n", r_vsync->current.enabled ? 1 : 0,
+        r_vsync->current.enabled ? "one (every vertical blank)" : "immediate");
+#endif
     if ( !wndParms->hwnd
         && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\gfx_d3d\\r_init.cpp", 425, 0, "%s", "wndParms->hwnd") )
     {
