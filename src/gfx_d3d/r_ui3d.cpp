@@ -67,14 +67,51 @@ void __cdecl R_UI3D_SetBlurRadius(float blurRadius)
     g_ui3dStatus.blurRadius = blurRadius;
 }
 
+// mod (native): whether texture window windowIndex holds the placement R_UI3D_SetupTextureWindow gave it (the size of
+// its viewport); if not, it was given one from outside: the full screen's (Com_InitUIAndCommonXAssets, CL_SetupViewport)
+bool R_UI3D_HasOwnPlacement(unsigned int windowIndex)
+{
+    ScreenPlacement own;
+
+    ScrPlace_SetupUI3D(&own, g_ui3d_windows[windowIndex].vp.width, g_ui3d_windows[windowIndex].vp.height);
+    return memcmp(&own, &g_ui3d_windows[windowIndex].scrPlace, sizeof(ScreenPlacement)) == 0;
+}
+
+// mod (native): the render target and the six texture windows, for the log (docs/android-port.md)
+void R_UI3D_LogState(const char *when)
+{
+    int i;
+    const char *placement;
+
+    Com_Printf(8, "ui3d: %s: render target %ix%i (texture %ix%i, ping-pong %ix%i), display size %s, %s\n",
+        when, (int)g_ui3dStatus.width, (int)g_ui3dStatus.height,
+        (int)gfxRenderTargets[R_RENDERTARGET_UI3D].width, (int)gfxRenderTargets[R_RENDERTARGET_UI3D].height,
+        (int)gfxRenderTargets[R_RENDERTARGET_UI3D_PING_PONG].width,
+        (int)gfxRenderTargets[R_RENDERTARGET_UI3D_PING_PONG].height,
+        g_ui3dStatus.useDisplaySize ? "yes" : "no", g_ui3dStatus.initialized ? "initialized" : "not initialized");
+    for (i = 0; i < 6; ++i)
+    {
+        if (R_UI3D_HasOwnPlacement(i))
+            placement = "own";
+        else if (!memcmp(&g_ui3d_windows[i].scrPlace, &scrPlaceFull, sizeof(ScreenPlacement)))
+            placement = "full screen";
+        else
+            placement = "other";
+        Com_Printf(8, "ui3d:   window %i: %.3f %.3f %.3f %.3f, viewport %i %i %ix%i, %s placement %.0fx%.0f, %i draws\n",
+            i, g_ui3d_windows[i].normX, g_ui3d_windows[i].normY, g_ui3d_windows[i].normW, g_ui3d_windows[i].normH,
+            g_ui3d_windows[i].vp.x, g_ui3d_windows[i].vp.y, g_ui3d_windows[i].vp.width, g_ui3d_windows[i].vp.height,
+            placement, g_ui3d_windows[i].scrPlace.realViewportSize[0], g_ui3d_windows[i].scrPlace.realViewportSize[1],
+            g_ui3d_windows[i].numRenderCmds);
+    }
+}
+
+// mod (native): the state is logged the first frame that draws into the texture after an init or a reset
+static bool s_ui3dLogFirstDraw;
+
 void __cdecl R_UI3D_CheckRenderTarget()
 {
     ScreenPlacement *scrPlace; // [esp+10h] [ebp-Ch]
     signed int i; // [esp+18h] [ebp-4h]
-
-    // mod (native): the texture's size before a reset (below)
-    const int oldWidth = g_ui3dStatus.width;
-    const int oldHeight = g_ui3dStatus.height;
 
     if (g_ui3dStatus.useDisplaySize)
     {
@@ -83,23 +120,22 @@ void __cdecl R_UI3D_CheckRenderTarget()
     }
     if (!gfxRenderTargets[R_RENDERTARGET_UI3D].width && g_ui3dStatus.initialized)
     {
-        // mod (native): a device reset (vid_restart, or a change on the graphics menu) recreates the render target
-        // here, and every texture window is set up again. Retail Multiplayer then gives window 0 the full screen's
-        // placement, as Com_InitUIAndCommonXAssets did at the start. This engine is the MP exe running the SP front
-        // end (r_glob.isMultiplayer is always 1): the front end's script puts the TV's menus in window 0 with
-        // ui3dsetwindow, which replaced that placement, and after a reset the full screen's placement came back. The
-        // TV menus were then drawn at the size of the whole screen, outside the TV's part of the texture, and the TV
-        // showed the empty texture until the app restarted. Window 0 gets the full screen's placement again only if
-        // it had it before the reset: it had it if it differs from the texture window's own placement.
-        bool fullscreenWindow0 = false;
-        if (r_glob.isMultiplayer)
+        // mod (native): a device reset (vid_restart with a changed video setting) recreates the render target here,
+        // and every texture window is set up again from its normalized rectangle. Retail Multiplayer then gave
+        // window 0 the full screen's placement, as Com_InitUIAndCommonXAssets does at the start. This engine is the
+        // MP exe running the SP front end (r_glob.isMultiplayer is always 1): the front end's script puts the TV's
+        // menus in texture windows with ui3dsetwindow, which gives them their own placement, and the full screen's
+        // placement drew the TV menus outside the TV's part of the texture. Now each window keeps the kind of
+        // placement it had: its own (recomputed for the new size) or the one it was given (kept; CL_SetupViewport
+        // gives window 0 the new full screen's after a vid_restart).
+        bool ownPlacement[6];
+        ScreenPlacement givenPlacement[6];
+
+        R_UI3D_LogState("device reset, before (the texture is released)");
+        for (i = 0; i < 6; ++i)
         {
-            ScreenPlacement own;
-            ScrPlace_SetupUI3D(
-                &own,
-                (int)(float)((float)oldWidth * g_ui3d_windows[0].normW),
-                (int)(float)((float)oldHeight * g_ui3d_windows[0].normH));
-            fullscreenWindow0 = memcmp(&own, &g_ui3d_windows[0].scrPlace, sizeof(ScreenPlacement)) != 0;
+            ownPlacement[i] = R_UI3D_HasOwnPlacement(i);
+            givenPlacement[i] = g_ui3d_windows[i].scrPlace;
         }
         R_InitUI3DRenderTarget(
             g_ui3dStatus.width,
@@ -107,21 +143,23 @@ void __cdecl R_UI3D_CheckRenderTarget()
             g_ui3dStatus.pmemLocation,
             g_ui3dStatus.hasPingPongBuffer);
         for (i = 0; i < 6; ++i)
+        {
             R_UI3D_SetupTextureWindow(
                 i,
                 g_ui3d_windows[i].normX,
                 g_ui3d_windows[i].normY,
                 g_ui3d_windows[i].normW,
                 g_ui3d_windows[i].normH);
-        if (fullscreenWindow0)   // mod (native): was r_glob.isMultiplayer (above)
+            if (!ownPlacement[i])
+                g_ui3d_windows[i].scrPlace = givenPlacement[i];
+        }
+        if (r_glob.isMultiplayer && !ownPlacement[0])   // mod (native): && !ownPlacement[0] (above)
         {
             scrPlace = R_UI3D_ScrPlaceFromTextureWindow(0);
             ScrPlace_SetupUI3DForFullscreen(scrPlace, &scrPlaceFull);
         }
-        // mod (native): what the reset kept, for the log (docs/android-port.md)
-        Com_Printf(8, "ui3d: render target %ix%i recreated; window 0 %.3f %.3f %.3f %.3f, %s placement\n",
-            (int)g_ui3dStatus.width, (int)g_ui3dStatus.height, g_ui3d_windows[0].normX, g_ui3d_windows[0].normY,
-            g_ui3d_windows[0].normW, g_ui3d_windows[0].normH, fullscreenWindow0 ? "full screen" : "texture window");
+        R_UI3D_LogState("device reset, after");
+        s_ui3dLogFirstDraw = true;
     }
 }
 
@@ -144,6 +182,12 @@ void __cdecl R_UI3D_OnetimeInit(
     {
         __debugbreak();
     }
+    // mod (native): the front end initializes twice: the UI at the display's size (Com_InitUI3DCallback), then the
+    // cgame at 128x128 (Com_InitDynamicRender, retail MP), without a shutdown between (docs/android-port.md)
+    Com_Printf(8, "ui3d: init %ix%i, display size %s, ping-pong %s%s\n", (int)width, (int)height,
+        useDisplaySize ? "yes" : "no", allocatePingPongBuffer ? "yes" : "no",
+        g_ui3dStatus.initialized ? ", over an initialized one" : "");
+    s_ui3dLogFirstDraw = true;
     g_ui3dStatus.width = width;
     g_ui3dStatus.height = height;
     g_ui3dStatus.useDisplaySize = useDisplaySize;
@@ -246,6 +290,12 @@ void __cdecl R_UI3D_SetupBackendData(GfxUI3DBackend *ui3dBackend)
     }
     ui3dBackend->totalRenderCmds = cmdCount;
     ui3dBackend->blurRadius = g_ui3dStatus.blurRadius;
+    // mod (native): see s_ui3dLogFirstDraw
+    if (cmdCount && s_ui3dLogFirstDraw)
+    {
+        s_ui3dLogFirstDraw = false;
+        R_UI3D_LogState("first frame drawn");
+    }
     R_UI3D_SetupBackendData_UVConstants(ui3dBackend);
 }
 

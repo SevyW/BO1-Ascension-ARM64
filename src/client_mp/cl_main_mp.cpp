@@ -3400,8 +3400,16 @@ void __cdecl CL_SetupViewport()
         ScrPlace_SetupViewport(&scrPlaceFull, 0, 0, displayWidth, displayHeight);
         for ( localClientNum = 0; localClientNum < 1; ++localClientNum )
             ScrPlace_SetupViewport(&scrPlaceView[localClientNum], 0, 0, displayWidth, displayHeight);
-        scrPlace = R_UI3D_ScrPlaceFromTextureWindow(0);
-        ScrPlace_SetupUI3DForFullscreen(scrPlace, &scrPlaceFull);
+        // mod (native): retail Multiplayer gives UI3D texture window 0 the full screen's placement here, on every
+        // vid_restart too. The SP front end's script puts the TV's menus in texture windows with ui3dsetwindow (their
+        // own placement, R_UI3D_SetupTextureWindow); with the full screen's, the TV menus were drawn outside the TV's
+        // part of the texture and the TV stayed blank after a vid_restart. A window with its own placement keeps it.
+        if ( !R_UI3D_HasOwnPlacement(0) )
+        {
+            scrPlace = R_UI3D_ScrPlaceFromTextureWindow(0);
+            ScrPlace_SetupUI3DForFullscreen(scrPlace, &scrPlaceFull);
+        }
+        R_UI3D_LogState("viewport set up");
     }
 }
 
