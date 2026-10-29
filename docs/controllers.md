@@ -197,7 +197,7 @@ A platform provides the three functions of `src/client/gpad_backend.h` and calls
 
 `GPadRawState` is `connected`, `buttons` (XInput `XINPUT_GAMEPAD_*` bits, `GPAD_RAW_*` in the header), `lt`, `rt`
 (0-1, no deadzone), `lx`, `ly`, `rx`, `ry` (-1 to 1, Y positive = up, no deadzone). On the web,
-`src/web/web_gamepad.cpp` reads the page-written `bo1_gamepad` array of `docs/web-engine-interface.md` section 4,
+`src/web/web_gamepad.cpp` reads the `bo1_gamepad` array (in the browser build the page wrote it; on Android `src/native/native_gamepad.cpp` fills it),
 which has exactly these fields, and writes `rumble_low` / `rumble_high` from `GPad_Backend_SetRumble` (the values
 persist until the next call). `gpad_core.cpp` and `gpad_rumble.cpp` are in `SRC_CLIENT` (`cmake_files.cmake`) and
 include no Windows header beyond what other `src/client` files already include (`win32/win_shared.h` for

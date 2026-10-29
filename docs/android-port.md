@@ -1,6 +1,6 @@
 # Native builds: Linux (x86, x86-64, AArch64) and Android (arm64-v8a)
 
-The native build is the web build (docs/web-port.md; the browser version itself is not part of this fork) without Emscripten: the same engine sources, the same Win32
+The native build is the web build (the browser version, which stays in the upstream repositories) without Emscripten: the same engine sources, the same Win32
 emulation (`src/web/compat`) and the same D3D9 shim on OpenGL ES 3 (`src/web/d3d9`), with `src/native/` (SDL2: window,
 GL context, controller) in place of the browser glue. `cmake -DBO1_NATIVE=ON`, see `cmake/native.cmake`.
 

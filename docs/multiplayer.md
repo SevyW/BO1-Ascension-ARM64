@@ -20,7 +20,7 @@ transport differs.
   down. A packet is at most 1264 bytes; larger messages are fragmented.
 - **Transport seam.** Everything goes through `Sys_SendPacket` / `Sys_GetPacket`. Natively that is a UDP socket
   (src/win32/win_net.cpp); in the browser it is src/web/web_net.cpp, which hands packets to the page (WebRTC data
-  channels or the lobby relay, docs/web-engine-interface.md). Nothing above that seam knows the difference.
+  channels or the lobby relay of the browser version, not in this fork). Nothing above that seam knows the difference.
 - **Who reads the socket.** While a local server runs, the server's packet loop reads the socket and passes client
   packets on (`Com_ServerPacketEvent`); a client without a local server reads it itself (`Com_ClientPacketEvent`).
   That is why a joining client must not keep its main menu's local server running (see "Changes", 3).
@@ -180,7 +180,7 @@ and four different characters no mod is needed. With duplicates or more than fou
 
 ## Verified and not verified
 
-Verified on macOS with `tools/syntax-check.sh` (clang, MinGW-w64 headers, `-fsyntax-only`): every changed C++ file,
+Verified on macOS with `tools/syntax-check.sh` (an upstream tool, not in this fork; clang, MinGW-w64 headers, `-fsyntax-only`): every changed C++ file,
 no errors. tools/mod-launcher.hta's script with `node --check`. Nothing has been built with MSVC or run. The GSC of
 mods/coop is checked by reading only. Everything else needs Windows testing, in particular: the remote client's
 whole load (anim trees, actors, client scripts), the deferred command-line connect, the snapacknowledged pacing, the

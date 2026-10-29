@@ -173,7 +173,6 @@ bash tools/native/build-apk.sh
 - [docs/second-screen.md](docs/second-screen.md): the trackpad and remapping screen on a dual-screen device's second display
 - [docs/multiplayer.md](docs/multiplayer.md): co-op
 - [CLAUDE.md](CLAUDE.md): how the engine and the repo are organized
-- [docs/web-port.md](docs/web-port.md), [docs/web-engine-interface.md](docs/web-engine-interface.md): the platform layer under `src/web/` that the Android build compiles
 - Windows and browser versions: in the upstream repositories (see [Credits](#-credits)); this fork builds for Android only
 
 ## 🐞 Something not working?

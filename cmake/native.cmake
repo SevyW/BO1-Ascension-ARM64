@@ -24,7 +24,7 @@ set(BO1_NATIVE_OUTPUT_DIR "${CMAKE_BINARY_DIR}/bin" CACHE PATH "Where the bo1 ex
 option(BO1_NATIVE_ANDROID "Build the Android engine library and its loader stub" OFF)
 set(BO1_ANDROID_SDL2 "" CACHE PATH "Android: directory with SDL2 include/ and lib/libSDL2.so")
 
-# ----- Sources (the lists and their reasons are web.cmake's; see docs/web-port.md) -----
+# ----- Sources: the engine's list (cmake_files.cmake) minus what only Windows uses -----
 set(BO1_NATIVE_EXCLUDE
     "/src/win32/"
     "/src/tracy/"

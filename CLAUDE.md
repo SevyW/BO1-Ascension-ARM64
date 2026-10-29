@@ -19,9 +19,8 @@ Workstreams. Each has its own doc; read it before working in that area:
 | Controllers | `docs/controllers.md` | `src/client/gpad_*`, `src/native/native_gamepad.cpp` |
 
 `src/web/` is not about browsers any more: it is the platform layer the Android build compiles (the Win32 emulation
-in `src/web/compat`, the D3D9 shim, input, files, network). The browser version itself (its page, server, hosting
-and Emscripten build) was removed from this fork; `docs/web-port.md` and `docs/web-engine-interface.md` stay for the
-`src/web/` parts they describe.
+in `src/web/compat`, the D3D9 shim, input, files, network). The browser version itself (its page, server, hosting,
+Emscripten build and docs) was removed from this fork; the upstream repositories keep it.
 
 ## Rules that are not negotiable
 
@@ -72,10 +71,7 @@ and Emscripten build) was removed from this fork; `docs/web-port.md` and `docs/w
 | `data/main/` | base-game data the install lacks (`playlists_sp.info`) |
 | `tools/native/` | the Android / Linux build scripts (`build-*.sh`, `android-setup.sh`, `get-ndk.sh`, `docker/Dockerfile`) and Linux test harnesses (`coop-test.sh`, `lan-test.sh`, `fx-test.sh`, `run-arm64.sh`, the emulator scripts), `test-second-screen.sh` |
 | `tools/p32/` | the 32-bit-pointer rewrite (`p32rewrite.cpp`, `p32tree.py`) and the clang 21 patches the build needs |
-| `tools/mapkit/` | node tools for the mapkit mod's layouts (`doctor*.mjs`; `doctor-run.ps1` / `doctor-live.mjs` drove the removed Windows harness) |
-| `tools/syntax-check*` | clang `-fsyntax-only` against the Windows x86 target with MinGW headers (checks that engine edits keep the MSVC build compiling) |
-| `tools/*_flags.js` | the horde / nightmare mods' launch flags in one place (the mods' READMEs and hooks refer to them) |
-| `docs/` | `android-port.md`, `INSTALL-ANDROID.md`, `second-screen.md`, `controllers.md`, `multiplayer.md`, and `web-port.md` / `web-engine-interface.md` for `src/web/` |
+| `docs/` | `android-port.md`, `INSTALL-ANDROID.md`, `second-screen.md`, `controllers.md`, `multiplayer.md` |
 | `CMakeLists.txt`, `cmake_files.cmake`, `cmake/native.cmake` | the build: `cmake_files.cmake` is the single list of every engine source file; `CMakeLists.txt` defines the target (the Windows build) and includes `cmake/native.cmake` with `-DBO1_NATIVE=ON` |
 | `STATUS.md`, `README.md`, `.github/` | release state and device tests; the project page; issue templates |
 
@@ -151,9 +147,8 @@ LAN games on one machine (`coop-test.sh`, `lan-test.sh`), effects and sounds (`f
 cannot run the game here: state exactly what was verified and give the user a device test plan (adb commands and the
 log lines to look for) for everything else.
 
-Compile-check engine edits against the MSVC target: `tools/syntax-check.sh <files>` or `--changed` (clang
-`-fsyntax-only`, Windows x86 target, MinGW-w64 headers). `tools/syntax-check/known-failures.txt` lists the files
-that fail on a clean tree; a file you changed must not gain errors. D3D9 shim unit tests: `src/web/d3d9/test/`.
+Check engine edits with the Android build itself (`build-android.sh` prints the failed TUs and errors by kind and
+file). D3D9 shim unit tests: `src/web/d3d9/test/`.
 
 ## Mods
 
@@ -200,21 +195,19 @@ The tree is too large for one context. Fan out, keep conclusions, and give each 
 - **Implementation**: `general-purpose` agents with **disjoint file ownership** stated in the prompt, plus: "other
   agents edit concurrently: re-read a file right before editing it, keep edits minimal, never revert or reformat code
   you did not write, no git state changes".
-- **Gates every agent must pass before reporting**: the Android build (`build-android.sh`: 0 failed TUs) or at least
-  `tools/syntax-check.sh` for engine C/C++; `tools/native/test-second-screen.sh` for the second screen's Java maths.
+- **Gates every agent must pass before reporting**: the Android build (`build-android.sh`: 0 failed TUs) for engine C/C++; `tools/native/test-second-screen.sh` for the second screen's Java maths.
   Ask for a short final report: files changed, verified vs not, open decisions.
 - **Prompt preamble to reuse**: repo path, "decompiled IDA output; tag added code `// mod (<topic>):`; MSVC build must
   stay identical; cannot run the game on a device here; read <doc> first; own only <paths>".
 
 ## Known stale references
 
-- Removed from this fork (still mentioned in comments and mod docs): the browser version (`web/`, `.railway/`,
-  `cmake/web.cmake`, `CMakePresets.json`), the Windows launchers and harness (`Play.bat`, `setup.ps1`,
-  `tools/headless.ps1`, `tools/coop*.bat` / `coop.ps1`, `tools/mod-launcher.hta`) and `docs/building-windows.md`.
-  Mentioned in: `src/` comments (client_mp, server_mp, game_sp, gfx_d3d, qcommon, win32, web/compat, web/d3d9),
-  `cmake/native.cmake` comments, `mods/coop`, `mods/mapkit/MAPKIT.md`, `mods/nightmare`, `mods/sandbox`,
-  `mods/zinfo` READMEs, `tools/mapkit/doctor*.mjs` / `doctor-run.ps1`, `tools/*_flags.js`, `docs/multiplayer.md`,
-  `docs/web-port.md`, `docs/web-engine-interface.md`. The upstream repositories (README.md, Credits) still have them.
+- Removed from this fork, still mentioned in `src/` comments and in `docs/multiplayer.md`: the browser version
+  (`web/`, `.railway/`, `cmake/web.cmake`, `CMakePresets.json`, `docs/web-port.md`, `docs/web-engine-interface.md`),
+  the Windows launchers and harness (`Play.bat`, `setup.ps1`, `tools/headless.ps1`, `tools/coop*.bat` / `coop.ps1`,
+  `tools/mod-launcher.hta`), `docs/building-windows.md`, and the developer tools `tools/mapkit/`,
+  `tools/syntax-check*`, `tools/*_flags.js`. The upstream repositories (README.md, Credits) still have them; the
+  `archive/pre-cleanup` branch has the state before the cleanup.
 - Never in the repo: `mods/_stack/README.md`, `notes/*.md` (run/lab IDs like `L60`, `mapkit-fix-3c`),
   `tools/{mergecheck.sh, realtest.ps1, stress.ps1, unjam_table.mjs, gen_sp_builtins.py}`, `mods/mapkit_horde`.
   `cm_noperks.cpp` points at `mods/zinfo` for the noperks script (it is `mods/noperks`).
