@@ -61,7 +61,8 @@ final class SecondScreenSettings {
             // becomes the default for files written before it existed
             final String click = o.optString("click", "press");
             clickMethod = "hold".equals(click) ? SecondScreenMath.Click.HOLD
-                : "doubletap".equals(click) ? SecondScreenMath.Click.DOUBLE_TAP : SecondScreenMath.Click.PRESS;
+                : "doubletap".equals(click) ? SecondScreenMath.Click.DOUBLE_TAP
+                : "off".equals(click) ? SecondScreenMath.Click.OFF : SecondScreenMath.Click.PRESS;
             holdMs = (int) clamp(o.optInt("holdMs", holdMs), 150, 800);
             pressDepth = clamp((float) o.optDouble("pressDepth", pressDepth), 3f, 10f);
             haptics = o.optBoolean("haptics", haptics);
@@ -101,7 +102,8 @@ final class SecondScreenSettings {
             o.put("sensitivity", sensitivity);
             o.put("acceleration", acceleration);
             o.put("click", clickMethod == SecondScreenMath.Click.HOLD ? "hold"
-                : clickMethod == SecondScreenMath.Click.DOUBLE_TAP ? "doubletap" : "press");
+                : clickMethod == SecondScreenMath.Click.DOUBLE_TAP ? "doubletap"
+                : clickMethod == SecondScreenMath.Click.OFF ? "off" : "press");
             o.put("holdMs", holdMs);
             o.put("pressDepth", pressDepth);
             o.put("haptics", haptics);

@@ -66,6 +66,10 @@ final class SecondScreenView extends View {
         return controller.settings.clickMethod == SecondScreenMath.Click.PRESS;
     }
 
+    private boolean clickOff() {
+        return controller.settings.clickMethod == SecondScreenMath.Click.OFF;
+    }
+
     @Override
     protected void onSizeChanged(int w, int h, int oldw, int oldh) {
         layout = new SecondScreenMath.Layout(w, h);
@@ -181,7 +185,9 @@ final class SecondScreenView extends View {
         padY = y;
         padAt = now;
         size = s;
-        if (pressMode()) {
+        if (clickOff()) {
+            // the pad only looks
+        } else if (pressMode()) {
             press.down(now, s);
             SecondScreen.log("pad down: size " + s);
         } else if (click.down(now, x, y)) {
@@ -215,7 +221,7 @@ final class SecondScreenView extends View {
             final float gain = SecondScreenMath.lookGain(speed, controller.settings.sensitivity, controller.settings.acceleration);
             controller.look(dx * gain, dy * gain);
         }
-        if (!pressMode()) {
+        if (!pressMode() && !clickOff()) {
             click.move(x, y);
         }
         padX = x;
@@ -225,7 +231,9 @@ final class SecondScreenView extends View {
 
     private void padUp(float x, float y, long now) {
         removeCallbacks(hold);
-        if (pressMode()) {
+        if (clickOff()) {
+            clickUp();
+        } else if (pressMode()) {
             if (press.up(now)) {
                 clickUp();
             }
@@ -298,7 +306,8 @@ final class SecondScreenView extends View {
         canvas.drawRoundRect(box, r, r, line);
         text.setColor(TEXT);
         text.setTextSize(12f * density);
-        canvas.drawText(pressMode() ? "LOOK  ·  PRESS TO FIRE" : "LOOK", b.centerX(), b.bottom - 14f * density, text);
+        canvas.drawText(pressMode() ? "LOOK  ·  PRESS TO FIRE" : clickOff() ? "LOOK  ·  CLICK OFF" : "LOOK", b.centerX(),
+            b.bottom - 14f * density, text);
         text.setTextSize(14f * density);
     }
 

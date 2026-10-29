@@ -162,11 +162,18 @@ final class SecondScreenRemap extends LinearLayout {
                 s.acceleration = v;
             }
         }));
-        list.addView(choice("Pad click", new String[] {"Press (flatten the finger)", "Double tap", "Press and hold"},
-            s.clickMethod == SecondScreenMath.Click.PRESS ? 0 : s.clickMethod == SecondScreenMath.Click.DOUBLE_TAP ? 1 : 2, new Chosen() {
+        final int[] methods = {SecondScreenMath.Click.PRESS, SecondScreenMath.Click.DOUBLE_TAP, SecondScreenMath.Click.HOLD,
+            SecondScreenMath.Click.OFF};
+        int method = 0;
+        for (int i = 0; i < methods.length; ++i) {
+            if (methods[i] == s.clickMethod) {
+                method = i;
+            }
+        }
+        list.addView(choice("Pad click", new String[] {"Press (flatten)", "Double tap", "Hold", "Off (look only)"}, method, new Chosen() {
             @Override
             public void set(int i) {
-                s.clickMethod = i == 0 ? SecondScreenMath.Click.PRESS : i == 1 ? SecondScreenMath.Click.DOUBLE_TAP : SecondScreenMath.Click.HOLD;
+                s.clickMethod = methods[i];
             }
         }));
         list.addView(slider("Press depth (lower = lighter press)", 3, 10, Math.round(s.pressDepth), 1f, "", new Changed() {

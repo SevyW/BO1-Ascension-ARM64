@@ -82,7 +82,7 @@ final class SecondScreenMath {
      * finger held still for holdMs. The click lasts until that finger lifts. (The size press is Press, below.)
      */
     static final class Click {
-        static final int DOUBLE_TAP = 0, HOLD = 1, PRESS = 2;
+        static final int DOUBLE_TAP = 0, HOLD = 1, PRESS = 2, OFF = 3;   // OFF: the pad only looks
         int method = DOUBLE_TAP;
         long holdMs = 350, doubleTapMs = 300;
         float slop = 24f;   // pixels a finger may move and still count as held still / the same tap

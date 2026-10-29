@@ -92,7 +92,7 @@ so the game keeps the controller.
 | --- | --- | --- |
 | look sensitivity (view per finger pixel, as mouse counts) | 1.0 | 0.1-5 |
 | acceleration: extra look for fast swipes, `sensitivity * (1 + accel * min(speed / 1000 px/s, 3))` | 0.5 | 0-2 |
-| pad click (`click`) | press | press, double tap, press and hold |
+| pad click (`click`) | press | press, double tap, press and hold, off (the pad only looks) |
 | press depth (`pressDepth`): how far above the relaxed size a press must rise, in raw size units | 5 | 3-10 |
 | hold time | 350 ms | 150-800 ms |
 | click feel (`haptics`, `clickFeel`): off, or one of ten vibrations on a press (soft tick, light click, crisp click, low tick, soft thud, double tick, click with a tick on release, trigger pull, heavy click, short buzz); on the PADS tab a tap plays it | light click | off, 1-10 |
