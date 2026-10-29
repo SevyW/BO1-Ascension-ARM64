@@ -22,7 +22,7 @@ second screen: controller on display 4 "Screen-2" 1240x1080 rotation 1 290 dpi
 second screen: layout 1240x1080 pad 22,97-1218,1058 HIDE 22,11-295,75 REMAP 945,11-1218,75
 second screen: engine connected
 second screen: default binds for the second screen's keys (zm)
-second screen: bind AUX1 "+gostand"
+second screen: bind AUX6 "+attack"
 ...
 ```
 

@@ -117,7 +117,7 @@ On a device with a second display (the AYN Thor's bottom screen), the game puts 
 | | |
 | --- | --- |
 | 👆 **Look** | slide a finger: the view turns like a mouse, with adjustable sensitivity and acceleration |
-| 🔫 **Fire** | press your thumb flat on the glass. The press is read from the contact size, since the screen has no pressure sensor. Double tap or press-and-hold also work |
+| 🔫 **Fire** | press your thumb flat on the glass. The press is read from the contact size, since the screen has no pressure sensor. Double tap or press-and-hold also work, or turn the click off so the pad only aims |
 | 📳 **Feel** | ten vibrations to choose from for the press, or none |
 | 🎛️ **REMAP** | rebind every button of the built-in pad and the trackpad press. Changes apply at once, with presets per mode and a reset to the console layout |
 | 🙈 **HIDE** | shrinks it to a small button so you can use the launcher. Settings > EXTRAS > SECOND-SCREEN CONTROLS turns it off |
@@ -173,7 +173,8 @@ bash tools/native/build-apk.sh
 - [docs/second-screen.md](docs/second-screen.md): the trackpad and remapping screen on a dual-screen device's second display
 - [docs/multiplayer.md](docs/multiplayer.md): co-op
 - [CLAUDE.md](CLAUDE.md): how the engine and the repo are organized
-- Windows and browser versions: [docs/building-windows.md](docs/building-windows.md), [docs/web-port.md](docs/web-port.md)
+- [docs/web-port.md](docs/web-port.md), [docs/web-engine-interface.md](docs/web-engine-interface.md): the platform layer under `src/web/` that the Android build compiles
+- Windows and browser versions: in the upstream repositories (see [Credits](#-credits)); this fork builds for Android only
 
 ## 🐞 Something not working?
 
