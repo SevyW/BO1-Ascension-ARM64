@@ -234,6 +234,13 @@ default 0) records that a configuration's earlier cap (the removed FRAME RATE LI
 earlier versions set on a first start) was set to 0 once: `native: com_maxfps 120 set to 0 once: the graphics menu
 decides the frame rate`. Set by hand in the console, `com_maxfps` still caps.
 
+A `vid_restart` applies a changed `r_vsync`: the device reset carries the present interval, logged at device creation
+and at every reset as `native: r_vsync 0: present interval immediate` (or `r_vsync 1: present interval one (every
+vertical blank)`). Through a reset DXVK changed only its swap chain, and on the Thor sync off kept 118 FPS; since
+0.5-turnip a changed interval makes a new Vulkan surface and swap chain, as at a start (`BO1_SYNC` in
+`tools/native/build-dxvk.sh`). DXVK logs `Presenter: sync interval 0: new surface and swap chain`, then the swap
+chain's `Present mode:`.
+
 ### New pipelines on Vulkan
 
 `bo1_vk_async` (archived, default 1, 0 to 2, read at start; Extras: NEW SHADERS). The Adreno driver has no graphics
@@ -399,11 +406,24 @@ view. Not done: checked against retail's limits; several front end script builti
 (`game_sp/g_scr_sp_notported.cpp`; `+set logfile 2` prints `<name>: not ported` when one is called, none seen).
 
 After a video restart (`vid_restart`, or a change on the graphics menu: refresh rate, sync, anti-aliasing, video
-mode) the TV kept its menus only until 0.4-turnip: the reset gave texture window 0, where the front end's script puts
-the TV's menus (`ui3dsetwindow`), the whole screen's placement again (retail Multiplayer's step in
-`R_UI3D_CheckRenderTarget`; this engine always counts as Multiplayer), so the menus were drawn outside the TV's part
-of the texture. Since 0.5-turnip window 0 keeps the placement it had. Log line of each reset:
-`ui3d: render target 1920x1080 recreated; window 0 <x> <y> <w> <h>, texture window placement`.
+mode) the TV kept its menus only until 0.4-turnip. The front end's script puts the TV's menus in UI3D texture windows
+(`ui3dsetwindow`), each with its own placement (the size of its part of the texture). Two retail Multiplayer steps
+gave texture window 0 the whole screen's placement again, so the menus were drawn outside the TV's part of the
+texture: `CL_SetupViewport` (`client_mp/cl_main_mp.cpp`), which `vid_restart` always calls, and the device reset in
+`R_UI3D_CheckRenderTarget` (`gfx_d3d/r_ui3d.cpp`; this engine always counts as Multiplayer). Since 0.5-turnip both
+keep a window's own placement and give the whole screen's only to a window that had a placement from outside.
+
+The front end initializes UI3D twice with no shutdown between: the UI at the display's size
+(`Com_InitUI3DCallback`), then the cgame at 128x128 (`Com_InitDynamicRender`, retail MP). The second sets the size a
+reset recreates the render target at; it is left as it is. Log lines (`bo1.log`):
+
+- `ui3d: init 128x128, display size no, ping-pong no, over an initialized one` at each init;
+- `ui3d: script sets window <n>: <x> <y> <w> <h>` when a script changes a window (the first 64 changes);
+- the state, a line for the render target and one per window, at the first frame drawn into the texture after an
+  init or a reset, after `CL_SetupViewport`, and before and after a reset:
+  `ui3d: first frame drawn: render target 128x128 (texture 128x128, ping-pong 1920x1080), display size no,
+  initialized`, then `ui3d:   window 0: 0.000 0.000 1.000 0.500, viewport 0 0 128x64, own placement 128x64, 3 draws`
+  (placement `own`, `full screen` or `other`; draws: the menus drawn into that window in the frame).
 
 ### Play screen
 

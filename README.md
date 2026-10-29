@@ -37,7 +37,7 @@
 
 **📺 The TV menu survives a graphics change.** Changing the refresh rate, sync, anti-aliasing or video mode restarts the video, and until now the TV in the main menu room went blank until you reopened the app. It keeps its menu now.
 
-**🎚️ One place for the frame rate.** Settings > Graphics decides it: SCREEN REFRESH RATE with SYNC EVERY FRAME, or no limit with sync off. The EXTRAS row FRAME RATE LIMIT is gone, and the cap it left in your settings is cleared once.
+**🎚️ One place for the frame rate.** Settings > Graphics decides it: SCREEN REFRESH RATE with SYNC EVERY FRAME, or no limit with sync off. Switching SYNC EVERY FRAME takes effect when the video restarts, without restarting the app. The EXTRAS row FRAME RATE LIMIT is gone, and the cap it left in your settings is cleared once.
 
 ## 🆕 New in 0.4-turnip
 

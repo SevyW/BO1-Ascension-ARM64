@@ -4,7 +4,7 @@ Last update: 2026-10-29.
 
 ## Current state
 
-**0.5-turnip (versionCode 5)**, branch `video-restart`: the TV menu keeps its picture after a video restart (texture window 0's placement is kept through a device reset, `src/gfx_d3d/r_ui3d.cpp`), and the frame rate is set only by Settings > Graphics (no EXTRAS FRAME RATE LIMIT row; `com_maxfps` 0 on a first start and once for existing configs, `bo1_maxfps_free`). Built here; device test by the PC session.
+**0.5-turnip (versionCode 5)**, branch `video-restart`: the TV menu keeps its picture after a video restart (a UI3D texture window keeps its own placement through `CL_SetupViewport` and a device reset, `src/client_mp/cl_main_mp.cpp`, `src/gfx_d3d/r_ui3d.cpp`; `ui3d:` log lines), SYNC EVERY FRAME applies through a video restart (a new Vulkan surface when the sync interval changes, `BO1_SYNC` in `tools/native/build-dxvk.sh`), and the frame rate is set only by Settings > Graphics (no EXTRAS FRAME RATE LIMIT row; `com_maxfps` 0 on a first start and once for existing configs, `bo1_maxfps_free`). Built here. First device test (PC session, Thor): the frame-rate part passed; the TV stayed blank and sync off did not apply through `vid_restart`; both changed since, second device test pending.
 
 ### 0.4-turnip
 
