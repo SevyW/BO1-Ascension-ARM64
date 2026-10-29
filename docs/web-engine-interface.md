@@ -1,5 +1,10 @@
 # Web engine interface (the contract between the wasm engine and the page)
 
+> **This fork is an Android port.** The browser version (its page, server, hosting and the Emscripten build) was
+> removed from this repository; the upstream repositories keep it (README.md, Credits). This document stays because
+> the code it describes under `src/web/` (the Win32 emulation, the D3D9 shim, the input and gamepad bridge) is what
+> the Android build compiles. Its browser-only parts describe code that is no longer here.
+
 The browser build of the engine (`src/web/`, built by `cmake --preset web`) runs inside the page served by
 `web/` (Bun server + TypeScript client). This file is the contract between the two halves. Both sides
 implement exactly this; change it here first, then on both sides.

@@ -1,5 +1,10 @@
 # Engine to WebAssembly (web port)
 
+> **This fork is an Android port.** The browser version (its page, server, hosting and the Emscripten build) was
+> removed from this repository; the upstream repositories keep it (README.md, Credits). This document stays because
+> the code it describes under `src/web/` (the Win32 emulation, the D3D9 shim, the input and gamepad bridge) is what
+> the Android build compiles. Its browser-only parts describe code that is no longer here.
+
 The browser build of the engine: Emscripten, WebAssembly (wasm32), pthreads, WebGL2 through the D3D9 shim, the Origin
 Private File System for the player's game files. The contract with the page (`web/`) is
 [`docs/web-engine-interface.md`](web-engine-interface.md); this document is the engine side: how it is built, how it

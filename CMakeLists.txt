@@ -12,11 +12,11 @@ set(DW_DIR  "${CMAKE_CURRENT_SOURCE_DIR}/DemonWare")
 
 include(cmake_files.cmake)
 
-# Browser build (cmake --preset web, Emscripten toolchain): cmake/web.cmake configures the same target from the lists
-# above, minus the Windows-only folders, plus src/web/. Everything below this block is the Windows (MSVC) build.
+# The browser (Emscripten) build and its page were removed from this fork; it is an Android port. The upstream
+# repositories keep them (README.md, Credits). Everything below the native block is the Windows (MSVC) build, whose
+# source list the native build starts from.
 if (EMSCRIPTEN)
-    include(cmake/web.cmake)
-    return()
+    message(FATAL_ERROR "The browser build is not part of this fork (see the upstream repositories).")
 endif()
 
 # Native Linux / Android build (-DBO1_NATIVE=ON): cmake/native.cmake, the web build's sources without Emscripten.
