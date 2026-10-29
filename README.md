@@ -13,7 +13,7 @@
 ![Renderer](https://img.shields.io/badge/renderer-Vulkan%20(DXVK%202.6.1)-a41e22?logo=vulkan&logoColor=white)
 ![Language](https://img.shields.io/badge/code-C%20%7C%20C%2B%2B-00599c?logo=cplusplus&logoColor=white)
 ![Built with](https://img.shields.io/badge/vibe--coded%20with-Claude-d97757?logo=anthropic&logoColor=white)
-![Version](https://img.shields.io/badge/version-0.4--turnip-6e5494)
+![Version](https://img.shields.io/badge/version-0.5--turnip-6e5494)
 ![Downloads](https://img.shields.io/github/downloads/SevyW/BO1-Ascension-ARM64/total)
 ![Status](https://img.shields.io/badge/status-device--tested%20(AYN%20Thor)-3fa35b)
 
@@ -32,6 +32,12 @@
 | models and TV menus,<br>where the stock driver draws them flat | in the Zombies menu on a Thor<br>(stock driver: 96) | `driver.txt` picks the driver;<br>no driver, no change | installs next to the<br>original app |
 
 </div>
+
+## 🆕 New in 0.5-turnip
+
+**📺 The TV menu survives a graphics change.** Changing the refresh rate, sync, anti-aliasing or video mode restarts the video, and until now the TV in the main menu room went blank until you reopened the app. It keeps its menu now.
+
+**🎚️ One place for the frame rate.** Settings > Graphics decides it: SCREEN REFRESH RATE with SYNC EVERY FRAME, or no limit with sync off. The EXTRAS row FRAME RATE LIMIT is gone, and the cap it left in your settings is cleared once.
 
 ## 🆕 New in 0.4-turnip
 
@@ -113,10 +119,7 @@ Everything that sets the frame rate is on one page: **Settings > Graphics**.
 | **ANTI-ALIASING** | Off is best on a handheld: 4x costs about a third of the frame rate at 1080p (78 instead of 118 FPS on a Thor). |
 | **FPS COUNTER** | The on-screen frame counter. |
 
-Leave **Settings > EXTRAS > FRAME RATE LIMIT** on *no limit*, so it doesn't cap the game below what Graphics says.
-
-> [!NOTE]
-> **Known issue:** after you change a graphics setting, the game restarts its video, and the TV menu in the main menu room goes blank. Close and reopen the app and it's back. The fix is in progress.
+Nothing else caps the frame rate: the old EXTRAS row FRAME RATE LIMIT is gone, and 0.5 clears the cap it left in your settings once. (`com_maxfps` still works from the console, for anyone who wants a cap of their own.)
 
 The settings are saved in `home/players/config.cfg` (Zombies) and `config_mp.cfg` (Multiplayer): `r_displayRefresh`, `r_vsync`, `r_mode`, `r_aaSamples` and `com_maxfps`.
 

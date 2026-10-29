@@ -4,6 +4,10 @@ Last update: 2026-10-29.
 
 ## Current state
 
+**0.5-turnip (versionCode 5)**, branch `video-restart`: the TV menu keeps its picture after a video restart (texture window 0's placement is kept through a device reset, `src/gfx_d3d/r_ui3d.cpp`), and the frame rate is set only by Settings > Graphics (no EXTRAS FRAME RATE LIMIT row; `com_maxfps` 0 on a first start and once for existing configs, `bo1_maxfps_free`). Built here; device test by the PC session.
+
+### 0.4-turnip
+
 **0.4-turnip (versionCode 4)**: 0.3-turnip plus the second-screen controls ([docs/second-screen.md](docs/second-screen.md)), device-tested on the AYN Thor by the PC session. The repository is trimmed to the Android port (branch `cleanup`): the browser version, the Windows build with its Windows-only engine code, the Windows launchers, the developer tools, `mods/` and `data/` are gone (licence files kept); the state before is on the branch `archive/pre-cleanup`. Built from scratch after every removal: 1249/1249 TUs, 0 failed; the 0.4 debug APK is on the branch `v0.4-apk`. Release by the PC session.
 
 ### 0.3-turnip

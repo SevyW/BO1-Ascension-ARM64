@@ -225,9 +225,14 @@ elsewhere the list is `60 Hz`). The default is the highest. The chosen rate is a
 default 0) records that a configuration written before the setting existed was moved from `60 Hz` to the highest
 rate once.
 
-With `r_vsync 1` the frame rate is the refresh rate. With `r_vsync 0` and `com_maxfps 0` the renderer draws as fast
-as it can (measured on the Odin 3: about 180 to 230 FPS in Kino der Toten at 1920x1080, GPU at 99 %); the display
-still shows 120.
+The graphics menu alone decides the frame rate. With `r_vsync 1` (SYNC EVERY FRAME: YES, the default) the frame rate
+is the refresh rate (measured on the Thor: 118 FPS at 120 Hz). With `r_vsync 0` the renderer draws as fast as it can
+(measured on the Odin 3: about 180 to 230 FPS in Kino der Toten at 1920x1080, GPU at 99 %; on the Thor 128 FPS in the
+menu room at 1080p, Turnip v27); the display still shows 120. `com_maxfps` stays 0: a first start sets it to 0
+(the engine's default is 85), Settings > EXTRAS has no row for it since 0.5-turnip, and `bo1_maxfps_free` (archived,
+default 0) records that a configuration's earlier cap (the removed FRAME RATE LIMIT row, or the display's rate that
+earlier versions set on a first start) was set to 0 once: `native: com_maxfps 120 set to 0 once: the graphics menu
+decides the frame rate`. Set by hand in the console, `com_maxfps` still caps.
 
 ### New pipelines on Vulkan
 
@@ -316,7 +321,7 @@ All applied at run time to the menus of the player's fastfiles (`ui/ui_main.cpp`
   retail switches to the multiplayer executable. Zombies > Online opens the join-by-address screen.
 * Settings > Graphics: `RENDERER (RESTART)` (was Full Screen), `FPS COUNTER` (was Shader Warming).
 * Settings: Voice Chat reads EXTRAS and opens `client_mp/cl_extras.cpp` (also command `extras`): the Play screen,
-  touch settings, hold to fire, layout editing, `com_maxfps` (30 / 45 / 60 / 90 / 120 / 144 / no limit), FPS
+  touch settings, hold to fire, layout editing, the second screen, FPS
   counter, renderer, bots, mod, player name (Android: on-screen keyboard), join by address, send log.
 * A tap on a menu with a pointer moves the pointer first and clicks two frames later (one tap per entry).
 
@@ -393,6 +398,13 @@ gated on `zombiemode`, which the front end runs without; native builds apply the
 view. Not done: checked against retail's limits; several front end script builtins are not ported
 (`game_sp/g_scr_sp_notported.cpp`; `+set logfile 2` prints `<name>: not ported` when one is called, none seen).
 
+After a video restart (`vid_restart`, or a change on the graphics menu: refresh rate, sync, anti-aliasing, video
+mode) the TV kept its menus only until 0.4-turnip: the reset gave texture window 0, where the front end's script puts
+the TV's menus (`ui3dsetwindow`), the whole screen's placement again (retail Multiplayer's step in
+`R_UI3D_CheckRenderTarget`; this engine always counts as Multiplayer), so the menus were drawn outside the TV's part
+of the texture. Since 0.5-turnip window 0 keeps the placement it had. Log line of each reset:
+`ui3d: render target 1920x1080 recreated; window 0 <x> <y> <w> <h>, texture window placement`.
+
 ### Play screen
 
 `client_mp/cl_play.cpp`, command `play`. Rows: MODE, GAME TYPE, MAP, START.
@@ -460,7 +472,8 @@ What that run showed and what was changed for it:
   panel is portrait by nature). DXVK made a new swap chain per frame (402 in one log) until the driver crashed.
   `build-dxvk.sh` patches the presenter to treat it as success on Android.
 * Refresh rate: the activity asks for the display's fastest mode (`preferredDisplayModeId`) and passes
-  `--refresh=<Hz>` to the loader, which uses it as `com_maxfps` on a first start (the engine's default is 85).
+  `--refresh=<Hz>` to the loader, which used it as `com_maxfps` on a first start (the engine's default is 85). Since
+  0.5-turnip a first start sets `com_maxfps 0` and the graphics menu decides (see "Refresh rate").
 * Stutter: the driver has no `VK_EXT_graphics_pipeline_library` (`DXVK: Graphics pipeline libraries not supported`),
   so DXVK compiled each new pipeline inside the draw that first needed it. `build-dxvk.sh` patches DXVK to compile
   such pipelines on its worker threads and leave the draws out until they are ready. `BO1_DXVK_ASYNC=0` in the
