@@ -110,10 +110,13 @@ Everything that sets the frame rate is on one page: **Settings > Graphics**.
 | **SYNC EVERY FRAME: YES** | The frame rate follows the refresh rate: 120 Hz gives 120 FPS, 60 Hz gives 60 FPS (saves battery). |
 | **SYNC EVERY FRAME: NO** | No cap: the game runs as fast as it can. |
 | **VIDEO MODE** | Render resolution. The port starts at 720p; 1920x1080 holds about 120 FPS on a Thor with Turnip v27. |
-| **ANTI-ALIASING: OFF** | Keep it off for now: with anti-aliasing on, the TV menu in the main menu room comes out blank, and it costs a lot of frame rate (8x: about 80 FPS instead of 128 at 1080p). |
+| **ANTI-ALIASING** | Off is best on a handheld: 4x costs about a third of the frame rate at 1080p (78 instead of 118 FPS on a Thor). |
 | **FPS COUNTER** | The on-screen frame counter. |
 
 Leave **Settings > EXTRAS > FRAME RATE LIMIT** on *no limit*, so it doesn't cap the game below what Graphics says.
+
+> [!NOTE]
+> **Known issue:** after you change a graphics setting, the game restarts its video, and the TV menu in the main menu room goes blank. Close and reopen the app and it's back. The fix is in progress.
 
 The settings are saved in `home/players/config.cfg` (Zombies) and `config_mp.cfg` (Multiplayer): `r_displayRefresh`, `r_vsync`, `r_mode`, `r_aaSamples` and `com_maxfps`.
 
