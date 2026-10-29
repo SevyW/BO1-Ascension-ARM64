@@ -135,11 +135,11 @@ void Register()
 {
     if (s_registered || s_registerTries >= 3)
         return;
-    ++s_registerTries;
     JNIEnv *env = (JNIEnv *)SDL_AndroidGetJNIEnv();
     jobject activity = (jobject)SDL_AndroidGetActivity();
     if (!env || !activity)
-        return;
+        return;   // not yet: the next frame tries again
+    ++s_registerTries;
     static const JNINativeMethod kMethods[] = {
         {"ssLook", "(FF)V", (void *)Look},
         {"ssStick", "(FF)V", (void *)Stick},
@@ -162,7 +162,7 @@ void Register()
     }
     else
     {
-        printf("second screen: RegisterNatives failed (%d)\n", (int)result);
+        printf("second screen: RegisterNatives failed (%d); the second screen's pads do nothing\n", (int)result);
         s_registerTries = 3;
     }
 }

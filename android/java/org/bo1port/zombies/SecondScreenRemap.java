@@ -30,6 +30,9 @@ final class SecondScreenRemap extends LinearLayout {
     private final Map<String, String> binds = new LinkedHashMap<String, String>();
     private String tab = "buttons";
     private SecondScreenBindings.Input picking;   // the input whose action is being chosen (null: none)
+    private ScrollView shown;                     // the list on screen, and which one it is
+    private String shownKey;
+    private final Map<String, Integer> scrollOf = new LinkedHashMap<String, Integer>();   // where each list was left
 
     SecondScreenRemap(Context context, SecondScreen controller) {
         super(context);
@@ -63,8 +66,13 @@ final class SecondScreenRemap extends LinearLayout {
     }
 
     void show() {
+        if (shown != null) {
+            scrollOf.put(shownKey, shown.getScrollY());
+        }
+        shownKey = picking != null ? "pick" : tab;
         content.removeAllViews();
-        ScrollView scroll = new ScrollView(getContext());
+        final ScrollView scroll = new ScrollView(getContext());
+        shown = scroll;
         LinearLayout list = new LinearLayout(getContext());
         list.setOrientation(VERTICAL);
         int pad = dp(8);
@@ -79,6 +87,15 @@ final class SecondScreenRemap extends LinearLayout {
             showPresets(list);
         } else {
             showButtons(list);
+        }
+        final Integer y = picking != null ? null : scrollOf.get(shownKey);
+        if (y != null) {
+            scroll.post(new Runnable() {
+                @Override
+                public void run() {
+                    scroll.scrollTo(0, y);
+                }
+            });
         }
     }
 

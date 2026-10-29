@@ -332,7 +332,9 @@ final class SecondScreen implements DisplayManager.DisplayListener {
 
     private void dismiss() {
         if (pads != null) {
-            pads.view.releaseAll();
+            if (pads.view != null) {
+                pads.view.releaseAll();
+            }
             try {
                 pads.dismiss();
             } catch (Throwable ignored) {
