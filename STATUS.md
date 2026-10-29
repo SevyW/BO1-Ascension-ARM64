@@ -1,40 +1,38 @@
 # STATUS: Turnip (custom Vulkan driver) build of the BO1 Android port
 
-Branch `turnip`. Written by the cloud session at every milestone. Last update: 2026-10-28, end of Phase 2.
+Last update: 2026-10-29.
 
-## Current phase
+## Current state
 
-**Phase 1 and Phase 2 are done. The APK is built, not yet tested on a device.** Next is the device test (below).
+**Released and device-tested.** [`v0.3-turnip`](https://github.com/SevyW/BO1-Ascension-ARM64/releases/tag/v0.3-turnip) is the code in this file's "What changed" section, built by a cloud session and tested on an AYN Thor.
 
 | | |
 | --- | --- |
-| APK | branch [`turnip-apk`](https://github.com/SevyW/BO1-Ascension-ARM64/tree/turnip-apk): `bo1-zombies-turnip-debug.apk`, 10,049,561 bytes |
-| SHA-256 | `38e9ba22604bff5f9e5ee9e6e6cd10f58819b7bd1ec5ef9ef7d7c50d8bc70db6` |
-| package | `org.bo1port.zombies.turnip`, versionName 0.3-turnip, debug signature (installs next to the official app) |
-| built from | `turnip` f89909f |
-| test instructions | `RELEASE_NOTES.md` on branch `turnip-apk` |
+| APK | `bo1-port-turnip-v0.3.apk`, on the release page |
+| package | `org.bo1port.zombies.turnip`, label "BO1 Port Turnip", versionName 0.3-turnip |
+| signing | permanent release key; certificate SHA-256 `6f503475137b46b5146ec057140e72ed1d7b6afc3665de253e088c7fc9ab60a3`. Builds from `build-apk.sh` are debug-signed; release APKs are re-signed with that key, so updates install over the top |
+| built from | `f89909f` |
 
-## Needs the local session
+### Device test (AYN Thor, Snapdragon 8 Gen 2 / Adreno 740, Android 13, 2026-10-29)
 
-The cloud session couldn't do these on GitHub. Each was refused by its proxy with HTTP 403:
+Vulkan renderer, the Zombies main menu, 1280x720, uncapped:
 
-1. **Release `turnip-v0.1`**: "Creating, editing, or deleting releases is not permitted for this session type". Tag pushes
-   were refused as well. Create it from the PC:
-   ```
-   git clone --depth 1 -b turnip-apk https://github.com/SevyW/BO1-Ascension-ARM64 turnip-apk && cd turnip-apk
-   sha256sum -c SHA256SUMS
-   gh release create turnip-v0.1 --repo SevyW/BO1-Ascension-ARM64 --target turnip --prerelease \
-     --title "turnip-v0.1: custom Vulkan driver (Turnip) test build" --notes-file RELEASE_NOTES.md bo1-zombies-turnip-debug.apk
-   ```
-2. **Issues are disabled on the fork** (GitHub's default for forks), and "Repository settings writes are not permitted
-   through this proxy". So no `[needs-local]` issue could be opened, and this file carries the request instead. To use
-   issues next time: Settings → General → Features → Issues.
-3. **Device test** (the actual question). Follow `RELEASE_NOTES.md` (install; copy `files/game/`; baseline without
-   `driver.txt`; then a Turnip package in `files/driver/<name>/` plus `driver.txt`). Report:
-   - the `vulkan driver: ...` line of `/sdcard/Android/data/org.bo1port.zombies.turnip/files/bo1.log`, and DXVK's
-     `Vulkan:`/device lines;
-   - errors in `bo1.log` and `adb logcat -d | grep -iE "adrenotools|turnip|vulkan"`;
-   - models/TV text rendering and FPS, with the system driver and with each Turnip build tried (MrPurple, StevenMXZ).
+| driver | `vulkan driver:` line | picture | FPS |
+| --- | --- | --- | ---: |
+| system (Qualcomm 0.676.53) | `system (no driver.txt)` | models flat grey, TV menu text missing | 96 |
+| MrPurple T30 (Mesa 26.3.0) | `custom "t30" from driver/t30/vulkan.purple.so` | correct | 104 |
+| MrPurple T28 (Mesa 26.2.0) | `custom "t28" from driver/t28/vulkan.purple.so` | correct | 86 |
+| StevenMXZ v27.0.0-R1 (Mesa 27.0.0) | `custom "v27" from driver/v27/libvulkan_freedreno.so` | correct | 119 |
+
+- No adrenotools errors in logcat.
+- Kino der Toten was played on v27.
+- 1920x1080 with `com_maxfps 60` holds 60 FPS on v27.
+- Multiplayer hasn't been tried on Turnip yet.
+
+### Next
+
+- Second-screen controls: Steam Deck-style trackpads and grip buttons on a dual-screen device's second display, and a remapping screen. Branch `second-screen`.
+- Picking the driver in the app instead of with `driver.txt`.
 
 ## What changed (diff to upstream 3401a66: 8 files, +331 −8)
 

@@ -1,0 +1,60 @@
+name: Something went wrong
+description: A crash, a wrong picture, or a driver that won't load
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting this! The log is the most useful part: it says which Vulkan driver the game picked and what went wrong.
+
+        **Getting the log:** it's `Android/data/org.bo1port.zombies.turnip/files/bo1.log`. With adb: `adb pull /sdcard/Android/data/org.bo1port.zombies.turnip/files/bo1.log`. You can drag the file straight into the box below.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you see, and what did you expect instead? A screenshot helps a lot.
+      placeholder: "The guns are drawn in one flat colour in Kino der Toten."
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Device and Android version
+      placeholder: "AYN Thor, Snapdragon 8 Gen 2 (Adreno 740), Android 13"
+    validations:
+      required: true
+  - type: input
+    id: driver
+    attributes:
+      label: Vulkan driver
+      description: The driver package you used (name and version), or "system".
+      placeholder: "StevenMXZ Turnip v27.0.0-R1"
+    validations:
+      required: true
+  - type: input
+    id: driverline
+    attributes:
+      label: The `vulkan driver:` line from bo1.log
+      placeholder: 'vulkan driver: custom "v27" from driver/v27/libvulkan_freedreno.so ...'
+  - type: dropdown
+    id: renderer
+    attributes:
+      label: Renderer
+      options:
+        - Vulkan
+        - OpenGL ES
+        - Not sure
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Where
+      options:
+        - Zombies
+        - Multiplayer
+        - Menus
+  - type: textarea
+    id: log
+    attributes:
+      label: bo1.log
+      description: Attach the file, or paste the lines around the problem.
+      render: text

@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: The original Android port (Zephelinn)
+    url: https://github.com/Zephelinn/BO1-Ascension-ARM64
+    about: Problems that also happen in the original app, without Turnip, belong there.

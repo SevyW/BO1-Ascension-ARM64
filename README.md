@@ -1,140 +1,183 @@
-# BO1 Decompiled Android
+<div align="center">
 
-*Call of Duty: Black Ops* (2010) running natively on Android: **Zombies and Multiplayer** on arm64 phones and
-handhelds, built from the decompiled PC engine. Vulkan renderer (DXVK), controller and touch controls, the original
-menus, offline Combat Training and Private Match, co-op over the local network or by address. 150 to 250 FPS at
-1080p on a Snapdragon 8 Elite.
+<img src="images/thor-stock-vs-turnip.jpg" width="900" alt="The Zombies main menu on an AYN Thor: on the left the stock Qualcomm driver draws the TVs as flat grey shapes with no menu, on the right Turnip v27 draws them correctly at 119 FPS">
 
-**[Download the APK (latest release)](https://github.com/Zephelinn/bo1-decompiled-android/releases/latest)** ·
-**[Install guide](docs/INSTALL-ANDROID.md)** · [Requirements](#devices-and-requirements) · [Benchmarks](#benchmarks)
+# BO1 Port · Turnip
 
-**You need your own copy of *Call of Duty: Black Ops* (PC, Steam).** No game files are in this repository or in the
-app: you copy your Steam install to the device once. Not affiliated with Activision, Microsoft or Xbox
-([NOTICE.md](NOTICE.md)).
+**Created by [Sevy](https://github.com/SevyW)**
 
-Screenshots from this build on an AYN Odin 3 (1920x1080, Vulkan):
+*Call of Duty: Black Ops* (2010) Zombies running natively on Android, on **your choice of Vulkan driver**. This is a fork of [Zephelinn's Android port](https://github.com/Zephelinn/BO1-Ascension-ARM64) that can load **Mesa Turnip** through libadrenotools, the way Eden, ARMSX2 and Vita3K do. On Adreno 7xx devices with an older Qualcomm driver, it turns a broken picture into a correct one, and it's faster too.
+
+![Platform](https://img.shields.io/badge/platform-Android%20arm64-3ddc84?logo=android&logoColor=white)
+![GPU](https://img.shields.io/badge/GPU-Adreno%20%2B%20Turnip-c2292f)
+![Renderer](https://img.shields.io/badge/renderer-Vulkan%20(DXVK%202.6.1)-a41e22?logo=vulkan&logoColor=white)
+![Language](https://img.shields.io/badge/code-C%20%7C%20C%2B%2B-00599c?logo=cplusplus&logoColor=white)
+![Built with](https://img.shields.io/badge/vibe--coded%20with-Claude-d97757?logo=anthropic&logoColor=white)
+![Version](https://img.shields.io/badge/version-0.3--turnip-6e5494)
+![Downloads](https://img.shields.io/github/downloads/SevyW/BO1-Ascension-ARM64/total)
+![Status](https://img.shields.io/badge/status-device--tested%20(AYN%20Thor)-3fa35b)
+
+</div>
+
+> [!NOTE]
+> **Created by [Sevy](https://github.com/SevyW), vibe-coded with Claude.**
+> The Turnip support in this fork was written by [Claude](https://claude.ai) (Anthropic's AI) through Claude Code, in a back-and-forth with me. I set the goals and made the decisions; Claude wrote, built and debugged the code, and tested it on my AYN Thor over adb.
+>
+> The game engine itself is the work of the projects this one is forked from (see [Credits](#-credits)). **You need your own copy of *Call of Duty: Black Ops* for PC (Steam).** No game files are in this repository or in the app.
+
+<div align="center">
+
+| 🎨 **Correct** | ⚡ **119 FPS** | 🔌 **1 file** | 📦 **Side by side** |
+|:---:|:---:|:---:|:---:|
+| models and TV menus,<br>where the stock driver draws them flat | in the Zombies menu on a Thor<br>(stock driver: 96) | `driver.txt` picks the driver;<br>no driver, no change | installs next to the<br>original app |
+
+</div>
+
+## 🆕 New in 0.3-turnip
+
+**🔌 Choose your Vulkan driver.** Put a Turnip driver package in the app's `driver/` folder, write its name in `driver.txt`, and the game runs on it. Leave `driver.txt` out and it runs on the system driver, exactly as before. Every start writes one line to the log saying which driver it's using and why.
+
+**🛠️ Fixes flat, untextured models on Adreno 740.** With Qualcomm's driver 0.676.53 (the AYN Thor's), Vulkan drew every model as one flat colour and the TV menus were missing. OpenGL ES drew it right, but at about 19 FPS. On Turnip, Vulkan draws it right at full speed.
+
+**📦 A separate app.** The package is `org.bo1port.zombies.turnip`, labelled **BO1 Port Turnip**, so it installs next to the original and never replaces it.
+
+## 📊 Tested on an AYN Thor
+
+Snapdragon 8 Gen 2 (Adreno 740), Android 13, Vulkan renderer, the Zombies main menu (the room with the TV):
+
+| Vulkan driver | Loaded | Models and TV menu | FPS |
+| --- | :---: | --- | ---: |
+| System: Qualcomm 0.676.53 | ✅ | ❌ flat grey, no menu text | 96 |
+| [MrPurple](https://github.com/MrPurple666/purple-turnip) T30 (Mesa 26.3.0) | ✅ | ✅ correct | 104 |
+| [MrPurple](https://github.com/MrPurple666/purple-turnip) T28 (Mesa 26.2.0) | ✅ | ✅ correct | 86 |
+| **[StevenMXZ](https://github.com/StevenMXZ/Adreno-Tools-Drivers) v27.0.0-R1 (Mesa 27.0.0)** | ✅ | ✅ **correct** | **119** |
+
+Uncapped, at 1280x720. Kino der Toten has been played on v27, and v27 also holds a 60 FPS cap at 1920x1080.
+
+<p align="center">
+  <img src="images/thor-turnip-menu.jpg" width="720" alt="The Zombies main menu on Turnip v27: the TV shows Coming Soon, Multiplayer, Zombies, Settings, Quit">
+  <br>
+  <sub>The Zombies main menu on the Thor, Turnip v27: the TV and its menu, as the game draws them on PC.</sub>
+</p>
+
+## 📦 Download
+
+**[Download the latest release](https://github.com/SevyW/BO1-Ascension-ARM64/releases/latest)**: `bo1-port-turnip-v0.3.apk`, with its SHA-256 in the release notes.
 
 | | |
 | --- | --- |
-| ![Zombies main menu, the room with the TV](images/android-zombies-menu.jpg) | ![Zombies: Five](images/android-zombies-five.jpg) |
-| Zombies: the original main menu | Zombies: Five |
-| ![Multiplayer: Nuketown with bots](images/android-mp-nuketown.jpg) | ![Multiplayer main menu](images/android-mp-menu.jpg) |
-| Multiplayer: Nuketown, a bot match | Multiplayer: the original menus, offline |
+| Android | 8.0 or newer, 64-bit ARM |
+| GPU | Adreno 6xx/7xx for Turnip. Other GPUs run on their system driver, as in the original app |
+| Game | *Call of Duty: Black Ops* for PC (Steam): the whole game folder, about 9.4 GB for Zombies |
+| Storage | about 10 GB free (one copy of the game folder) |
 
-## Get started
+## 🧭 Set it up
 
-1. Download `bo1-port-<version>.apk` from the **[latest release](https://github.com/Zephelinn/bo1-decompiled-android/releases/latest)**.
-2. Follow **[docs/INSTALL-ANDROID.md](docs/INSTALL-ANDROID.md)**: install the app, copy your Steam game folder to the
-   device, play.
+1. **Install** `bo1-port-turnip-v0.3.apk` and open it once, so Android creates its folder.
+2. **Copy your game.** Your Steam *Black Ops* folder goes to `Android/data/org.bo1port.zombies.turnip/files/game/`. If you already have the original app with its game files, copy them across:
+   ```
+   adb shell cp -r /sdcard/Android/data/org.bo1port.zombies/files/game/. \
+                   /sdcard/Android/data/org.bo1port.zombies.turnip/files/game/
+   ```
+   [Zephelinn's install guide](docs/INSTALL-ANDROID.md) covers the game folder in detail. The package name is the only difference.
+3. **Add a driver.** Unzip an AdrenoTools driver package (a `.zip` with a `meta.json` and a `.so`) into its own folder, then name that folder in `driver.txt`:
+   ```
+   adb shell mkdir -p /sdcard/Android/data/org.bo1port.zombies.turnip/files/driver/v27
+   adb push meta.json libvulkan_freedreno.so /sdcard/Android/data/org.bo1port.zombies.turnip/files/driver/v27/
+   adb shell "echo v27 > /sdcard/Android/data/org.bo1port.zombies.turnip/files/driver.txt"
+   ```
+4. **Play.** Check which driver it picked:
+   ```
+   adb shell grep "vulkan driver" /sdcard/Android/data/org.bo1port.zombies.turnip/files/bo1.log
+   ```
+   - On the custom driver: `vulkan driver: custom "v27" from driver/v27/libvulkan_freedreno.so ... Turnip Mesa 27.0.0-devel`
+   - On the system driver: `vulkan driver: system (<the reason>)`
 
-This repository is a fork of [spacemandev-git/bo1-zombies-decompiled](https://github.com/spacemandev-git/bo1-zombies-decompiled),
-the decompiled engine with Zombies on Windows and in the browser; its Windows and web versions are still here
-(see Documentation).
+> [!WARNING]
+> **Don't uninstall the app to update it.** Android deletes `Android/data/<app>/` on uninstall, and that's where your 9.4 GB game folder lives. Install updates over the top.
 
-## What works
+### ⚙️ Handy settings
 
-| | status |
+They're saved in `home/players/config.cfg` (Zombies) and `config_mp.cfg` (Multiplayer). Change them with the game closed.
+
+| | |
 | --- | --- |
-| Zombies | All maps of your install (the DLC maps if you own them). Solo, and co-op by address or on the local network, up to 4 players |
-| Multiplayer | Bot matches, Combat Training (rank, unlocks, Create a Class, saved on the device), Private Match, the original menus |
-| Not available | Campaign; online Server Browser, Ranked Match, Wager Match (they need Activision's online service); joining by code |
-| Controls | Controllers (built-in, Bluetooth, USB) as on a console; on-screen touch controls with a layout editor |
-| Mods | The repository's script mods (`mods/`) and community mods made with the mod tools (tested: Waffen der Schönheit), chosen in Settings > EXTRAS > MOD; see [the install guide](docs/INSTALL-ANDROID.md#7-community-mods-and-custom-maps) |
-| Sound | All game sound, including the xWMA effects (FFmpeg decoder). No reverb or EQ effects |
-| Video | Cinematics (Bink) are skipped |
+| `seta r_mode "1920x1080"` | Render resolution. The port starts at 720p on every device. |
+| `seta com_maxfps "60"` | Frame cap. Locking to 60 saves battery and heat. |
+| Settings > EXTRAS > FPS COUNTER | The on-screen frame counter. |
 
-## Devices and requirements
+## ⚙️ How it works
 
-Only one device has been tested: the **AYN Odin 3** (Snapdragon 8 Elite, Adreno 830, Android 15). Everything in
-the "minimum" column is an estimate from what the game needs, not a tested device.
+- **Loading the driver.** On every start, `bo1_driver.c` reads `driver.txt`. It copies the driver to internal storage, because external storage can't run code, and opens it with **libadrenotools**. Then it checks that a Vulkan device comes up. Any failure falls back to the system driver.
+- **Rendering.** DXVK, which turns the game's Direct3D 9 into Vulkan, gets that driver's `vkGetInstanceProcAddr` instead of loading the system `libvulkan.so`. It makes its window surface through the same loader. The swapchain stays the Android loader's, so presenting works as before.
+- **The game itself** (`libbo1.so`) is unchanged. Without `driver.txt`, nothing behaves differently.
 
-| | minimum (estimated) | recommended |
-| --- | --- | --- |
-| Android | 8.0 (API 26), 64-bit ARM (arm64-v8a) | 13 or newer |
-| Chip | Snapdragon 865-class (8 CPU cores) | Snapdragon 8 Gen 2 or newer (tested: 8 Elite) |
-| GPU | Vulkan 1.3 with `VK_EXT_robustness2` (Adreno 6xx/7xx on a current driver) | Adreno 740 or newer (tested: Adreno 830) |
-| RAM | 6 GB | 8 GB or more (a map uses about 1.5 GB of game memory, plus the GPU driver's) |
-| Storage | 12 GB free (the game folder is about 11 GB) | the same, on internal storage |
-| Game | *Call of Duty: Black Ops* (PC, Steam); the Multiplayer files for Multiplayer | the latest Steam version, with the DLC for its Zombies maps |
+The full list of changes and the build log are in [STATUS.md](STATUS.md).
 
-Mali (Exynos, Tensor, MediaTek) and Xclipse GPUs have not been tried. x86 Android devices and 32-bit-only phones are
-not supported.
+## 🎮 What works
 
-## Renderers
+Everything [the original port](https://github.com/Zephelinn/BO1-Ascension-ARM64) does. This fork has been device-tested in Zombies only.
 
-Settings > Graphics > RENDERER (RESTART). Both translate the game's Direct3D 9 to the device's graphics API.
+| | |
+| --- | --- |
+| Zombies | All maps of your install. Solo, and co-op by address or on the local network |
+| Multiplayer | Bot matches, Combat Training, Private Match (not yet tried on Turnip) |
+| Not available | Campaign; online matchmaking (it needs Activision's servers) |
+| Controls | Built-in, Bluetooth and USB controllers; on-screen touch controls with a layout editor; pad binds in `config.cfg` ([docs/controllers.md](docs/controllers.md)) |
+| Renderers | Vulkan (DXVK, recommended) and OpenGL ES 3 (the fallback): Settings > Graphics > RENDERER |
 
-| | Vulkan (default) | OpenGL ES 3 |
-| --- | --- | --- |
-| How | DXVK 2.6.1 (D3D9 on Vulkan) with the project's patches | the project's own D3D9 layer with MojoShader (shaders to GLSL ES) |
-| Needs | Vulkan 1.3 and `VK_EXT_robustness2` | OpenGL ES 3.0 |
-| Picture | complete | complete (the same scene as Vulkan) |
-| Speed on the Odin 3 | 150 to 250 FPS at 1920x1080 (benchmarks below) | 54 to 63 FPS at 1920x1080 (benchmarks below) |
-| Anti-aliasing (`r_aaSamples` 2 / 4) | yes (4x: about 60 FPS in Kino der Toten) | not tested |
-| Shader compiling | effects in the background (a new effect can be missing for a frame the first time); surfaces wait for theirs (a few short hitches on a map's first visit, once) | at the draw: a hitch the first time a shader combination appears in a session |
-| Use it | always, where the device has Vulkan 1.3 | where Vulkan is not available; the app falls back to it by itself then |
+## 🗺️ What's next
 
-## Benchmarks
+- 🕹️ **Second-screen controls** for dual-screen handhelds like the AYN Thor: Steam Deck-style trackpads and grip buttons on the bottom screen, plus a screen for remapping every button.
+- 📂 **Pick the driver in the app** instead of with a text file.
 
-AYN Odin 3, Vulkan, 1920x1080, no anti-aliasing, vsync off, no frame limit (`com_maxfps 0`), the game's own FPS
-counter (Settings > EXTRAS > FPS COUNTER). The display shows at most 120 frames a second; the numbers above that are
-what the device renders.
+## 🚀 Building
 
-| scene | FPS | 5 % low | 1 % low |
-| --- | --- | --- | --- |
-| Zombies: Kino der Toten, in play at the start | 179 | 166 | 154 |
-| Zombies: Kino der Toten, other places in the map | 180 to 230 | | |
-| Zombies: main menu (the room with the TV) | 213 to 225 | | |
-| Multiplayer: Nuketown with 5 bots, team menu over the map | 152 | 143 | 137 |
-| Multiplayer: Combat Training match, in play | 207 | | |
-| Multiplayer: Private Match, in play | 253 | | |
-| Multiplayer menus (drawn once a display refresh) | 142 | | |
-| Kino der Toten, 4x anti-aliasing | 60 | | |
-| Kino der Toten, 1280x720, vsync on at 120 Hz (first build) | 120 | 108 | 94 |
-| OpenGL ES: Five, in play at the start | 63 | 61 | 61 |
-| OpenGL ES: Kino der Toten, in play | 54 | | |
-
-The GPU was at 99 % in the Vulkan Zombies runs; the CPU at about 30 %. On OpenGL ES the GPU was at about 25 %: that renderer is
-limited by the driver's work on the CPU.
-
-## Documentation
-
-- `docs/INSTALL-ANDROID.md` - installing and playing on Android.
-- `docs/android-port.md` - how the Android and Linux versions work, building them, their dvars, what is verified.
-- `docs/building-windows.md` - the Windows build and the proprietary SDK files it needs (not in this repository).
-- `CLAUDE.md` - how the engine and the repo are organized (also the index for AI-assisted work).
-- Mods: `mods/<name>/README.md` (`sandbox`, `horde`, `nightmare`, `zinfo` + `noperks`, `coop`), `mods/mapkit/MAPKIT.md`;
-  `tools\mod-launcher.hta` starts them.
-- Online co-op (up to 4 players with the original characters, 5-8 with duplicates): `docs/multiplayer.md`,
-  `tools\coop.ps1` (`coop-host.bat`, `coop-join.bat`).
-- Controllers: `docs/controllers.md`.
-- Browser version (spacemandev.games/bo1): `web/README.md`, `docs/web-port.md`, `docs/web-engine-interface.md`.
-
-## Building the Android app
-
-On a Linux machine (Debian/Ubuntu, x86-64), from the repository root. The scripts expect the work folder `/bo1` with
-this repository at `/bo1/src` (the maintainers use a Docker container with the folder mounted there):
+The same recipe as the original port, on Linux x86-64 with the repo at `/bo1/src`:
 
 ```
-tools/native/android-setup.sh    # once: JDK, Android SDK, NDK, SDL2
-tools/native/build-dxvk.sh       # DXVK 2.6.1 with the project's patches
-tools/native/build-ffmpeg.sh     # FFmpeg's WMA decoder (LGPL)
-tools/native/build-p32.sh        # the 32-bit-pointer source tree + Linux x86-64 build
-tools/native/build-android.sh    # libbo1.so, libmain.so, SDL2 for Android
-tools/native/build-apk.sh        # the APK (RELEASE_KEYSTORE=... for a release-signed one)
+bash tools/native/android-setup.sh
+bash tools/native/build-ffmpeg.sh arm64-v8a
+bash tools/native/build-p32.sh
+bash tools/native/build-android.sh
+bash tools/native/build-dxvk.sh arm64-v8a
+bash tools/native/build-adrenotools.sh    # new: libadrenotools and its hook libraries
+bash tools/native/build-apk.sh
 ```
 
-`docs/android-port.md` has the details. No proprietary SDK is needed for the Android, Linux or browser builds.
+[STATUS.md](STATUS.md) has the exact steps used for this release, and [docs/android-port.md](docs/android-port.md) has the details.
 
-## Legal
+## 📚 Documentation
 
-- Not affiliated with or endorsed by Activision, Microsoft or Xbox. *Call of Duty* and *Black Ops* are trademarks of
-  Activision Publishing, Inc. See **[NOTICE.md](NOTICE.md)**, our notice to them. It explains that this
-  non-commercial project was made with the help of an AI model, for experimenting with new ways to play an older
-  game, and how to reach us.
-- The engine source is decompiled from the original game. It is not offered under an open-source licence. Code the
-  project added is the maintainers' own; third-party components and their licences are listed in
-  [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
-- The game's own files are never in this repository or the app: `setup.ps1` copies them from your install on
-  Windows, the Android app reads the copy you put on the device, and the browser version reads them from your
-  computer.
+- [docs/INSTALL-ANDROID.md](docs/INSTALL-ANDROID.md): installing and playing on Android
+- [docs/android-port.md](docs/android-port.md): how the Android version works, its settings, building it
+- [docs/controllers.md](docs/controllers.md): controllers, default layout, binds
+- [docs/multiplayer.md](docs/multiplayer.md): co-op
+- [CLAUDE.md](CLAUDE.md): how the engine and the repo are organized
+- Windows and browser versions: [docs/building-windows.md](docs/building-windows.md), [docs/web-port.md](docs/web-port.md)
+
+## 🐞 Something not working?
+
+[Open an issue](https://github.com/SevyW/BO1-Ascension-ARM64/issues/new/choose) and include:
+- your device and Android version
+- the `vulkan driver:` line from `bo1.log`
+- which driver package you used
+- what you see
+
+A screenshot helps a lot.
+
+## 🙏 Credits
+
+- **[Zephelinn](https://github.com/Zephelinn/BO1-Ascension-ARM64)**: the Android port. Everything that makes the game run on Android is theirs.
+- **[spacemandev-git](https://github.com/spacemandev-git/bo1-zombies-decompiled)**: the decompiled engine with Zombies on Windows and in the browser, which the Android port builds on.
+- **[MisaDev4](https://github.com/MisaDev4/bo1-zombies-decompiled)**: the original Black Ops 1 Zombies decompilation.
+- **[bylaws/libadrenotools](https://github.com/bylaws/libadrenotools)**: loading custom drivers on Android.
+- **Mesa Turnip** and the people who build it for Android: [MrPurple](https://github.com/MrPurple666/purple-turnip) and [StevenMXZ](https://github.com/StevenMXZ/Adreno-Tools-Drivers).
+- **[DXVK](https://github.com/doitsujin/dxvk)**, **SDL2**, **FFmpeg**: see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+## ⚖️ Legal
+
+- Not affiliated with or endorsed by Activision, Microsoft or Xbox. *Call of Duty* and *Black Ops* are trademarks of Activision Publishing, Inc. See **[NOTICE.md](NOTICE.md)**.
+- The engine source is decompiled from the original game and is **not offered under an open-source licence**. Third-party components and their licences are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+- The game's own files are never in this repository or the app. You copy your own install to your device.
+- Non-commercial. There's no donation link on purpose.
