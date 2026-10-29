@@ -3,7 +3,7 @@ package org.bo1port.zombies;
 /**
  * The second-screen controller's geometry and gesture maths, without Android classes, so that it runs on the build
  * host too (android/test, tools/native/test-second-screen.sh). Screen coordinates: x right, y down, pixels of the
- * second display. Stick values: -1..1 with y up, as the engine's pad state.
+ * second display.
  */
 final class SecondScreenMath {
     private SecondScreenMath() {
@@ -46,13 +46,12 @@ final class SecondScreenMath {
     }
 
     /**
-     * Where everything is, for a display of any shape: a bar along the top (HIDE left, REMAP right), the grip
-     * buttons as two columns along the left and right edges (L4 over L5, R4 over R5), and two square trackpads
-     * side by side between them, as large as fits.
+     * Where everything is, for a display of any shape: a bar along the top (HIDE left, REMAP right) and one
+     * trackpad filling the rest.
      */
     static final class Layout {
         final int width, height;
-        final Box bar, hide, remap, leftPad, rightPad, l4, l5, r4, r5;
+        final Box bar, hide, remap, pad;
 
         Layout(int width, int height) {
             this.width = width;
@@ -63,70 +62,13 @@ final class SecondScreenMath {
             final float buttonW = Math.round(width * 0.22f);
             hide = new Box(m, m * 0.5f, m + buttonW, barH - m * 0.5f);
             remap = new Box(width - m - buttonW, m * 0.5f, width - m, barH - m * 0.5f);
-            final float top = barH + m, bottom = height - m;
-            final float gripW = Math.round(width * (width > height ? 0.07f : 0.09f));
-            final float middle = (top + bottom) * 0.5f;
-            l4 = new Box(m, top, m + gripW, middle - m * 0.5f);
-            l5 = new Box(m, middle + m * 0.5f, m + gripW, bottom);
-            r4 = new Box(width - m - gripW, top, width - m, middle - m * 0.5f);
-            r5 = new Box(width - m - gripW, middle + m * 0.5f, width - m, bottom);
-            final float padsLeft = m + gripW + m, padsRight = width - m - gripW - m;
-            final float side = Math.max(1f, Math.min((padsRight - padsLeft - m) * 0.5f, bottom - top));
-            final float padTop = Math.round(middle - side * 0.5f);
-            leftPad = new Box(padsLeft, padTop, padsLeft + side, padTop + side);
-            rightPad = new Box(padsRight - side, padTop, padsRight, padTop + side);
+            pad = new Box(m, barH + m * 0.5f, width - m, height - m);
         }
 
         @Override
         public String toString() {
-            return width + "x" + height + " leftPad " + leftPad + " rightPad " + rightPad + " L4 " + l4 + " L5 " + l5
-                + " R4 " + r4 + " R5 " + r5 + " HIDE " + hide + " REMAP " + remap;
+            return width + "x" + height + " pad " + pad + " HIDE " + hide + " REMAP " + remap;
         }
-    }
-
-    /**
-     * The left pad as a joystick: the finger's offset from where it touched down, as a stick deflection. Within
-     * deadzone (a fraction of radius) it is 0; from there to radius it rises to 1; beyond, 1 in that direction.
-     */
-    static float[] joystick(float dx, float dy, float radius, float deadzone) {
-        final float length = (float) Math.sqrt(dx * dx + dy * dy);
-        if (radius <= 0 || length <= deadzone * radius) {
-            return new float[] {0, 0};
-        }
-        float amount = (length / radius - deadzone) / (1f - deadzone);
-        if (amount > 1f) {
-            amount = 1f;
-        }
-        return new float[] {dx / length * amount, -dy / length * amount};
-    }
-
-    /**
-     * The radial slice under a finger at (dx, dy) from the pad's center: slice 0 is centered at the top, the others
-     * follow clockwise. -1 within innerRadius (no choice yet).
-     */
-    static int radialSlice(float dx, float dy, int slices, float innerRadius) {
-        if (slices <= 0 || dx * dx + dy * dy <= innerRadius * innerRadius) {
-            return -1;
-        }
-        // degrees clockwise from straight up (screen y points down)
-        double angle = Math.toDegrees(Math.atan2(dx, -dy));
-        final double width = 360.0 / slices;
-        angle = (angle + width * 0.5 + 360.0) % 360.0;
-        int slice = (int) Math.floor(angle / width);
-        return slice >= slices ? slices - 1 : slice;
-    }
-
-    static final int DPAD_NONE = -1, DPAD_UP = 0, DPAD_DOWN = 1, DPAD_LEFT = 2, DPAD_RIGHT = 3;
-
-    /** The d-pad zone under a finger at (dx, dy) from the pad's center: the nearer axis wins; none within innerRadius. */
-    static int dpadZone(float dx, float dy, float innerRadius) {
-        if (dx * dx + dy * dy <= innerRadius * innerRadius) {
-            return DPAD_NONE;
-        }
-        if (Math.abs(dx) > Math.abs(dy)) {
-            return dx > 0 ? DPAD_RIGHT : DPAD_LEFT;
-        }
-        return dy > 0 ? DPAD_DOWN : DPAD_UP;
     }
 
     /** Look gain: sensitivity, rising with finger speed (pixels a second) by accel, at most fourfold the base. */
@@ -135,57 +77,12 @@ final class SecondScreenMath {
         return sensitivity * (1f + accel * fast);
     }
 
-    /** The scroll wheel: a finger circling the pad's center; one step per stepDegrees, clockwise positive. */
-    static final class ScrollWheel {
-        private double lastAngle;
-        private double turned;
-        private boolean tracking;
-
-        void reset() {
-            tracking = false;
-            turned = 0;
-        }
-
-        /** Steps made by the move to (dx, dy) from the center (none near the center, where the angle is unsteady). */
-        int move(float dx, float dy, float minRadius, float stepDegrees) {
-            if (dx * dx + dy * dy < minRadius * minRadius) {
-                tracking = false;
-                return 0;
-            }
-            final double angle = Math.toDegrees(Math.atan2(dy, dx));   // y down: increases clockwise
-            if (!tracking) {
-                tracking = true;
-                lastAngle = angle;
-                return 0;
-            }
-            double delta = angle - lastAngle;
-            if (delta > 180) {
-                delta -= 360;
-            } else if (delta < -180) {
-                delta += 360;
-            }
-            lastAngle = angle;
-            turned += delta;
-            int steps = 0;
-            final double almost = stepDegrees - 1e-6;   // whole turns made of many small moves still count
-            while (turned >= almost) {
-                turned -= stepDegrees;
-                ++steps;
-            }
-            while (turned <= -almost) {
-                turned += stepDegrees;
-                --steps;
-            }
-            return steps;
-        }
-    }
-
     /**
      * A pad click: a double tap (the second touch within doubleTapMs of the first one's release, near it), or a
-     * finger held still for holdMs. The click lasts until that finger lifts.
+     * finger held still for holdMs. The click lasts until that finger lifts. (The size press is Press, below.)
      */
     static final class Click {
-        static final int DOUBLE_TAP = 0, HOLD = 1;
+        static final int DOUBLE_TAP = 0, HOLD = 1, PRESS = 2;
         int method = DOUBLE_TAP;
         long holdMs = 350, doubleTapMs = 300;
         float slop = 24f;   // pixels a finger may move and still count as held still / the same tap
@@ -247,63 +144,87 @@ final class SecondScreenMath {
     }
 
     /**
-     * Trackball inertia of the look pad: the finger's velocity is followed while it moves; after a flick the view
-     * keeps turning at that velocity, which falls by exp(-friction * seconds).
+     * The size press: pressing the finger flat against the glass is a click. The touch panel has no pressure
+     * sensor, but it reports the contact's size (ABS_MT_TOUCH_MAJOR, 0..255 on the AYN Thor's second screen): a
+     * finger resting lightly measured 2 to 5, a thumb pressed flat 11 to 13, climbing there in about 0.2-0.3 s.
+     * Sizes here are in those raw units.
+     *
+     * The finger's relaxed size is the smallest it has been since it last pressed. A press is a quick rise well above
+     * it (by ratio and by minRise); a rise slower than riseMs is a finger rolling flatter, not a press, and becomes
+     * the new relaxed size. A press lasts until the size falls halfway back, so the finger can press again without
+     * lifting. Flattening a finger moves its center, so the look pauses while the size climbs and for freezeMs
+     * around a press or a release (frozen()).
      */
-    static final class Inertia {
-        float friction = 4f;        // 1/s
-        float minStartSpeed = 300f; // pixels a second: slower releases stop dead
-        float stopSpeed = 20f;
-        private float vx, vy;
-        private boolean active;
+    static final class Press {
+        float ratio = 1.8f;      // a press is at least this many times the relaxed size ...
+        float minRise = 5f;      // ... and at least this much above it
+        long riseMs = 400;
+        long freezeMs = 120;
+        private float relaxed;
+        private long lowAt, changedAt = -1000000;
+        private boolean pressed;
 
-        /** A move of (dx, dy) in dtMs while the finger is down. */
-        void track(float dx, float dy, float dtMs) {
-            if (dtMs <= 0) {
-                return;
+        void down(long now, float size) {
+            relaxed = size;
+            lowAt = now;
+            pressed = false;
+            changedAt = -1000000;
+        }
+
+        /** A new size of the finger: 1 = it pressed, -1 = it let go, 0 = no change. */
+        int size(long now, float size) {
+            if (!pressed) {
+                if (size <= relaxed + 1f) {
+                    relaxed = Math.min(relaxed, size);
+                    lowAt = now;
+                    return 0;
+                }
+                if (size >= threshold() && now - lowAt <= riseMs) {
+                    pressed = true;
+                    changedAt = now;
+                    return 1;
+                }
+                if (now - lowAt > riseMs) {
+                    relaxed = size;   // a slow rise: the finger just rests flatter now
+                    lowAt = now;
+                }
+                return 0;
             }
-            final float k = Math.min(1f, dtMs / 40f);   // about the last 40 ms
-            vx += (dx * 1000f / dtMs - vx) * k;
-            vy += (dy * 1000f / dtMs - vy) * k;
-        }
-
-        void stop() {
-            active = false;
-            vx = vy = 0;
-        }
-
-        /** The finger lifted after the last move ago ms: true if a flick keeps the view turning. */
-        boolean release(float sinceLastMoveMs) {
-            if (sinceLastMoveMs > 60f || Math.sqrt(vx * vx + vy * vy) < minStartSpeed) {
-                stop();
-                return false;
+            if (size <= relaxed + (threshold() - relaxed) * 0.5f) {
+                pressed = false;
+                changedAt = now;
+                lowAt = now;
+                return -1;
             }
-            active = true;
-            return true;
+            return 0;
         }
 
-        boolean active() {
-            return active;
+        /** Lets go (the finger lifted); true if a press ends. */
+        boolean up(long now) {
+            final boolean was = pressed;
+            pressed = false;
+            changedAt = now;
+            return was;
         }
 
-        float speed() {
-            return (float) Math.sqrt(vx * vx + vy * vy);
-        }
-
-        /** The movement of the next dtMs (pixels), with the decay applied; inactive once slow enough. */
-        float[] step(float dtMs) {
-            if (!active || dtMs <= 0) {
-                return new float[] {0, 0};
+        /** Whether the look should pause now: just after a press or release, or while the size climbs toward one. */
+        boolean frozen(long now, float size) {
+            if (now - changedAt < freezeMs) {
+                return true;
             }
-            final float seconds = dtMs / 1000f;
-            final float[] d = {vx * seconds, vy * seconds};
-            final float decay = (float) Math.exp(-friction * seconds);
-            vx *= decay;
-            vy *= decay;
-            if (speed() < stopSpeed) {
-                active = false;
-            }
-            return d;
+            return !pressed && now - lowAt <= riseMs && size >= relaxed + (threshold() - relaxed) * 0.7f;
+        }
+
+        boolean pressed() {
+            return pressed;
+        }
+
+        float relaxed() {
+            return relaxed;
+        }
+
+        float threshold() {
+            return Math.max(relaxed * ratio, relaxed + minRise);
         }
     }
 }

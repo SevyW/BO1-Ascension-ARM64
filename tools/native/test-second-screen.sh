@@ -1,7 +1,7 @@
 #!/bin/bash
 # test-second-screen.sh: the second-screen controller's maths and tables (android/java/.../SecondScreenMath.java,
-# SecondScreenBindings.java) tested on the build host with a plain JDK: layout, joystick, radial slices, d-pad
-# zones, scroll wheel, click detection, trackball inertia, look gain, bind commands. No device or Android SDK needed.
+# SecondScreenBindings.java) tested on the build host with a plain JDK: layout,
+# click detection (double tap, hold, size press), look gain, bind commands. No device or Android SDK needed.
 R=$(cd "$(dirname "$0")/../.." && pwd)
 P=$R/android/java/org/bo1port/zombies
 OUT=$(mktemp -d)

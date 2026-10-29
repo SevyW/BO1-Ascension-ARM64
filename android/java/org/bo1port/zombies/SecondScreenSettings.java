@@ -15,21 +15,15 @@ import java.util.Map;
  * a key name -> command map, one set of slots for Zombies ("zm") and one for Multiplayer ("mp").
  */
 final class SecondScreenSettings {
-    static final String[] LEFT_MODES = {"dpad", "joystick", "radial", "scroll", "off"};
     static final int PRESET_SLOTS = 3;
 
     float sensitivity = 1.0f;     // look per finger pixel, 0.1 .. 5
     float acceleration = 0.5f;    // extra look for fast swipes, 0 .. 2
-    boolean inertia = true;       // trackball: a flick keeps turning
-    float friction = 4.0f;        // how fast a flick slows, 0.5 .. 10 per second
-    String leftMode = "dpad";
-    int radialSlices = 8;         // 4, 6 or 8
-    int clickMethod = SecondScreenMath.Click.DOUBLE_TAP;
+    int clickMethod = SecondScreenMath.Click.PRESS;
     int holdMs = 350;             // HOLD: 150 .. 800
+    float pressDepth = 5f;        // PRESS: how much the finger's contact size must grow (raw units), 3 .. 10
     boolean haptics = true;
     int dimSeconds = 5;           // 0 = never
-    float stickDeadzone = 0.12f;
-    float stickRadius = 0.4f;     // joystick: full deflection at this fraction of the pad's size from the touch
     final Map<String, Boolean> defaultsApplied = new LinkedHashMap<String, Boolean>();
     final Map<String, Map<String, String>> presets = new LinkedHashMap<String, Map<String, String>>();
 
@@ -62,19 +56,15 @@ final class SecondScreenSettings {
             JSONObject o = new JSONObject(new String(bytes, 0, n, "UTF-8"));
             sensitivity = clamp((float) o.optDouble("sensitivity", sensitivity), 0.1f, 5f);
             acceleration = clamp((float) o.optDouble("acceleration", acceleration), 0f, 2f);
-            inertia = o.optBoolean("inertia", inertia);
-            friction = clamp((float) o.optDouble("friction", friction), 0.5f, 10f);
-            leftMode = o.optString("leftMode", leftMode);
-            radialSlices = o.optInt("radialSlices", radialSlices);
-            if (radialSlices != 4 && radialSlices != 6) {
-                radialSlices = 8;
-            }
-            clickMethod = "hold".equals(o.optString("clickMethod", "")) ? SecondScreenMath.Click.HOLD : SecondScreenMath.Click.DOUBLE_TAP;
+            // "click" (press / doubletap / hold); the older "clickMethod" key is ignored, so the size press
+            // becomes the default for files written before it existed
+            final String click = o.optString("click", "press");
+            clickMethod = "hold".equals(click) ? SecondScreenMath.Click.HOLD
+                : "doubletap".equals(click) ? SecondScreenMath.Click.DOUBLE_TAP : SecondScreenMath.Click.PRESS;
             holdMs = (int) clamp(o.optInt("holdMs", holdMs), 150, 800);
+            pressDepth = clamp((float) o.optDouble("pressDepth", pressDepth), 3f, 10f);
             haptics = o.optBoolean("haptics", haptics);
             dimSeconds = (int) clamp(o.optInt("dimSeconds", dimSeconds), 0, 60);
-            stickDeadzone = clamp((float) o.optDouble("stickDeadzone", stickDeadzone), 0f, 0.5f);
-            stickRadius = clamp((float) o.optDouble("stickRadius", stickRadius), 0.15f, 0.8f);
             JSONObject applied = o.optJSONObject("defaultsApplied");
             if (applied != null) {
                 for (Iterator<String> it = applied.keys(); it.hasNext();) {
@@ -101,13 +91,6 @@ final class SecondScreenSettings {
         } catch (Exception e) {
             SecondScreen.log("controls.json not read: " + e);
         }
-        boolean known = false;
-        for (String mode : LEFT_MODES) {
-            known |= mode.equals(leftMode);
-        }
-        if (!known) {
-            leftMode = "dpad";
-        }
     }
 
     void save() {
@@ -115,16 +98,12 @@ final class SecondScreenSettings {
             JSONObject o = new JSONObject();
             o.put("sensitivity", sensitivity);
             o.put("acceleration", acceleration);
-            o.put("inertia", inertia);
-            o.put("friction", friction);
-            o.put("leftMode", leftMode);
-            o.put("radialSlices", radialSlices);
-            o.put("clickMethod", clickMethod == SecondScreenMath.Click.HOLD ? "hold" : "doubletap");
+            o.put("click", clickMethod == SecondScreenMath.Click.HOLD ? "hold"
+                : clickMethod == SecondScreenMath.Click.DOUBLE_TAP ? "doubletap" : "press");
             o.put("holdMs", holdMs);
+            o.put("pressDepth", pressDepth);
             o.put("haptics", haptics);
             o.put("dimSeconds", dimSeconds);
-            o.put("stickDeadzone", stickDeadzone);
-            o.put("stickRadius", stickRadius);
             JSONObject applied = new JSONObject();
             for (Map.Entry<String, Boolean> e : defaultsApplied.entrySet()) {
                 applied.put(e.getKey(), e.getValue());

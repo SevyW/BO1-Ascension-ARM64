@@ -142,13 +142,9 @@ final class SecondScreenRemap extends LinearLayout {
         }
     }
 
-    /** The inputs the screen lists: radial slices only as many as the radial menu has. */
+    /** The inputs the screen lists. */
     private List<SecondScreenBindings.Input> inputs() {
-        List<SecondScreenBindings.Input> all = SecondScreenBindings.all();
-        for (int k = controller.settings.radialSlices; k < SecondScreenBindings.RADIAL.length; ++k) {
-            all.remove(SecondScreenBindings.RADIAL[k]);
-        }
-        return all;
+        return SecondScreenBindings.all();
     }
 
     // ---- PADS ---------------------------------------------------------------------------------------------------
@@ -166,46 +162,17 @@ final class SecondScreenRemap extends LinearLayout {
                 s.acceleration = v;
             }
         }));
-        list.addView(choice("Trackball (a flick keeps turning)", new String[] {"Off", "On"}, s.inertia ? 1 : 0, new Chosen() {
+        list.addView(choice("Pad click", new String[] {"Press (flatten the finger)", "Double tap", "Press and hold"},
+            s.clickMethod == SecondScreenMath.Click.PRESS ? 0 : s.clickMethod == SecondScreenMath.Click.DOUBLE_TAP ? 1 : 2, new Chosen() {
             @Override
             public void set(int i) {
-                s.inertia = i == 1;
+                s.clickMethod = i == 0 ? SecondScreenMath.Click.PRESS : i == 1 ? SecondScreenMath.Click.DOUBLE_TAP : SecondScreenMath.Click.HOLD;
             }
         }));
-        list.addView(slider("Trackball friction", 5, 100, Math.round(s.friction * 10), 0.1f, "/s", new Changed() {
+        list.addView(slider("Press depth (lower = lighter press)", 3, 10, Math.round(s.pressDepth), 1f, "", new Changed() {
             @Override
             public void set(float v) {
-                s.friction = v;
-            }
-        }));
-        int mode = 0;
-        for (int i = 0; i < SecondScreenSettings.LEFT_MODES.length; ++i) {
-            if (SecondScreenSettings.LEFT_MODES[i].equals(s.leftMode)) {
-                mode = i;
-            }
-        }
-        list.addView(choice("Left pad", new String[] {"D-pad", "Joystick", "Radial", "Scroll", "Off"}, mode, new Chosen() {
-            @Override
-            public void set(int i) {
-                s.leftMode = SecondScreenSettings.LEFT_MODES[i];
-            }
-        }));
-        list.addView(choice("Radial menu slices", new String[] {"4", "6", "8"}, s.radialSlices == 4 ? 0 : s.radialSlices == 6 ? 1 : 2, new Chosen() {
-            @Override
-            public void set(int i) {
-                s.radialSlices = i == 0 ? 4 : i == 1 ? 6 : 8;
-            }
-        }));
-        list.addView(slider("Joystick dead zone", 0, 50, Math.round(s.stickDeadzone * 100), 1f, " %", new Changed() {
-            @Override
-            public void set(float v) {
-                s.stickDeadzone = v / 100f;
-            }
-        }));
-        list.addView(choice("Pad click", new String[] {"Double tap", "Press and hold"}, s.clickMethod, new Chosen() {
-            @Override
-            public void set(int i) {
-                s.clickMethod = i;
+                s.pressDepth = v;
             }
         }));
         list.addView(slider("Hold time", 15, 80, s.holdMs / 10, 10f, " ms", new Changed() {

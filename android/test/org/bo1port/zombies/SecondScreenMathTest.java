@@ -24,12 +24,8 @@ public final class SecondScreenMathTest {
 
     public static void main(String[] args) {
         layout();
-        joystick();
-        radial();
-        dpad();
-        scroll();
         click();
-        inertia();
+        press();
         gain();
         bindings();
         System.out.println(checks + " checks, " + failures + " failures");
@@ -41,7 +37,7 @@ public final class SecondScreenMathTest {
             SecondScreenMath.Layout l = new SecondScreenMath.Layout(size[0], size[1]);
             final String name = size[0] + "x" + size[1];
             System.out.println("layout " + l);
-            SecondScreenMath.Box[] all = {l.hide, l.remap, l.leftPad, l.rightPad, l.l4, l.l5, l.r4, l.r5};
+            SecondScreenMath.Box[] all = {l.hide, l.remap, l.pad};
             for (SecondScreenMath.Box b : all) {
                 check(b.left >= 0 && b.top >= 0 && b.right <= size[0] && b.bottom <= size[1] && b.width() > 0 && b.height() > 0,
                     name + ": box inside the screen " + b);
@@ -53,93 +49,8 @@ public final class SecondScreenMathTest {
                     check(!overlap, name + ": boxes " + i + " and " + j + " do not overlap");
                 }
             }
-            near(l.leftPad.width(), l.leftPad.height(), 0.5f, name + ": left pad square");
-            near(l.leftPad.width(), l.rightPad.width(), 0.5f, name + ": pads the same size");
-            check(l.leftPad.right <= l.rightPad.left, name + ": left pad left of the right pad");
-            check(l.l4.bottom <= l.l5.top && l.r4.bottom <= l.r5.top, name + ": L4 over L5, R4 over R5");
+            check(l.pad.width() * l.pad.height() > size[0] * size[1] * 0.8f, name + ": the pad fills most of the screen");
         }
-        // the Thor's second display (1080x1240): pads of about 388 px
-        SecondScreenMath.Layout thor = new SecondScreenMath.Layout(1080, 1240);
-        check(thor.leftPad.width() > 350, "Thor: pads at least 350 px (" + thor.leftPad.width() + ")");
-    }
-
-    static void joystick() {
-        float[] s = SecondScreenMath.joystick(0, 0, 100, 0.1f);
-        near(s[0], 0, 0, "joystick: centre 0");
-        s = SecondScreenMath.joystick(5, 0, 100, 0.1f);
-        near(s[0], 0, 0, "joystick: inside the dead zone 0");
-        s = SecondScreenMath.joystick(100, 0, 100, 0.1f);
-        near(s[0], 1, 1e-5f, "joystick: at the radius full right");
-        s = SecondScreenMath.joystick(0, -300, 100, 0.1f);
-        near(s[1], 1, 1e-5f, "joystick: beyond the radius, finger up = stick up, clamped");
-        near(s[0], 0, 1e-5f, "joystick: straight up has no x");
-        s = SecondScreenMath.joystick(55, 0, 100, 0.1f);
-        near(s[0], 0.5f, 1e-5f, "joystick: halfway between dead zone and radius = 0.5");
-        s = SecondScreenMath.joystick(-70.71f, 70.71f, 100, 0f);
-        near(s[0], -0.7071f, 1e-3f, "joystick: diagonal down-left x");
-        near(s[1], -0.7071f, 1e-3f, "joystick: diagonal down-left y (down = negative)");
-    }
-
-    static void radial() {
-        check(SecondScreenMath.radialSlice(0, -100, 8, 20) == 0, "radial: straight up is slice 0");
-        check(SecondScreenMath.radialSlice(100, 0, 8, 20) == 2, "radial 8: right is slice 2");
-        check(SecondScreenMath.radialSlice(0, 100, 8, 20) == 4, "radial 8: down is slice 4");
-        check(SecondScreenMath.radialSlice(-100, 0, 8, 20) == 6, "radial 8: left is slice 6");
-        check(SecondScreenMath.radialSlice(100, 0, 4, 20) == 1, "radial 4: right is slice 1");
-        check(SecondScreenMath.radialSlice(-100, -1, 4, 20) == 3, "radial 4: left is slice 3");
-        check(SecondScreenMath.radialSlice(5, 5, 8, 20) == -1, "radial: inside the inner circle none");
-        // slice 0 spans -22.5 .. +22.5 degrees with 8 slices
-        double a = Math.toRadians(20);
-        check(SecondScreenMath.radialSlice((float) Math.sin(a) * 100, (float) -Math.cos(a) * 100, 8, 20) == 0, "radial: 20 deg is slice 0");
-        a = Math.toRadians(-20);
-        check(SecondScreenMath.radialSlice((float) Math.sin(a) * 100, (float) -Math.cos(a) * 100, 8, 20) == 0, "radial: -20 deg is slice 0");
-        a = Math.toRadians(25);
-        check(SecondScreenMath.radialSlice((float) Math.sin(a) * 100, (float) -Math.cos(a) * 100, 8, 20) == 1, "radial: 25 deg is slice 1");
-        a = Math.toRadians(-25);
-        check(SecondScreenMath.radialSlice((float) Math.sin(a) * 100, (float) -Math.cos(a) * 100, 8, 20) == 7, "radial: -25 deg is slice 7");
-        for (int n : new int[] {4, 6, 8}) {
-            for (int deg = 0; deg < 360; deg += 7) {
-                double r = Math.toRadians(deg);
-                int s = SecondScreenMath.radialSlice((float) Math.sin(r) * 50, (float) -Math.cos(r) * 50, n, 10);
-                check(s >= 0 && s < n, "radial " + n + ": " + deg + " deg in range");
-            }
-        }
-    }
-
-    static void dpad() {
-        check(SecondScreenMath.dpadZone(0, -50, 10) == SecondScreenMath.DPAD_UP, "dpad: up");
-        check(SecondScreenMath.dpadZone(0, 50, 10) == SecondScreenMath.DPAD_DOWN, "dpad: down");
-        check(SecondScreenMath.dpadZone(-50, 10, 10) == SecondScreenMath.DPAD_LEFT, "dpad: left");
-        check(SecondScreenMath.dpadZone(50, -10, 10) == SecondScreenMath.DPAD_RIGHT, "dpad: right");
-        check(SecondScreenMath.dpadZone(3, 3, 10) == SecondScreenMath.DPAD_NONE, "dpad: centre none");
-        check(SecondScreenMath.dpadZone(40, -41, 10) == SecondScreenMath.DPAD_UP, "dpad: nearer axis wins");
-    }
-
-    static void scroll() {
-        SecondScreenMath.ScrollWheel w = new SecondScreenMath.ScrollWheel();
-        int total = 0;
-        // a full clockwise circle on screen (y down: right, down, left, up), in 5 degree moves
-        for (int deg = 0; deg <= 360; deg += 5) {
-            double r = Math.toRadians(deg);
-            total += w.move((float) Math.cos(r) * 100, (float) Math.sin(r) * 100, 20, 30);
-        }
-        check(total == 12, "scroll: one clockwise turn = 12 steps of 30 deg (" + total + ")");
-        w.reset();
-        total = 0;
-        for (int deg = 0; deg >= -95; deg -= 5) {
-            double r = Math.toRadians(deg);
-            total += w.move((float) Math.cos(r) * 100, (float) Math.sin(r) * 100, 20, 30);
-        }
-        check(total == -3, "scroll: 95 deg counter-clockwise = -3 steps (" + total + ")");
-        w.reset();
-        total = 0;
-        // crossing the +-180 degree line counts the short way
-        for (int deg = 170; deg <= 200; deg += 5) {
-            double r = Math.toRadians(deg);
-            total += w.move((float) Math.cos(r) * 100, (float) Math.sin(r) * 100, 20, 30);
-        }
-        check(total == 1, "scroll: across 180 deg = 1 step (" + total + ")");
-        check(w.move(1, 1, 20, 30) == 0, "scroll: near the centre nothing");
     }
 
     static void click() {
@@ -177,47 +88,55 @@ public final class SecondScreenMathTest {
         check(!h.up(2450, 120, 50), "hold: nothing to end");
     }
 
-    static void inertia() {
-        SecondScreenMath.Inertia in = new SecondScreenMath.Inertia();
-        in.friction = 4f;
-        // a flick: 20 px every 8 ms (2500 px/s) for 160 ms (the estimate follows about the last 40 ms)
-        for (int i = 0; i < 20; ++i) {
-            in.track(20, 0, 8);
+    /** Feeds a touch's sizes (raw units, one sample every stepMs from t0); returns the press changes in order. */
+    private static String feed(SecondScreenMath.Press p, long t0, long stepMs, int... sizes) {
+        StringBuilder out = new StringBuilder();
+        p.down(t0, sizes[0]);
+        for (int k = 1; k < sizes.length; ++k) {
+            final int c = p.size(t0 + k * stepMs, sizes[k]);
+            if (c != 0) {
+                out.append(c > 0 ? 'P' : 'R');
+            }
         }
-        near(in.speed(), 2500, 200, "inertia: follows the finger's speed");
-        check(in.release(5), "inertia: a fast release starts coasting");
-        float moved = 0;
-        float firstStep = in.step(8)[0];
-        moved += firstStep;
-        near(firstStep, 20, 3, "inertia: first frame continues at the finger's speed");
-        int frames = 1;
-        while (in.active() && frames < 10000) {
-            moved += in.step(8)[0];
-            ++frames;
-        }
-        check(!in.active(), "inertia: stops by itself");
-        // v0 / friction = 2500 / 4 = 625 px in total (the continuous decay), less the slow tail
-        near(moved, 625, 40, "inertia: total coast distance about v / friction");
-        check(frames > 50 && frames < 200, "inertia: lasts about a second (" + frames + " frames of 8 ms)");
-        SecondScreenMath.Inertia slow = new SecondScreenMath.Inertia();
-        slow.track(1, 0, 8);
-        check(!slow.release(5), "inertia: a slow release does not coast");
-        SecondScreenMath.Inertia late = new SecondScreenMath.Inertia();
-        for (int i = 0; i < 10; ++i) {
-            late.track(20, 0, 8);
-        }
-        check(!late.release(200), "inertia: a finger that stopped before lifting does not coast");
-        SecondScreenMath.Inertia high = new SecondScreenMath.Inertia();
-        high.friction = 10f;
-        for (int i = 0; i < 10; ++i) {
-            high.track(20, 0, 8);
-        }
-        high.release(5);
-        float highMoved = 0;
-        while (high.active()) {
-            highMoved += high.step(8)[0];
-        }
-        check(highMoved < moved * 0.5f, "inertia: more friction, shorter coast");
+        return out.toString();
+    }
+
+    static void press() {
+        // measured on the Thor: a light finger 2..5, a thumb pressed flat 11..13, rising 4,5,6,7,8.. in 0.2-0.3 s
+        check("".equals(feed(new SecondScreenMath.Press(), 0, 40, 3, 4, 3, 2, 3, 4, 5, 4, 3, 4, 5, 3, 2)),
+            "press: a light finger sliding (2..5) never clicks");
+        check("P".equals(feed(new SecondScreenMath.Press(), 0, 30, 4, 4, 5, 6, 7, 8, 10, 12, 13, 12, 13)),
+            "press: 4 -> 13 within 0.3 s clicks");
+        check("PR".equals(feed(new SecondScreenMath.Press(), 0, 30, 4, 5, 8, 11, 13, 12, 9, 6, 4)),
+            "press: flatten then relax = press and release");
+        check("PRP".equals(feed(new SecondScreenMath.Press(), 0, 30, 4, 7, 10, 12, 12, 8, 5, 4, 7, 10, 12)),
+            "press: pressing again without lifting clicks again");
+        check("".equals(feed(new SecondScreenMath.Press(), 0, 200, 4, 5, 6, 7, 8, 9, 10, 11, 12)),
+            "press: a slow roll (1.6 s from 4 to 12) is no click");
+        SecondScreenMath.Press slow = new SecondScreenMath.Press();
+        feed(slow, 0, 200, 4, 6, 8, 10, 12);
+        check(slow.relaxed() >= 10, "press: after a slow roll the flatter finger is the new relaxed size (" + slow.relaxed() + ")");
+        SecondScreenMath.Press deep = new SecondScreenMath.Press();
+        deep.minRise = 9f;
+        check("".equals(feed(deep, 0, 30, 4, 6, 8, 10, 12)), "press: a deeper setting needs more (4 -> 12 is not 9 more)");
+        check("P".equals(feed(deep, 0, 30, 3, 6, 9, 12, 13)), "press: ... 3 -> 13 is");
+
+        // the look pauses while the finger flattens, and briefly around a press, then aiming while firing works
+        SecondScreenMath.Press f = new SecondScreenMath.Press();
+        f.down(0, 4);
+        check(!f.frozen(10, 4), "freeze: a resting finger aims");
+        check(!f.frozen(20, 5), "freeze: light-touch noise aims");
+        f.size(40, 7);
+        check(f.frozen(40, 7.5f), "freeze: a fast climb toward a press holds the view");
+        check(f.size(80, 12) == 1, "freeze: the press");
+        check(f.frozen(150, 12), "freeze: just after the press");
+        check(!f.frozen(260, 12), "freeze: then the view follows the finger while firing");
+        check(f.size(300, 6) == -1, "freeze: release");
+        check(f.frozen(350, 6), "freeze: just after the release");
+        check(f.up(400) == false, "press: lifting after a release ends nothing");
+        SecondScreenMath.Press u = new SecondScreenMath.Press();
+        feed(u, 0, 30, 4, 8, 12);
+        check(u.pressed() && u.up(200) && !u.pressed(), "press: lifting while pressed ends the press");
     }
 
     static void gain() {
@@ -229,7 +148,7 @@ public final class SecondScreenMathTest {
 
     static void bindings() {
         List<SecondScreenBindings.Input> all = SecondScreenBindings.all();
-        check(all.size() == 16 + 4 + 2 + 4 + 2 + 8, "bindings: 36 inputs (" + all.size() + ")");
+        check(all.size() == 16 + 1, "bindings: 17 inputs (" + all.size() + ")");
         java.util.HashSet<String> keys = new java.util.HashSet<String>();
         java.util.HashSet<Integer> codes = new java.util.HashSet<Integer>();
         for (SecondScreenBindings.Input i : all) {
@@ -239,14 +158,13 @@ public final class SecondScreenMathTest {
             }
         }
         // key codes as src/client/cl_keys.cpp names them
-        check(SecondScreenBindings.L4.code == 207 && "AUX1".equals(SecondScreenBindings.L4.key), "bindings: AUX1 = 207");
-        check(SecondScreenBindings.SCROLL_PREVIOUS.code == 218 && "AUX12".equals(SecondScreenBindings.SCROLL_PREVIOUS.key), "bindings: AUX12 = 218");
-        check(SecondScreenBindings.RADIAL[0].code == 182 && SecondScreenBindings.RADIAL[7].code == 189, "bindings: KP_HOME 182 .. KP_DOWNARROW 189");
+        check(SecondScreenBindings.PAD_PRESS.code == 212 && "AUX6".equals(SecondScreenBindings.PAD_PRESS.key), "bindings: AUX6 = 212");
         Map<String, String> d = SecondScreenBindings.consoleDefault();
         for (SecondScreenBindings.Input i : all) {
             check(d.containsKey(i.key), "bindings: the default preset binds " + i.key);
         }
         check("+gostand".equals(d.get("BUTTON_A")) && "+attack".equals(d.get("BUTTON_RTRIG")), "bindings: console default A / RT");
+        check("+attack".equals(d.get("AUX6")), "bindings: the trackpad press fires by default");
         check("bind AUX1 \"+gostand\"".equals(SecondScreenBindings.command("AUX1", "+gostand")), "bindings: bind command");
         check("bind DPAD_UP \"+actionslot 1\"".equals(SecondScreenBindings.command("DPAD_UP", "+actionslot 1")), "bindings: quoted argument");
         check("unbind AUX3".equals(SecondScreenBindings.command("AUX3", "")), "bindings: unbind");

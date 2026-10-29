@@ -8,8 +8,8 @@ import java.util.Map;
 /**
  * What can be remapped and to what, without Android classes (tested on the build host). Inputs are engine key
  * names: the built-in pad's buttons (BUTTON_A ... DPAD_RIGHT, docs/controllers.md) and the second screen's own
- * inputs, which are keys nothing else uses on Android (src/native/native_second_screen.cpp): AUX1..AUX12 and the
- * keypad keys. A bind is applied as the console command "bind KEY \"command\"", which the engine saves in
+ * input, the trackpad press, which is a key nothing else uses on Android (src/native/native_second_screen.cpp):
+ * AUX6. A bind is applied as the console command "bind KEY \"command\"", which the engine saves in
  * players/config.cfg (config_mp.cfg in Multiplayer).
  */
 final class SecondScreenBindings {
@@ -38,31 +38,8 @@ final class SecondScreenBindings {
         }
     }
 
-    // the second screen's inputs (key codes: src/client/cl_keys.cpp keynames)
-    static final Input L4 = new Input("AUX1", "L4 grip", 207);
-    static final Input R4 = new Input("AUX2", "R4 grip", 208);
-    static final Input L5 = new Input("AUX3", "L5 grip", 209);
-    static final Input R5 = new Input("AUX4", "R5 grip", 210);
-    static final Input LEFT_CLICK = new Input("AUX5", "Left pad click", 211);
-    static final Input RIGHT_CLICK = new Input("AUX6", "Right pad click", 212);
-    static final Input[] LEFT_DPAD = {
-        new Input("AUX7", "Left pad d-pad up", 213),
-        new Input("AUX8", "Left pad d-pad down", 214),
-        new Input("AUX9", "Left pad d-pad left", 215),
-        new Input("AUX10", "Left pad d-pad right", 216),
-    };
-    static final Input SCROLL_NEXT = new Input("AUX11", "Scroll wheel clockwise", 217);
-    static final Input SCROLL_PREVIOUS = new Input("AUX12", "Scroll wheel counter-clockwise", 218);
-    static final Input[] RADIAL = {
-        new Input("KP_HOME", "Radial slice 1 (top)", 182),
-        new Input("KP_UPARROW", "Radial slice 2", 183),
-        new Input("KP_PGUP", "Radial slice 3", 184),
-        new Input("KP_LEFTARROW", "Radial slice 4", 185),
-        new Input("KP_5", "Radial slice 5", 186),
-        new Input("KP_RIGHTARROW", "Radial slice 6", 187),
-        new Input("KP_END", "Radial slice 7", 188),
-        new Input("KP_DOWNARROW", "Radial slice 8", 189),
-    };
+    // the second screen's input (key code: src/client/cl_keys.cpp keynames)
+    static final Input PAD_PRESS = new Input("AUX6", "Trackpad press", 212);
 
     static final Input[] PHYSICAL = {
         new Input("BUTTON_A", "A", 0),
@@ -89,20 +66,7 @@ final class SecondScreenBindings {
         for (Input i : PHYSICAL) {
             out.add(i);
         }
-        out.add(L4);
-        out.add(R4);
-        out.add(L5);
-        out.add(R5);
-        out.add(LEFT_CLICK);
-        out.add(RIGHT_CLICK);
-        for (Input i : LEFT_DPAD) {
-            out.add(i);
-        }
-        out.add(SCROLL_NEXT);
-        out.add(SCROLL_PREVIOUS);
-        for (Input i : RADIAL) {
-            out.add(i);
-        }
+        out.add(PAD_PRESS);
         return out;
     }
 
@@ -162,8 +126,7 @@ final class SecondScreenBindings {
 
     /**
      * The console default: the BO1 console "Default" pad layout (client/cl_gamepad.cpp s_gpadDefaultButtonBinds)
-     * and the second screen's inputs: jump / crouch on the upper grips, knife / use-reload on the lower ones, sprint
-     * and fire on the pad clicks, the action slots on the d-pad zones, weapons on the scroll wheel.
+     * and the second screen's trackpad press: fire.
      */
     static Map<String, String> consoleDefault() {
         Map<String, String> m = new LinkedHashMap<String, String>();
@@ -183,22 +146,7 @@ final class SecondScreenBindings {
         m.put("DPAD_DOWN", "+actionslot 2");
         m.put("DPAD_LEFT", "+actionslot 3");
         m.put("DPAD_RIGHT", "+actionslot 4");
-        m.put(L4.key, "+gostand");
-        m.put(R4.key, "+stance");
-        m.put(L5.key, "+melee");
-        m.put(R5.key, "+usereload");
-        m.put(LEFT_CLICK.key, "+breath_sprint");
-        m.put(RIGHT_CLICK.key, "+attack");
-        for (int i = 0; i < 4; ++i) {
-            m.put(LEFT_DPAD[i].key, "+actionslot " + (i + 1));
-        }
-        m.put(SCROLL_NEXT.key, "weapnext");
-        m.put(SCROLL_PREVIOUS.key, "weapprev");
-        final String[] radial = {"+actionslot 1", "+actionslot 4", "+frag", "+actionslot 2", "+smoke", "+actionslot 3",
-            "+scores", "weapnext"};
-        for (int i = 0; i < RADIAL.length; ++i) {
-            m.put(RADIAL[i].key, radial[i]);
-        }
+        m.put(PAD_PRESS.key, "+attack");
         return m;
     }
 
