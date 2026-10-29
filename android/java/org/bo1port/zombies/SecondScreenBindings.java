@@ -150,6 +150,18 @@ final class SecondScreenBindings {
         return m;
     }
 
+    /**
+     * The game re-runs its pad layout preset (exec of gpad_buttonsConfig, "buttons_default") when a map starts and
+     * after the options menu, which replaces hand-made pad binds (docs/controllers.md, Limits). Naming a preset that
+     * doesn't exist keeps them: sent before any bind of a physical pad button. Saved in the config (seta).
+     */
+    static final String CUSTOM_LAYOUT = "seta gpad_buttonsConfig buttons_custom";
+
+    /** Whether key is one of the pad's own buttons (whose binds the layout preset would replace). */
+    static boolean physical(String key) {
+        return key.startsWith("BUTTON_") || key.startsWith("DPAD_");
+    }
+
     /** The console command that gives key that command ("" unbinds it). One command, no separators. */
     static String command(String key, String command) {
         if (command == null || command.length() == 0) {

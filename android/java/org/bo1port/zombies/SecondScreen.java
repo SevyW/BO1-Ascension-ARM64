@@ -115,6 +115,9 @@ final class SecondScreen implements DisplayManager.DisplayListener {
 
     void bind(String key, String command) {
         if (ready) {
+            if (SecondScreenBindings.physical(key)) {
+                Bo1Activity.ssCommand(SecondScreenBindings.CUSTOM_LAYOUT);
+            }
             Bo1Activity.ssCommand(SecondScreenBindings.command(key, command));
             requestBindsSoon();
         }
@@ -123,6 +126,13 @@ final class SecondScreen implements DisplayManager.DisplayListener {
     void applyPreset(Map<String, String> binds) {
         if (!ready) {
             return;
+        }
+        boolean physical = false;
+        for (String key : binds.keySet()) {
+            physical |= SecondScreenBindings.physical(key);
+        }
+        if (physical) {
+            Bo1Activity.ssCommand(SecondScreenBindings.CUSTOM_LAYOUT);
         }
         for (Map.Entry<String, String> e : binds.entrySet()) {
             Bo1Activity.ssCommand(SecondScreenBindings.command(e.getKey(), e.getValue()));

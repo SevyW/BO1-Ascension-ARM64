@@ -168,6 +168,8 @@ public final class SecondScreenMathTest {
         check("bind AUX1 \"+gostand\"".equals(SecondScreenBindings.command("AUX1", "+gostand")), "bindings: bind command");
         check("bind DPAD_UP \"+actionslot 1\"".equals(SecondScreenBindings.command("DPAD_UP", "+actionslot 1")), "bindings: quoted argument");
         check("unbind AUX3".equals(SecondScreenBindings.command("AUX3", "")), "bindings: unbind");
+        check(SecondScreenBindings.physical("BUTTON_RSHLDR") && SecondScreenBindings.physical("DPAD_UP")
+            && !SecondScreenBindings.physical("AUX6"), "bindings: pad buttons are physical, the trackpad press is not");
         check(SecondScreenBindings.command("AUX1", "+attack;quit").indexOf(';') < 0, "bindings: no command separators");
         Map<String, String> parsed = SecondScreenBindings.parse("AUX1=+gostand\nBUTTON_A=\nDPAD_UP=+actionslot 1\n");
         check("+gostand".equals(parsed.get("AUX1")) && "".equals(parsed.get("BUTTON_A")) && "+actionslot 1".equals(parsed.get("DPAD_UP")),
