@@ -4,7 +4,7 @@ Last update: 2026-10-29.
 
 ## Current state
 
-**0.4-turnip (versionCode 4)**: 0.3-turnip plus the second-screen controls ([docs/second-screen.md](docs/second-screen.md)), device-tested on the AYN Thor by the PC session. The repository is trimmed to the Android port (branch `cleanup`). Release by the PC session.
+**0.4-turnip (versionCode 4)**: 0.3-turnip plus the second-screen controls ([docs/second-screen.md](docs/second-screen.md)), device-tested on the AYN Thor by the PC session. The repository is trimmed to the Android port (branch `cleanup`): the browser version, the Windows build with its Windows-only engine code, the Windows launchers, the developer tools, `mods/` and `data/` are gone (licence files kept); the state before is on the branch `archive/pre-cleanup`. Built from scratch after every removal: 1249/1249 TUs, 0 failed; the 0.4 debug APK is on the branch `v0.4-apk`. Release by the PC session.
 
 ### 0.3-turnip
 
