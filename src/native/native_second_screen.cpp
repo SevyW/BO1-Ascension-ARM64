@@ -253,7 +253,7 @@ extern "C" void bo1_native_second_screen_frame(GPadRawState *slot0)
     // what the activity shows and does depends on: the EXTRAS switch, a game or a menu, Zombies or Multiplayer
     const char *zombies = Dvar_GetVariantString("bo1_zombies");
     char state[64];
-    snprintf(state, sizeof(state), "%d %d %d", s_enabled.load(), s_ingame.load(), zombies && atoi(zombies) ? 1 : 0);
+    snprintf(state, sizeof(state), "%d %d %d", s_enabled.load(), s_ingame.load(), !zombies || !*zombies ? -1 : atoi(zombies) ? 1 : 0);
     if (s_lastState != state)
     {
         s_lastState = state;

@@ -16,8 +16,22 @@ import org.libsdl.app.SDLActivity;
  * below 4 GB, which System.loadLibrary cannot do.
  *
  * restartApp and shareLog are called by the engine (src/native/native_extras.cpp, through JNI).
+ *
+ * The second-screen controller (SecondScreen, a dual-screen device's other display): the ss* methods are the
+ * engine's, registered by libbo1.so (src/native/native_second_screen.cpp); secondScreenState and secondScreenBinds
+ * are called by it.
  */
 public class Bo1Activity extends SDLActivity {
+    static native void ssLook(float dx, float dy);
+    static native void ssStick(float x, float y);
+    static native void ssKey(int key, boolean down);
+    static native void ssCommand(String command);
+    static native void ssRequestBinds(String keys);
+    static native void ssVisible(boolean visible);
+    static native void ssLog(String text);
+
+    private SecondScreen secondScreen;
+
     @Override
     protected String[] getLibraries() {
         return new String[] { "SDL2", "main" };
@@ -49,6 +63,41 @@ public class Bo1Activity extends SDLActivity {
             getWindow().setAttributes(params);
         } catch (Throwable ignored) {
             // the system's choice stays
+        }
+        try {
+            secondScreen = new SecondScreen(this);
+        } catch (Throwable t) {
+            secondScreen = null;   // no second-screen controller; the game is not affected
+        }
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        if (secondScreen != null) {
+            secondScreen.start();
+        }
+    }
+
+    @Override
+    protected void onStop() {
+        if (secondScreen != null) {
+            secondScreen.stop();
+        }
+        super.onStop();
+    }
+
+    /** From the engine, on its thread: "<bo1_second_screen> <in a game> <Zombies>" (SecondScreen.onState). */
+    public void secondScreenState(String state) {
+        if (secondScreen != null) {
+            secondScreen.onState(state);
+        }
+    }
+
+    /** From the engine, on its thread: the binds asked for with ssRequestBinds, "KEY=binding" lines. */
+    public void secondScreenBinds(String binds) {
+        if (secondScreen != null) {
+            secondScreen.onBinds(binds);
         }
     }
 
