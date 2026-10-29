@@ -16,13 +16,14 @@ to the device, and the app does not run without them.
 | PC | Windows, Linux or macOS with a USB cable for the device, to copy the files once. |
 | Controls | A controller (built-in handheld controls, Bluetooth or USB), or the on-screen touch controls. |
 
-Tested on: AYN Odin 3 (Snapdragon 8 Elite, Adreno 830, Android 15). Other devices are expected to work but are not
+Tested on: AYN Thor (Snapdragon 8 Gen 2, Adreno 740, Android 13; with a Turnip driver, see the README), and the
+original port on an AYN Odin 3 (Snapdragon 8 Elite, Adreno 830, Android 15). Other devices are expected to work but are not
 tested; reports are welcome (see "Problems"). The README has the full requirements (minimum and recommended), what
 each renderer supports, and benchmarks.
 
 ## 2. Install the app
 
-1. Download `bo1-port-<version>.apk` from the repository's **Releases** page. Only install it from there; nobody
+1. Download `bo1-port-turnip-v<version>.apk` from the repository's **Releases** page. Only install it from there; nobody
    else ships builds of this project.
 2. Open the file on the device. Android asks you to allow installing apps from that source (the browser or the
    file manager): allow it for that app only, then tap **Install**.
@@ -50,17 +51,17 @@ updated by Steam (the latest version), and you should have started it at least o
 The folder on the device is
 
 ```
-Internal storage/Android/data/org.bo1port.zombies/files/game/
+Internal storage/Android/data/org.bo1port.zombies.turnip/files/game/
 ```
 
-(`/sdcard/Android/data/org.bo1port.zombies/files/game/` for adb). Copy the **contents** of `Call of Duty Black
+(`/sdcard/Android/data/org.bo1port.zombies.turnip/files/game/` for adb). Copy the **contents** of `Call of Duty Black
 Ops` into `game`, so that `game/localization.txt` and `game/zone/` exist. Do not copy the folder itself into `game`;
 that gives `game/Call of Duty Black Ops/...`, which the app does not find.
 
 ### Option A: USB cable and the file manager (Windows)
 
 1. Unlock the device and connect it. In the USB notification choose **File transfer**.
-2. In Windows Explorer open the device, then **Internal storage > Android > data > org.bo1port.zombies > files**.
+2. In Windows Explorer open the device, then **Internal storage > Android > data > org.bo1port.zombies.turnip > files**.
    Create the folder `game` if the app did not.
 3. Copy everything inside `Call of Duty Black Ops` into `game`. Keep the device unlocked and awake; the copy takes
    10 to 40 minutes.
@@ -76,7 +77,7 @@ unplug and reconnect the cable. Some phones hide `Android/data` from the PC enti
 3. Run (with your own path):
 
 ```
-adb push "C:\Program Files (x86)\Steam\steamapps\common\Call of Duty Black Ops\." /sdcard/Android/data/org.bo1port.zombies/files/game/
+adb push "C:\Program Files (x86)\Steam\steamapps\common\Call of Duty Black Ops\." /sdcard/Android/data/org.bo1port.zombies.turnip/files/game/
 ```
 
 The `\.` at the end copies the contents, not the folder.
@@ -138,7 +139,7 @@ Tested: Waffen der Schönheit 1.1.0 (a Kino der Toten mod), 115-120 FPS on an Od
 that needs a patched game exe or extra DLLs on PC will not work.
 
 1. Copy the mod's folder (on PC `Call of Duty Black Ops\mods\<name>\`, or the folder inside the mod's download)
-   to `Android/data/org.bo1port.zombies/files/game/mods/<name>/`.
+   to `Android/data/org.bo1port.zombies.turnip/files/game/mods/<name>/`.
 2. Settings > EXTRAS > MOD: pick it; the app restarts with it. Then start the map the mod changes or adds from the
    menus. Or start it directly with `files/args.txt` (one line), for example
    `+set bo1_zombies 1 +set fs_game mods/wds +devmap zombie_theater`.
@@ -158,12 +159,12 @@ folder to `files/game/mods/<name>/` the same way.
 | "Game files not found" | `game/localization.txt` must exist. Check you copied the *contents* of the folder (step 4). |
 | The app closes on start | Check the free space and that the copy finished; copy again over the old files. Then send the log (below). |
 | Black screen or broken graphics | Switch the renderer to OpenGL ES 3, and report it with the log. If the menu is unreachable, create `files/args.txt` containing `+set bo1_zombies 1 +set bo1_renderer 0` (one line), start once, then delete the file. |
-| Low frame rate | Lower Video Mode; check EXTRAS > frame rate limit. |
+| Low frame rate | Lower Video Mode and turn anti-aliasing off. Settings > Graphics: SCREEN REFRESH RATE with SYNC EVERY FRAME sets the frame rate. |
 | No sound effects in a few places | Report it with the log. |
 | Multiplayer menu items are disabled | Server Browser, Ranked and Wager need the online service and stay disabled. Use Combat Training or Private Match. |
 
 **Send log**: Settings > EXTRAS > SEND LOG shares the end of the log as text. The full log is
-`Android/data/org.bo1port.zombies/files/bo1.log` (`bo1.prev.log` is the start before). Open an issue on the
+`Android/data/org.bo1port.zombies.turnip/files/bo1.log` (`bo1.prev.log` is the start before). Open an issue on the
 repository with it, your device and what you did.
 
 ## Advanced: start options
@@ -174,5 +175,5 @@ describes how the port works, and the dvars and commands it adds.
 
 ## Removing it
 
-Uninstall the app. That deletes `Android/data/org.bo1port.zombies` with the game files and your progress. Copy
+Uninstall the app. That deletes `Android/data/org.bo1port.zombies.turnip` with the game files and your progress. Copy
 `files/players` off the device first if you want to keep the progress.

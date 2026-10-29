@@ -12,7 +12,7 @@ Last update: 2026-10-29.
 
 ### 0.3-turnip
 
-**Released and device-tested.** [`v0.3-turnip`](https://github.com/SevyW/BO1-Ascension-ARM64/releases/tag/v0.3-turnip) is the code in this file's "What changed" section, built by a cloud session and tested on an AYN Thor.
+**Released and device-tested.** [`v0.3-turnip`](https://github.com/SevyW/bo1-zombies-android/releases/tag/v0.3-turnip) is the code in this file's "What changed" section, built by a cloud session and tested on an AYN Thor.
 
 | | |
 | --- | --- |
