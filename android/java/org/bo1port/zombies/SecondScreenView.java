@@ -240,7 +240,7 @@ final class SecondScreenView extends View {
         if (!padClicked) {
             padClicked = true;
             controller.key(SecondScreenBindings.PAD_PRESS.code, true);
-            controller.haptic(true);
+            controller.feel(true);
             invalidate();
         }
     }
@@ -249,6 +249,7 @@ final class SecondScreenView extends View {
         if (padClicked) {
             padClicked = false;
             controller.key(SecondScreenBindings.PAD_PRESS.code, false);
+            controller.feel(false);
             invalidate();
         }
     }

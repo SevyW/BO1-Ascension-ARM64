@@ -23,6 +23,7 @@ final class SecondScreenSettings {
     int holdMs = 350;             // HOLD: 150 .. 800
     float pressDepth = 5f;        // PRESS: how much the finger's contact size must grow (raw units), 3 .. 10
     boolean haptics = true;
+    int clickFeel = 1;            // SecondScreen.FEELS, 0 .. 9
     int dimSeconds = 5;           // 0 = never
     final Map<String, Boolean> defaultsApplied = new LinkedHashMap<String, Boolean>();
     final Map<String, Map<String, String>> presets = new LinkedHashMap<String, Map<String, String>>();
@@ -64,6 +65,7 @@ final class SecondScreenSettings {
             holdMs = (int) clamp(o.optInt("holdMs", holdMs), 150, 800);
             pressDepth = clamp((float) o.optDouble("pressDepth", pressDepth), 3f, 10f);
             haptics = o.optBoolean("haptics", haptics);
+            clickFeel = (int) clamp(o.optInt("clickFeel", clickFeel), 0, SecondScreen.FEELS.length - 1);
             dimSeconds = (int) clamp(o.optInt("dimSeconds", dimSeconds), 0, 60);
             JSONObject applied = o.optJSONObject("defaultsApplied");
             if (applied != null) {
@@ -103,6 +105,7 @@ final class SecondScreenSettings {
             o.put("holdMs", holdMs);
             o.put("pressDepth", pressDepth);
             o.put("haptics", haptics);
+            o.put("clickFeel", clickFeel);
             o.put("dimSeconds", dimSeconds);
             JSONObject applied = new JSONObject();
             for (Map.Entry<String, Boolean> e : defaultsApplied.entrySet()) {

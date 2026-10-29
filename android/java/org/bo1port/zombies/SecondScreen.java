@@ -146,6 +146,80 @@ final class SecondScreen implements DisplayManager.DisplayListener {
         }, 300);
     }
 
+    /** The click feels the PADS tab offers (settings.clickFeel), played by feel(). */
+    static final String[] FEELS = {"Soft tick", "Light click", "Crisp click", "Low tick (deep, quiet)", "Soft thud",
+        "Double tick", "Click, and a tick on release", "Trigger pull (rise, then click)", "Heavy click", "Short buzz"};
+
+    /** The pad's click (press true) or its release, as the chosen feel; only "Click, and a tick on release" marks the release. */
+    void feel(boolean press) {
+        if (!settings.haptics || vibrator == null) {
+            return;
+        }
+        playFeel(settings.clickFeel, press);
+    }
+
+    /** Plays feel number f (FEELS), for trying them on the PADS tab too. */
+    void playFeel(int f, boolean press) {
+        if (vibrator == null) {
+            return;
+        }
+        try {
+            if (Build.VERSION.SDK_INT < 30) {
+                if (press) {
+                    vibrator.vibrate(VibrationEffect.createOneShot(f == 8 ? 30 : f == 9 ? 15 : 10, VibrationEffect.DEFAULT_AMPLITUDE));
+                }
+                return;
+            }
+            final boolean deep = Build.VERSION.SDK_INT >= 31;   // LOW_TICK and THUD
+            VibrationEffect.Composition c = VibrationEffect.startComposition();
+            if (!press) {
+                if (f != 6) {
+                    return;
+                }
+                c.addPrimitive(VibrationEffect.Composition.PRIMITIVE_TICK, 0.5f);
+                vibrator.vibrate(c.compose());
+                return;
+            }
+            switch (f) {
+                case 0:
+                    c.addPrimitive(VibrationEffect.Composition.PRIMITIVE_TICK, 0.5f);
+                    break;
+                case 2:
+                    c.addPrimitive(VibrationEffect.Composition.PRIMITIVE_CLICK, 1f);
+                    break;
+                case 3:
+                    c.addPrimitive(deep ? VibrationEffect.Composition.PRIMITIVE_LOW_TICK : VibrationEffect.Composition.PRIMITIVE_TICK, 1f);
+                    break;
+                case 4:
+                    c.addPrimitive(deep ? VibrationEffect.Composition.PRIMITIVE_THUD : VibrationEffect.Composition.PRIMITIVE_CLICK, 0.5f);
+                    break;
+                case 5:
+                    c.addPrimitive(VibrationEffect.Composition.PRIMITIVE_TICK, 0.8f);
+                    c.addPrimitive(VibrationEffect.Composition.PRIMITIVE_TICK, 0.8f, 50);
+                    break;
+                case 6:
+                    c.addPrimitive(VibrationEffect.Composition.PRIMITIVE_CLICK, 0.6f);
+                    break;
+                case 7:
+                    c.addPrimitive(VibrationEffect.Composition.PRIMITIVE_QUICK_RISE, 0.5f);
+                    c.addPrimitive(VibrationEffect.Composition.PRIMITIVE_CLICK, 0.8f);
+                    break;
+                case 8:
+                    vibrator.vibrate(VibrationEffect.createPredefined(VibrationEffect.EFFECT_HEAVY_CLICK));
+                    return;
+                case 9:
+                    vibrator.vibrate(VibrationEffect.createOneShot(15, 110));
+                    return;
+                default:   // 1, light click
+                    c.addPrimitive(VibrationEffect.Composition.PRIMITIVE_CLICK, 0.5f);
+                    break;
+            }
+            vibrator.vibrate(c.compose());
+        } catch (Throwable ignored) {
+            // no vibrator, or a primitive it can't play
+        }
+    }
+
     void haptic(boolean strong) {
         if (!settings.haptics || vibrator == null) {
             return;

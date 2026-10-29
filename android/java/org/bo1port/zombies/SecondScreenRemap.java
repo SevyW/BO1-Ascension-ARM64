@@ -181,18 +181,57 @@ final class SecondScreenRemap extends LinearLayout {
                 s.holdMs = Math.round(v);
             }
         }));
-        list.addView(choice("Haptics", new String[] {"Off", "On"}, s.haptics ? 1 : 0, new Chosen() {
-            @Override
-            public void set(int i) {
-                s.haptics = i == 1;
-            }
-        }));
+        showFeels(list);
         list.addView(slider("Dim after (0 = never)", 0, 30, s.dimSeconds, 1f, " s", new Changed() {
             @Override
             public void set(float v) {
                 s.dimSeconds = Math.round(v);
             }
         }));
+    }
+
+    /** Click feel: Off and the ten feels, one row each; a tap chooses it and plays it. */
+    private void showFeels(LinearLayout list) {
+        final SecondScreenSettings s = controller.settings;
+        final LinearLayout box = new LinearLayout(getContext());
+        box.setOrientation(VERTICAL);
+        box.setBackground(panel(PANEL));
+        box.setPadding(dp(12), dp(8), dp(12), dp(8));
+        box.addView(text("Click feel (tap one to feel it)", TEXT, 15));
+        final LinearLayout rows = new LinearLayout(getContext());
+        rows.setOrientation(VERTICAL);
+        final int count = SecondScreen.FEELS.length + 1;
+        for (int i = 0; i < count; ++i) {
+            final int index = i;   // 0 = off, then the feels
+            TextView option = button(i == 0 ? "Off" : i + ". " + SecondScreen.FEELS[i - 1], new OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    s.haptics = index > 0;
+                    if (index > 0) {
+                        s.clickFeel = index - 1;
+                        controller.playFeel(s.clickFeel, true);
+                        if (s.clickFeel == 6) {
+                            postDelayed(new Runnable() {
+                                @Override
+                                public void run() {
+                                    controller.playFeel(6, false);
+                                }
+                            }, 250);
+                        }
+                    }
+                    controller.settingsChanged();
+                    for (int k = 0; k < rows.getChildCount(); ++k) {
+                        rows.getChildAt(k).setBackground(panel(k == index ? SELECTED : BACKGROUND));
+                    }
+                }
+            });
+            option.setBackground(panel(i == (s.haptics ? s.clickFeel + 1 : 0) ? SELECTED : BACKGROUND));
+            LayoutParams lp = new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT);
+            lp.topMargin = dp(4);
+            rows.addView(option, lp);
+        }
+        box.addView(rows);
+        list.addView(spaced(box));
     }
 
     // ---- PRESETS ------------------------------------------------------------------------------------------------

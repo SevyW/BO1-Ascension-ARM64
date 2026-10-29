@@ -95,7 +95,7 @@ so the game keeps the controller.
 | pad click (`click`) | press | press, double tap, press and hold |
 | press depth (`pressDepth`): how far above the relaxed size a press must rise, in raw size units | 5 | 3-10 |
 | hold time | 350 ms | 150-800 ms |
-| haptics | on | on / off |
+| click feel (`haptics`, `clickFeel`): off, or one of ten vibrations on a press (soft tick, light click, crisp click, low tick, soft thud, double tick, click with a tick on release, trigger pull, heavy click, short buzz); on the PADS tab a tap plays it | light click | off, 1-10 |
 | dim after (the controller fades to 30 % until the next touch) | 5 s | 0 (never)-30 s |
 
 | dvar | default | range | |
