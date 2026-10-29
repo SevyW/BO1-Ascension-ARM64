@@ -27,10 +27,9 @@ Emscripten build and docs) was removed from this fork; the upstream repositories
 - **No game assets in the repo or in the app.** No `.ff`, `.iwd`, `.bik`, dumped retail scripts or textures. The
   player copies their own install to the device. Disc images or installers in the working tree (gitignored) are not a
   source for anything we ship.
-- **Keep the decompiled engine complete and the MSVC build identical** when changing shared code: guard platform code
-  with `#ifdef BO1_NATIVE` / `BO1_WEB` / `__ANDROID__`, or use constructs MSVC also accepts. Never reformat decompiled
-  code; edit the smallest region. (The Windows target in `CMakeLists.txt` stays: the native build starts from its
-  source list, and it keeps merges from upstream simple.)
+- **Keep the decompiled engine complete.** The Windows build was removed, but the engine code still carries its
+  MSVC-era constructs: leave them. Guard platform code with `#ifdef BO1_NATIVE` / `BO1_WEB` / `__ANDROID__`. Never
+  reformat decompiled code; edit the smallest region.
 - **Tag non-original engine code**: `// mod: ...` or `// mod (<topic>): ...` (`// mod (native):`, `// mod (coop):`,
   `// mod (gpad):`, `// mod (touch):`, `// mod (turnip):`); platform code `// web: ...`. Existing tags: `// zombies:`
   (SP-port work), `SP 0x00XXXXXX` (address of the original function in the retail SP exe), `retail` (the original
@@ -50,7 +49,7 @@ Emscripten build and docs) was removed from this fork; the upstream repositories
 | `android/` | `AndroidManifest.xml` (package `org.bo1port.zombies.turnip`), the Java side: `Bo1Activity` (SDL's activity), `SecondScreen*` (second-screen controls); `android/test/`: off-device tests (`tools/native/test-second-screen.sh`) |
 | `src/native/` | the Android / Linux platform code (not rewritten by tools/p32): SDL2 window and video (`native_video.cpp`), controllers (`native_gamepad.cpp`), touch controls (`native_touch.cpp`), second screen (`native_second_screen.cpp`), audio, low memory, extras; `android/bo1_boot.c` (libmain.so: loads libbo1.so below 4 GB) and `android/bo1_driver.c` (the Vulkan driver choice); `vk/` (the DXVK bridge) |
 | `src/web/` | the platform layer shared with the native builds: `compat/` (Win32 emulation over pthreads/POSIX), `d3d9/` (D3D9 shim on OpenGL ES 3), `web_input.cpp` (input queue), `web_main.cpp`, `web_net.cpp`, `web_stats.cpp`, ... |
-| `src/win32/` | Windows platform layer (`WinMain`, window proc, XInput, Winsock); only a few shared files are compiled for Android (`cmake/native.cmake` `BO1_NATIVE_SHARED_WIN32`) |
+| `src/win32/` | what is left of the Windows platform layer: the files the native build shares (`cmake/native.cmake` `BO1_NATIVE_SHARED_WIN32`) and the headers the engine includes |
 | `src/qcommon/` | `Com_Init`/`Com_Frame` (`common.cpp`), threads + Win32 events (`threads.cpp`), netchan (`net_chan_mp.cpp`), msg/huffman, cmd/cbuf, collision (`cm_*`), mod engine code (`cm_mapkit`, `cm_noperks`) |
 | `src/universal/` | dvars, filesystem + search paths (`com_files.cpp`), memory (`physicalmemory.cpp`, `com_memory.cpp`), `q_shared`, asserts (`assertive.h`), expressions |
 | `src/database/` | fastfile (zone) loading: `db_registry.cpp` (zone lists, pools, `DB_Thread`), `db_file_load.cpp` (overlapped reads, inflate), `db_load.cpp` (asset deserializers) |
@@ -70,13 +69,13 @@ Emscripten build and docs) was removed from this fork; the upstream repositories
 | `tools/native/` | the Android / Linux build scripts (`build-*.sh`, `android-setup.sh`, `get-ndk.sh`, `docker/Dockerfile`) and Linux test harnesses (`coop-test.sh`, `lan-test.sh`, `fx-test.sh`, `run-arm64.sh`, the emulator scripts), `test-second-screen.sh` |
 | `tools/p32/` | the 32-bit-pointer rewrite (`p32rewrite.cpp`, `p32tree.py`) and the clang 21 patches the build needs |
 | `docs/` | `android-port.md`, `INSTALL-ANDROID.md`, `second-screen.md`, `controllers.md`, `multiplayer.md` |
-| `CMakeLists.txt`, `cmake_files.cmake`, `cmake/native.cmake` | the build: `cmake_files.cmake` is the single list of every engine source file; `CMakeLists.txt` defines the target (the Windows build) and includes `cmake/native.cmake` with `-DBO1_NATIVE=ON` |
+| `CMakeLists.txt`, `cmake_files.cmake`, `cmake/native.cmake` | the build: `cmake_files.cmake` is the single list of every engine source file (it creates the target); `CMakeLists.txt` requires `-DBO1_NATIVE=ON` and includes `cmake/native.cmake` |
 | `STATUS.md`, `README.md`, `.github/` | release state and device tests; the project page; issue templates |
 
 ## How the engine runs (anchors; line numbers drift, grep the function)
 
-- **Boot** (Android: `SDL_main` in `src/native/android/bo1_boot.c` loads libbo1.so and calls `bo1_android_main`,
-  `src/web/web_main.cpp`, in place of WinMain): `WinMain` (`win32/win_main.cpp`) → `Sys_InitializeCriticalSections`, `PMem_Init`, `Dvar_Init`, command line
+- **Boot**: `SDL_main` (`src/native/android/bo1_boot.c`) loads libbo1.so below 4 GB and calls `bo1_android_main`
+  (`src/web/web_main.cpp`, the retail `WinMain`'s steps) → `Sys_InitializeCriticalSections`, `PMem_Init`, `Dvar_Init`, command line
   into `sys_cmdline` (1024 bytes) → `Com_Init` (`qcommon/common.cpp`, setjmp error trap) → `Com_ParseCommandLine` splits on
   `+`; `set` lines apply first (`Com_StartupVariable`), FS, configs, `NET_Init`, `SV_Init`, `CL_Init`, `R_InitThreads`,
   `SND_Init`; other `+commands` run after (`Com_AddStartupCommands`), then `Com_LoadFrontEnd` (the zombies main menu is a
@@ -86,7 +85,7 @@ Emscripten build and docs) was removed from this fork; the upstream repositories
   (`SV_ServerThread`, reads the socket when a server runs), sound occlusion, database (`DB_Thread`), stream (texture +
   sound streaming). Sync via `Interlocked*`, critical sections, Win32 events. Thread-affine asserts in `com_files.cpp`.
 - **Server/client**: zombies is a **listen server** in the host process (local client over loopback). Netchan packets
-  ≤ 1264 bytes, huffman above netchan. Transport seam: `Sys_SendPacket` / `Sys_GetPacket` (`win32/win_net.cpp`).
+  ≤ 1264 bytes, huffman above netchan. Transport seam: `Sys_SendPacket` / `Sys_GetPacket` (`src/web/web_net.cpp`, a UDP socket).
   `NET_SendPacket` (`net_chan_mp.cpp`) routes loopback in memory. 32 clients supported engine-side.
 - **Filesystem** (`universal/com_files.cpp` `FS_Startup`): later search paths win. Order: dev folders, `players`, `main`,
   `fs_game` (must be `mods/<x>`), then each `fs_mods` entry and `mods/_stack`. IWDs = zips (`main/iw_*.iwd`,
@@ -99,7 +98,7 @@ Emscripten build and docs) was removed from this fork; the upstream repositories
   project-added builtins `bo1_mapkit_*`, `bo1_mod_*` (`game_sp/g_scr_sp_ai.cpp`).
 - **Renderer**: front end builds sorted draw surfaces → command buffer → back end thread (`rb_backend.cpp`). Shaders are
   precompiled SM3 bytecode inside fastfiles. `r_smp_backend 0` runs the back end inline.
-- **Sound**: no software mixer; XAudio2 mixes. Banks are fastfile assets; streamed audio through the FS layer.
+- **Sound**: the engine's sound code over the `SD_*` driver API; on Android `src/native/native_audio.cpp` mixes (SDL audio, FFmpeg for xWMA). Banks are fastfile assets; streamed audio through the FS layer.
 - **Input**: `MainWndProc` → `Sys_QueEvent` → `CL_KeyEvent`; mouse via `IN_MouseMove` → `CL_MouseEvent`; gamepad →
   `CL_GamepadEvent` / `CL_GamepadButtonEventForPort`; usercmd in `client_mp/cl_input_mp.cpp` `CL_CreateCmd`.
 - **Memory**: PMem 328 MiB committed at start (+256 MiB with `bo1_mod_zones`), hunk reserve/commit. ~400 MB total.
@@ -198,8 +197,8 @@ The tree is too large for one context. Fan out, keep conclusions, and give each 
   you did not write, no git state changes".
 - **Gates every agent must pass before reporting**: the Android build (`build-android.sh`: 0 failed TUs) for engine C/C++; `tools/native/test-second-screen.sh` for the second screen's Java maths.
   Ask for a short final report: files changed, verified vs not, open decisions.
-- **Prompt preamble to reuse**: repo path, "decompiled IDA output; tag added code `// mod (<topic>):`; MSVC build must
-  stay identical; cannot run the game on a device here; read <doc> first; own only <paths>".
+- **Prompt preamble to reuse**: repo path, "decompiled IDA output; tag added code `// mod (<topic>):`; keep the
+  decompiled engine complete; cannot run the game on a device here; read <doc> first; own only <paths>".
 
 ## Known stale references
 
@@ -207,7 +206,11 @@ The tree is too large for one context. Fan out, keep conclusions, and give each 
   (`web/`, `.railway/`, `cmake/web.cmake`, `CMakePresets.json`, `docs/web-port.md`, `docs/web-engine-interface.md`),
   the Windows launchers and harness (`Play.bat`, `setup.ps1`, `tools/headless.ps1`, `tools/coop*.bat` / `coop.ps1`,
   `tools/mod-launcher.hta`), `docs/building-windows.md`, and the developer tools `tools/mapkit/`,
-  `tools/syntax-check*`, `tools/*_flags.js`. The upstream repositories (README.md, Credits) still have them; the
+  `tools/syntax-check*`, `tools/*_flags.js`, `mods/`, `data/`, and the Windows build with its Windows-only engine code
+  (most of `src/win32/`, `src/tracy/`, `src/groupvoice/`, `src/CubeMapGenLib/` and `src/mjpeg/` sources, `src/vpx/`,
+  `src/monkey/` sources, `src/libs/libvpx-1.5.0/`, the XAudio2 sound driver; their licence files stay).
+  `src/universal/profile.h` still includes Tracy under `TRACY_ENABLE`, which nothing defines now. The upstream
+  repositories (README.md, Credits) still have them; the
   `archive/pre-cleanup` branch has the state before the cleanup.
 - Never in the repo: `mods/_stack/README.md`, `notes/*.md` (run/lab IDs like `L60`, `mapkit-fix-3c`),
   `tools/{mergecheck.sh, realtest.ps1, stress.ps1, unjam_table.mjs, gen_sp_builtins.py}`, `mods/mapkit_horde`.

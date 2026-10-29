@@ -4,7 +4,6 @@ project(BO1Zombies)
 set(BIN_NAME "BO1Zombies")
 
 set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_GENERATOR_PLATFORM "WIN32")
 
 set(SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src")
 set(TL_DIR  "${CMAKE_CURRENT_SOURCE_DIR}/tl")
@@ -12,119 +11,12 @@ set(DW_DIR  "${CMAKE_CURRENT_SOURCE_DIR}/DemonWare")
 
 include(cmake_files.cmake)
 
-# The browser (Emscripten) build and its page were removed from this fork; it is an Android port. The upstream
-# repositories keep them (README.md, Credits). Everything below the native block is the Windows (MSVC) build, whose
-# source list the native build starts from.
-if (EMSCRIPTEN)
-    message(FATAL_ERROR "The browser build is not part of this fork (see the upstream repositories).")
+# This fork is an Android port: the browser (Emscripten) and Windows (MSVC) builds were removed; the upstream
+# repositories keep them (README.md, Credits). cmake_files.cmake lists the engine's sources (the target above);
+# cmake/native.cmake builds them for Android (and Linux, for testing), as tools/native/build-android.sh configures it.
+
+option(BO1_NATIVE "Native POSIX build (Android; Linux for testing)" OFF)
+if (NOT BO1_NATIVE)
+    message(FATAL_ERROR "Configure with -DBO1_NATIVE=ON (tools/native/build-android.sh). The Windows build is not part of this fork.")
 endif()
-
-# Native Linux / Android build (-DBO1_NATIVE=ON): cmake/native.cmake, the web build's sources without Emscripten.
-option(BO1_NATIVE "Native POSIX build (Linux, Android) instead of the Windows (MSVC) build" OFF)
-if (BO1_NATIVE)
-    include(cmake/native.cmake)
-    return()
-endif()
-
-# phys_gjk.cpp specific flag (experimental)
-set_source_files_properties(
-    "${SRC_DIR}/physics/phys_gjk.cpp"
-    PROPERTIES
-    COMPILE_OPTIONS "/arch:IA32"
-)
-
-# ----- Preprocessor Defines -----
-# Common to both Debug and Release
-target_compile_definitions(BO1Zombies PUBLIC
-    WIN32
-    _CONSOLE
-    BO1_MP
-    _CRT_SECURE_NO_WARNINGS
-    _WINSOCK_NO_DEPRECATED_NO_WARNINGS
-)
-# Debug-only
-target_compile_definitions(BO1Zombies PUBLIC
-    $<$<CONFIG:Debug>:_DEBUG>
-    $<$<CONFIG:Debug>:TRACY_ENABLE>
-    $<$<CONFIG:Debug>:TRACY_ON_DEMAND>
-)
-# Release-only
-target_compile_definitions(BO1Zombies PUBLIC
-    $<$<CONFIG:Release>:NDEBUG>
-)
-
-# ----- Include directories -----
-target_include_directories(BO1Zombies PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
-target_include_directories(BO1Zombies PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src")
-target_include_directories(BO1Zombies PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src/libs")
-target_include_directories(BO1Zombies PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src/libs/libtomcrypt-1.17/src/headers")
-target_include_directories(BO1Zombies PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src/libs/libtommath-1.0")
-target_include_directories(BO1Zombies PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src/libs/libvpx-1.5.0/include")
-# DXSDK_DIR: the June 2010 DirectX SDK root (Include/, Lib/x86/). Defaults to its installer's path;
-# pass -DDXSDK_DIR=<dir> to use an extracted copy instead.
-set(DXSDK_DIR "C:/Program Files (x86)/Microsoft DirectX SDK (June 2010)" CACHE PATH "June 2010 DirectX SDK root")
-target_include_directories(BO1Zombies PUBLIC "${DXSDK_DIR}/Include")
-
-# ----- Library directories -----
-target_link_directories(BO1Zombies PUBLIC "${DXSDK_DIR}/Lib/x86")
-target_link_directories(BO1Zombies PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src/libs/libvpx-1.5.0")
-target_link_directories(BO1Zombies PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src/steam/redistributable_bin")
-target_link_directories(BO1Zombies PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src/binklib")
-target_link_directories(BO1Zombies PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src/nvapi")
-
-set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT  /O2 /MP /W3 ${MSVC_WARNING_DISABLES} /permissive")
-set(CMAKE_CXX_FLAGS_DEBUG   "${CMAKE_CXX_FLAGS_DEBUG} /MTd /Od /MP /W3 ${MSVC_WARNING_DISABLES} /permissive")
-
-if (MSVC AND WIN32 AND NOT MSVC_VERSION VERSION_LESS 142)
-    target_link_options(BO1Zombies PRIVATE $<$<CONFIG:Debug>:/INCREMENTAL>)
-    target_compile_options(BO1Zombies PRIVATE $<$<CONFIG:Debug>:/ZI>)
-
-    set(CMAKE_CXX_FLAGS_DEBUG           "${CMAKE_CXX_FLAGS_DEBUG} /SAFESEH:NO")
-    set(CMAKE_EXE_LINKER_FLAGS_DEBUG    "${CMAKE_EXE_LINKER_FLAGS_DEBUG} /SAFESEH:NO")
-    set(CMAKE_SHARED_LINKER_FLAGS_DEBUG "${CMAKE_SHARED_LINKER_FLAGS_DEBUG} /SAFESEH:NO")
-    set(CMAKE_MODULE_LINKER_FLAGS_DEBUG "${CMAKE_MODULE_LINKER_FLAGS_DEBUG} /SAFESEH:NO")
-endif()
-
-# ----- Links -----
-target_link_libraries(BO1Zombies PUBLIC
-    steam_api.lib
-    binkw32.lib
-    nvapi.lib
-    d3d9.lib
-    ws2_32.lib
-    dxguid.lib
-    dsound.lib
-    winmm.lib
-    xinput.lib
-    xapobase.lib
-    dxerr.lib
-    libvpx.lib
-    # June-2010 DirectX SDK libs (xapobase, dxerr) reference pre-VS2015 CRT
-    # symbols (_vsnprintf, etc.) that the modern UCRT no longer exports.
-    # legacy_stdio_definitions.lib provides shims so those static libs link.
-    legacy_stdio_definitions.lib
-)
-# ----- Debug Links -----
-target_link_libraries(BO1Zombies PUBLIC $<$<CONFIG:Debug>:d3dx9d.lib>)
-# ----- Release Links -----
-target_link_libraries(BO1Zombies PUBLIC $<$<CONFIG:Release>:d3dx9.lib>)
-target_link_options(BO1Zombies PRIVATE /machine:x86)
-
-# ----- Linker Options -----
-# /DYNAMICBASE:NO - Turning this off causes directx to crash "directx has encountered an unrecoverable error". 
-# /LARGEADDRESSAWARE - for convenience (4gb)
-# /DEBUG - PDB for both configs 
-target_link_options(BO1Zombies PRIVATE /DYNAMICBASE:NO /LARGEADDRESSAWARE /DEBUG)
-
-set_target_properties(BO1Zombies PROPERTIES WIN32_EXECUTABLE TRUE)
-
-# Set the VS debugger's working directory to the build-output dir for whichever config is active 
-set_target_properties(BO1Zombies PROPERTIES
-    VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/$<CONFIG>"
-)
-
-# Keep the build machine's folder out of the binary: source paths in asserts are trimmed to the project and the
-# PDB is referenced by file name only.
-file(TO_NATIVE_PATH "${CMAKE_CURRENT_SOURCE_DIR}" BO1_SOURCE_DIR_NATIVE)
-target_compile_options(BO1Zombies PRIVATE "/d1trimfile:${BO1_SOURCE_DIR_NATIVE}")
-target_link_options(BO1Zombies PRIVATE "/PDBALTPATH:%_PDB%")
+include(cmake/native.cmake)

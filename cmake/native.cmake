@@ -25,17 +25,9 @@ option(BO1_NATIVE_ANDROID "Build the Android engine library and its loader stub"
 set(BO1_ANDROID_SDL2 "" CACHE PATH "Android: directory with SDL2 include/ and lib/libSDL2.so")
 
 # ----- Sources: the engine's list (cmake_files.cmake) minus what only Windows uses -----
+# (the Windows-only folders and files are not in this fork; src/win32/ keeps only what the native build shares)
 set(BO1_NATIVE_EXCLUDE
     "/src/win32/"
-    "/src/tracy/"
-    "/src/binklib/"
-    "/src/mjpeg/"
-    "/src/vpx/"
-    "/src/nvapi/"
-    "/src/CubeMapGenLib/"
-    "/src/groupvoice/"
-    "/src/monkey/"
-    "/src/sound/snd_driver_xaudio2[^/]*\\.cpp$"
 )
 if (NOT BO1_NATIVE_RENDERER)
     list(APPEND BO1_NATIVE_EXCLUDE "/src/gfx_d3d/")

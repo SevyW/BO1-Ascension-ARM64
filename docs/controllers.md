@@ -168,8 +168,8 @@ asset type, and every rumble builtin was an empty stub. Now:
 | `src/client/gpad_core.h`, `gpad_core.cpp` | retail `win_gamepad.cpp` and `IN_GamepadsMove` / `buttonList` (from `win_input.cpp`), moved: dvars, port binding and hot-plug (`GPad_Check`), deadzones, button / trigger / stick edge logic, the `GPad_*` query API (dev GUI, demo playback, `ui_screenshot`, `cl_input_mp`), `GPad_SetRumble`, `gpad_autoenable`, `IN_GamepadsMove` / `IN_GamepadsIdle`. No `<XInput.h>` |
 | `src/client/gpad_rumble.cpp` | rumble envelopes, the request queue for the script builtins (spin lock: server scripts may run on the server thread), `gpad_rumbletest` |
 | `src/client/cl_gamepad.cpp` | retail pad events: axes, buttons, menu routing; plus the APAD events, the 3D-menu key translation, menu repeat (`CL_GamepadRepeatScrollingButtons`), default binds (`CL_GamepadDefaultBinds`) |
-| `src/win32/win_gamepad.cpp` | the XInput backend only (`win_gamepad.h` now just includes `client/gpad_core.h`) |
-| `src/win32/win_input.cpp` | `IN_Frame` calls `IN_GamepadsMove` when the window is active and in front (or `gpad_background 1`), else `IN_GamepadsIdle` |
+| `src/native/native_gamepad.cpp` | the Android backend: SDL game controllers (plus the touch controls and the second screen's pad) into the `bo1_gamepad` array that `src/web/web_gamepad.cpp` reads |
+| `src/web/web_input.cpp` | `IN_Frame` calls `IN_GamepadsMove` |
 | `src/qcommon/common.cpp` | `Com_ExecStartupConfigs` calls `CL_GamepadDefaultBinds` after the configs ran |
 | `src/win32/win_gamerprofile.cpp` | the profile load leaves `gpad_enabled` alone while `gpad_autoenable` is 1 |
 | `src/ui/ui_shared.cpp` | `Menu_HandleKey`: D-pad / APAD up and down move the focus |
@@ -244,40 +244,3 @@ include no Windows header beyond what other `src/client` files already include (
 - A direction held while a menu opens repeats into it once the repeat delay has passed.
 - Holding a trigger in a menu sends its key to the menu every frame (retail behavior of the analog trigger updates).
 
-## Windows test plan
-
-Build (`cmake --build build --config Release`), then start with logging, e.g.
-`build\Release\BO1Zombies.exe +set fs_b $R +set fs_h $R +set bo1_zombies 1 +set logfile 2` and read
-`build\Release\main\console_mp.log`.
-
-1. Start with a pad plugged in. Log: `Game pad 0 connected (port N).`, `XInput port N: type ...`,
-   `gpad_enabled set to 1 (gpad_autoenable 1: game pad connected).`; on the first run the two
-   `Game pad: no ... binds in the config` lines. Console: `gpad_present` is 1, `bindlist` shows the `BUTTON_*` binds.
-2. Main menu (3D TV menus): D-pad and left stick up / down move the selection, holding repeats (about 420 ms, then
-   every 210 ms), A opens, B goes back. 2D menus (options, pause menu): the same.
-3. In a map (`devmap zombie_theater` or from the menu): every row of the default layout; look speed with
-   `input_viewSensitivity`; B tap crouches, hold goes prone; X tap reloads, hold buys from a wall.
-4. Quit; `players\config.cfg` contains `bind BUTTON_A "+gostand"` and `bindaxis A_LSTICK_X VA_SIDE MAP_SQUARED`.
-   Rebind one pad button in the console (`bind BUTTON_Y "+melee"`), restart: the rebind is kept, no
-   `default layout bound` line.
-5. Hot-plug: unplug in game: `Game pad 0 disconnected (port N).`, `gpad_enabled set to 0 ...`, prompts show keyboard
-   keys; plug back in: connected again within about a second.
-6. Focus: hold RT (firing) and alt-tab away: firing stops. With `gpad_background 1` the pad keeps working unfocused.
-7. Rumble: in a map, `gpad_rumbletest`, `gpad_rumbletest explosion_generic`, `gpad_rumbletest tank_rumble 1` then
-   `gpad_rumbletest stop`; `gpad_rumble 0` silences them. Getting hit by a zombie rumbles if the map scripts call
-   `playRumbleOnEntity` (not verified, the scripts are not in the repo).
-8. Coder shortcuts: in a map with `developer 0`, L3 + D-pad down does not toggle noclip and Back + Start does not open
-   the dev GUI; with `developer 1` (and cheats for noclip) they do.
-9. Profile: `updatedvarsfromprofile` in the console leaves `gpad_enabled` at 1 while the pad is connected.
-10. Look for `couldn't exec buttons_default.cfg`. If instead the binds change after the options menu, the fastfiles
-    carry the retail presets (see "Limits").
-11. Prompts: look at a wall weapon; the hint shows the X button glyph. A `.` in its place means the font lacks the
-    glyphs (see "Limits").
-
-Without a pad:
-
-- Start without one: no `Game pad ... connected` line, `gpad_present` 0, `gpad_enabled set to 0 (gpad_autoenable 1:
-  game pad not connected).` if it was 1 in the config, keyboard and mouse unchanged, menus as before.
-- No frame time dip once per second from the empty-port probes (`cg_drawFPS Verbose` in a map).
-- Any virtual XInput pad works as a real one: Steam Input with any controller ("Xbox configuration support"), or a
-  ViGEmBus based tool (DS4Windows, x360ce). `in_mouse 0` on the command line checks that the pad works without the mouse.

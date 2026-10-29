@@ -115,18 +115,12 @@ set(DW_BDPLATFORM_FILES
 
 # ----- src/CubeMapGenLib -----
 set(SRC_CUBEMAPGENLIB
-	"${SRC_DIR}/CubeMapGenLib/CBBoxInt32.cpp"
 	"${SRC_DIR}/CubeMapGenLib/CBBoxInt32.h"
-	"${SRC_DIR}/CubeMapGenLib/CCubeMapProcessor.cpp"
 	"${SRC_DIR}/CubeMapGenLib/CCubeMapProcessor.h"
-	"${SRC_DIR}/CubeMapGenLib/CImageSurface.cpp"
 	"${SRC_DIR}/CubeMapGenLib/CImageSurface.h"
-	"${SRC_DIR}/CubeMapGenLib/ErrorMsg.cpp"
 	"${SRC_DIR}/CubeMapGenLib/ErrorMsg.h"
 	"${SRC_DIR}/CubeMapGenLib/Types.h"
 	"${SRC_DIR}/CubeMapGenLib/VectorMacros.h"
-	"${SRC_DIR}/CubeMapGenLib/Version.h"
-	"${SRC_DIR}/CubeMapGenLib/resource.h"
 )
 source_group("CubeMapGenLib" FILES ${SRC_CUBEMAPGENLIB})
 
@@ -315,21 +309,6 @@ source_group("bgame" FILES ${SRC_BGAME})
 
 set(BGAME_FILES
 	${SRC_BGAME}
-)
-
-# ----- src/binklib -----
-set(SRC_BINKLIB
-	"${SRC_DIR}/binklib/bink.h"
-	"${SRC_DIR}/binklib/binktextures.cpp"
-	"${SRC_DIR}/binklib/binktextures.h"
-	"${SRC_DIR}/binklib/dx9rad3d.cpp"
-	"${SRC_DIR}/binklib/rad3d.h"
-	"${SRC_DIR}/binklib/radbase.h"
-)
-source_group("binklib" FILES ${SRC_BINKLIB})
-
-set(BINKLIB_FILES
-	${SRC_BINKLIB}
 )
 
 # ----- src/cgame -----
@@ -1265,96 +1244,6 @@ set(GLASS_FILES
 	${SRC_GLASS}
 )
 
-# ----- src/groupvoice -----
-set(SRC_GROUPVOICE
-	"${SRC_DIR}/groupvoice/decode.cpp"
-	"${SRC_DIR}/groupvoice/decode.h"
-	"${SRC_DIR}/groupvoice/directsound.h"
-	"${SRC_DIR}/groupvoice/encode.cpp"
-	"${SRC_DIR}/groupvoice/encode.h"
-	"${SRC_DIR}/groupvoice/play.cpp"
-	"${SRC_DIR}/groupvoice/play.h"
-	"${SRC_DIR}/groupvoice/play_dsound.cpp"
-	"${SRC_DIR}/groupvoice/play_dsound.h"
-	"${SRC_DIR}/groupvoice/record.cpp"
-	"${SRC_DIR}/groupvoice/record.h"
-	"${SRC_DIR}/groupvoice/record_dsound.cpp"
-	"${SRC_DIR}/groupvoice/record_dsound.h"
-)
-source_group("groupvoice" FILES ${SRC_GROUPVOICE})
-
-set(SRC_GROUPVOICE_SPEEX
-	"${SRC_DIR}/groupvoice/speex/arch.h"
-	"${SRC_DIR}/groupvoice/speex/bits.c"
-	"${SRC_DIR}/groupvoice/speex/cb_search.c"
-	"${SRC_DIR}/groupvoice/speex/cb_search.h"
-	"${SRC_DIR}/groupvoice/speex/cb_search_arm4.h"
-	"${SRC_DIR}/groupvoice/speex/cb_search_sse.h"
-	"${SRC_DIR}/groupvoice/speex/exc_10_16_table.c"
-	"${SRC_DIR}/groupvoice/speex/exc_10_32_table.c"
-	"${SRC_DIR}/groupvoice/speex/exc_20_32_table.c"
-	"${SRC_DIR}/groupvoice/speex/exc_5_256_table.c"
-	"${SRC_DIR}/groupvoice/speex/exc_5_64_table.c"
-	"${SRC_DIR}/groupvoice/speex/exc_8_128_table.c"
-	"${SRC_DIR}/groupvoice/speex/filters.c"
-	"${SRC_DIR}/groupvoice/speex/filters.h"
-	"${SRC_DIR}/groupvoice/speex/filters_arm4.h"
-	"${SRC_DIR}/groupvoice/speex/filters_sse.h"
-	"${SRC_DIR}/groupvoice/speex/fixed_arm4.h"
-	"${SRC_DIR}/groupvoice/speex/fixed_arm5e.h"
-	"${SRC_DIR}/groupvoice/speex/fixed_debug.h"
-	"${SRC_DIR}/groupvoice/speex/fixed_generic.h"
-	"${SRC_DIR}/groupvoice/speex/gain_table.c"
-	"${SRC_DIR}/groupvoice/speex/gain_table_lbr.c"
-	"${SRC_DIR}/groupvoice/speex/hexc_10_32_table.c"
-	"${SRC_DIR}/groupvoice/speex/hexc_table.c"
-	"${SRC_DIR}/groupvoice/speex/high_lsp_tables.c"
-	"${SRC_DIR}/groupvoice/speex/jitter.c"
-	"${SRC_DIR}/groupvoice/speex/lbr_48k_tables.c"
-	"${SRC_DIR}/groupvoice/speex/lpc.c"
-	"${SRC_DIR}/groupvoice/speex/lpc.h"
-	"${SRC_DIR}/groupvoice/speex/lsp.c"
-	"${SRC_DIR}/groupvoice/speex/lsp.h"
-	"${SRC_DIR}/groupvoice/speex/lsp_tables_nb.c"
-	"${SRC_DIR}/groupvoice/speex/ltp.c"
-	"${SRC_DIR}/groupvoice/speex/ltp.h"
-	"${SRC_DIR}/groupvoice/speex/ltp_arm4.h"
-	"${SRC_DIR}/groupvoice/speex/ltp_sse.h"
-	"${SRC_DIR}/groupvoice/speex/math_approx.c"
-	"${SRC_DIR}/groupvoice/speex/math_approx.h"
-	"${SRC_DIR}/groupvoice/speex/mdf.c"
-	"${SRC_DIR}/groupvoice/speex/misc.c"
-	"${SRC_DIR}/groupvoice/speex/misc.h"
-	"${SRC_DIR}/groupvoice/speex/modes.c"
-	"${SRC_DIR}/groupvoice/speex/modes.h"
-	"${SRC_DIR}/groupvoice/speex/nb_celp.c"
-	"${SRC_DIR}/groupvoice/speex/nb_celp.h"
-	"${SRC_DIR}/groupvoice/speex/preprocess.c"
-	"${SRC_DIR}/groupvoice/speex/quant_lsp.c"
-	"${SRC_DIR}/groupvoice/speex/quant_lsp.h"
-	"${SRC_DIR}/groupvoice/speex/sb_celp.c"
-	"${SRC_DIR}/groupvoice/speex/sb_celp.h"
-	"${SRC_DIR}/groupvoice/speex/smallft.c"
-	"${SRC_DIR}/groupvoice/speex/smallft.h"
-	"${SRC_DIR}/groupvoice/speex/speex.c"
-	"${SRC_DIR}/groupvoice/speex/speex_callbacks.c"
-	"${SRC_DIR}/groupvoice/speex/speex_header.c"
-	"${SRC_DIR}/groupvoice/speex/stack_alloc.h"
-	"${SRC_DIR}/groupvoice/speex/stereo.c"
-	"${SRC_DIR}/groupvoice/speex/vbr.c"
-	"${SRC_DIR}/groupvoice/speex/vbr.h"
-	"${SRC_DIR}/groupvoice/speex/vq.c"
-	"${SRC_DIR}/groupvoice/speex/vq.h"
-	"${SRC_DIR}/groupvoice/speex/vq_arm4.h"
-	"${SRC_DIR}/groupvoice/speex/vq_sse.h"
-)
-source_group("groupvoice/speex" FILES ${SRC_GROUPVOICE_SPEEX})
-
-set(GROUPVOICE_FILES
-	${SRC_GROUPVOICE}
-	${SRC_GROUPVOICE_SPEEX}
-)
-
 # ----- src/ik -----
 set(SRC_IK
 	"${SRC_DIR}/ik/ik.cpp"
@@ -2225,11 +2114,7 @@ set(MINILZO_FILES
 
 # ----- src/mjpeg -----
 set(SRC_MJPEG
-	"${SRC_DIR}/mjpeg/avi.cpp"
-	"${SRC_DIR}/mjpeg/avi.h"
-	"${SRC_DIR}/mjpeg/mjpeg.cpp"
 	"${SRC_DIR}/mjpeg/mjpeg.h"
-	"${SRC_DIR}/mjpeg/yuv.cpp"
 	"${SRC_DIR}/mjpeg/yuv.h"
 )
 source_group("mjpeg" FILES ${SRC_MJPEG})
@@ -2240,25 +2125,12 @@ set(MJPEG_FILES
 
 # ----- src/monkey -----
 set(SRC_MONKEY
-	"${SRC_DIR}/monkey/monkey.cpp"
 	"${SRC_DIR}/monkey/monkey.h"
-	"${SRC_DIR}/monkey/monkey_comm.cpp"
-	"${SRC_DIR}/monkey/monkey_comm.h"
 )
 source_group("monkey" FILES ${SRC_MONKEY})
 
 set(MONKEY_FILES
 	${SRC_MONKEY}
-)
-
-# ----- src/nvapi -----
-set(SRC_NVAPI
-	"${SRC_DIR}/nvapi/nvapi.h"
-)
-source_group("nvapi" FILES ${SRC_NVAPI})
-
-set(NVAPI_FILES
-	${SRC_NVAPI}
 )
 
 # ----- src/physics -----
@@ -2498,9 +2370,7 @@ set(SRC_SOUND
 	"${SRC_DIR}/sound/snd_db.h"
 	"${SRC_DIR}/sound/snd_debug.cpp"
 	"${SRC_DIR}/sound/snd_debug.h"
-	"${SRC_DIR}/sound/snd_driver_xaudio2.cpp"
 	"${SRC_DIR}/sound/snd_driver_xaudio2.h"
-	"${SRC_DIR}/sound/snd_driver_xaudio2_dsp.cpp"
 	"${SRC_DIR}/sound/snd_driver_xaudio2_dsp.h"
 	"${SRC_DIR}/sound/snd_dsp.cpp"
 	"${SRC_DIR}/sound/snd_dsp.h"
@@ -2551,35 +2421,6 @@ set(SPEEX_FILES
 	${SRC_SPEEX}
 )
 
-# ----- src/steam -----
-set(SRC_STEAM
-	"${SRC_DIR}/steam/isteamapps.h"
-	"${SRC_DIR}/steam/isteamclient.h"
-	"${SRC_DIR}/steam/isteamfriends.h"
-	"${SRC_DIR}/steam/isteamgamecoordinator.h"
-	"${SRC_DIR}/steam/isteamgameserver.h"
-	"${SRC_DIR}/steam/isteamgameserverstats.h"
-	"${SRC_DIR}/steam/isteamgamestats.h"
-	"${SRC_DIR}/steam/isteammasterserverupdater.h"
-	"${SRC_DIR}/steam/isteammatchmaking.h"
-	"${SRC_DIR}/steam/isteamnetworking.h"
-	"${SRC_DIR}/steam/isteamremotestorage.h"
-	"${SRC_DIR}/steam/isteamuser.h"
-	"${SRC_DIR}/steam/isteamuserstats.h"
-	"${SRC_DIR}/steam/isteamutils.h"
-	"${SRC_DIR}/steam/matchmakingtypes.h"
-	"${SRC_DIR}/steam/steam_api.h"
-	"${SRC_DIR}/steam/steam_gameserver.h"
-	"${SRC_DIR}/steam/steamclientpublic.h"
-	"${SRC_DIR}/steam/steamencryptedappticket.h"
-	"${SRC_DIR}/steam/steamtypes.h"
-)
-source_group("steam" FILES ${SRC_STEAM})
-
-set(STEAM_FILES
-	${SRC_STEAM}
-)
-
 # ----- src/stringed -----
 set(SRC_STRINGED
 	"${SRC_DIR}/stringed/stringed_hooks.cpp"
@@ -2595,23 +2436,6 @@ source_group("stringed" FILES ${SRC_STRINGED})
 
 set(STRINGED_FILES
 	${SRC_STRINGED}
-)
-
-# ----- src/tracy -----
-set(SRC_TRACY_PUBLIC
-	"${SRC_DIR}/tracy/public/TracyClient.cpp"
-)
-source_group("tracy/public" FILES ${SRC_TRACY_PUBLIC})
-
-set(SRC_TRACY_PUBLIC_TRACY
-	"${SRC_DIR}/tracy/public/tracy/Tracy.hpp"
-	"${SRC_DIR}/tracy/public/tracy/TracyC.h"
-)
-source_group("tracy/public/tracy" FILES ${SRC_TRACY_PUBLIC_TRACY})
-
-set(TRACY_FILES
-	${SRC_TRACY_PUBLIC}
-	${SRC_TRACY_PUBLIC_TRACY}
 )
 
 # ----- src/turret -----
@@ -2798,17 +2622,6 @@ set(VEHICLE_FILES
 	${SRC_VEHICLE}
 )
 
-# ----- src/vpx -----
-set(SRC_VPX
-	"${SRC_DIR}/vpx/vpx.cpp"
-	"${SRC_DIR}/vpx/vpx.h"
-)
-source_group("vpx" FILES ${SRC_VPX})
-
-set(VPX_FILES
-	${SRC_VPX}
-)
-
 # ----- src/win32 -----
 set(SRC_WIN32
 	"${SRC_DIR}/win32/win_common.cpp"
@@ -2817,24 +2630,16 @@ set(SRC_WIN32
 	"${SRC_DIR}/win32/win_configure.h"
 	"${SRC_DIR}/win32/win_content.cpp"
 	"${SRC_DIR}/win32/win_content.h"
-	"${SRC_DIR}/win32/win_gamepad.cpp"
 	"${SRC_DIR}/win32/win_gamepad.h"
 	"${SRC_DIR}/win32/win_gamerprofile.cpp"
 	"${SRC_DIR}/win32/win_gamerprofile.h"
-	"${SRC_DIR}/win32/win_input.cpp"
 	"${SRC_DIR}/win32/win_input.h"
-	"${SRC_DIR}/win32/win_libspeex_misc.cpp"
-	"${SRC_DIR}/win32/win_libspeex_misc.h"
 	"${SRC_DIR}/win32/win_local.h"
 	"${SRC_DIR}/win32/win_localize.cpp"
 	"${SRC_DIR}/win32/win_localize.h"
-	"${SRC_DIR}/win32/win_main.cpp"
 	"${SRC_DIR}/win32/win_main.h"
-	"${SRC_DIR}/win32/win_mini_dumper.cpp"
 	"${SRC_DIR}/win32/win_mini_dumper.h"
-	"${SRC_DIR}/win32/win_net.cpp"
 	"${SRC_DIR}/win32/win_net.h"
-	"${SRC_DIR}/win32/win_shared.cpp"
 	"${SRC_DIR}/win32/win_shared.h"
 	"${SRC_DIR}/win32/win_splash.cpp"
 	"${SRC_DIR}/win32/win_splash.h"
@@ -2842,13 +2647,10 @@ set(SRC_WIN32
 	"${SRC_DIR}/win32/win_stream.h"
 	"${SRC_DIR}/win32/win_steam.cpp"
 	"${SRC_DIR}/win32/win_steam.h"
-	"${SRC_DIR}/win32/win_syscon.cpp"
 	"${SRC_DIR}/win32/win_syscon.h"
 	"${SRC_DIR}/win32/win_tasks.cpp"
 	"${SRC_DIR}/win32/win_tasks.h"
-	"${SRC_DIR}/win32/win_voice.cpp"
 	"${SRC_DIR}/win32/win_voice.h"
-	"${SRC_DIR}/win32/win_wndproc.cpp"
 	"${SRC_DIR}/win32/win_wndproc.h"
 	"${SRC_DIR}/win32/win_workercmds.cpp"
 	"${SRC_DIR}/win32/win_workercmds.h"
@@ -2989,7 +2791,6 @@ add_executable(${BIN_NAME}
 	${EFFECTSCORE_FILES}
 	${AIM_ASSIST_FILES}
 	${BGAME_FILES}
-	${BINKLIB_FILES}
 	${CGAME_FILES}
 	${CGAME_MP_FILES}
 	${CLIENT_FILES}
@@ -3006,7 +2807,6 @@ add_executable(${BIN_NAME}
 	${GAME_SP_FILES}
 	${GFX_D3D_FILES}
 	${GLASS_FILES}
-	${GROUPVOICE_FILES}
 	${IK_FILES}
 	${JPEG_FILES}
 	${LIBS_FILES}
@@ -3014,7 +2814,6 @@ add_executable(${BIN_NAME}
 	${MINILZO_FILES}
 	${MJPEG_FILES}
 	${MONKEY_FILES}
-	${NVAPI_FILES}
 	${PHYSICS_FILES}
 	${QCOMMON_FILES}
 	${RAGDOLL_FILES}
@@ -3022,15 +2821,12 @@ add_executable(${BIN_NAME}
 	${SERVER_MP_FILES}
 	${SOUND_FILES}
 	${SPEEX_FILES}
-	${STEAM_FILES}
 	${STRINGED_FILES}
-	${TRACY_FILES}
 	${TURRET_FILES}
 	${UI_FILES}
 	${UI_MP_FILES}
 	${UNIVERSAL_FILES}
 	${VEHICLE_FILES}
-	${VPX_FILES}
 	${WIN32_FILES}
 	${XANIM_FILES}
 	${ZLIB_FILES}

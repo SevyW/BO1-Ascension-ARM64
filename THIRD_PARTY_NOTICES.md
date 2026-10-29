@@ -40,9 +40,12 @@ repository; the upstream repository's [docs/building-windows.md](https://github.
 The native and web builds use the project's own declarations of the few Steam functions the engine calls
 (`src/web/compat/steam/`, Steam reported as not running) and no Bink or NVAPI.
 
-## Windows build only (in this repository)
+## Windows build only (code removed from this fork, licence files kept)
 
-| component | version | licence | source |
+The Windows-only code below was removed with the Windows build; its licence files stay where they were.
+
+| component | version | licence | licence file |
 | --- | --- | --- | --- |
-| libvpx (video capture) | 1.5.0 | BSD 3-clause | `src/libs/libvpx-1.5.0/` |
-| Tracy profiler client | see `src/tracy/` | BSD 3-clause | `src/tracy/` |
+| libvpx (video capture) | 1.5.0 | BSD 3-clause | `src/libs/libvpx-1.5.0/LICENSE`, `PATENTS` |
+| Tracy profiler client | (see the licence) | BSD 3-clause | `src/tracy/LICENSE`, `src/tracy/public/libbacktrace/LICENSE` |
+| CubeMapGen library (AMD) | | see its licence | `src/CubeMapGenLib/License.doc` |
