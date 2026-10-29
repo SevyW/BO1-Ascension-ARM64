@@ -98,6 +98,10 @@ const Row kRows[] = {
     { "HOLD TO FIRE (SEMI-AUTO)", CHOICE, "bo1_touch_autofire", 0, 0, 0, 0, kOffOn, 0, 2, ACT_NONE },
     { "EDIT TOUCH LAYOUT", ACTION, 0, 0, 0, 0, 0, 0, 0, 0, ACT_EDIT_TOUCH },
     { "RESET TOUCH LAYOUT", ACTION, 0, 0, 0, 0, 0, 0, 0, 0, ACT_RESET_TOUCH },
+#ifdef __ANDROID__
+    // mod (native): the trackpads on a dual-screen device's second display (native_second_screen.cpp)
+    { "SECOND-SCREEN CONTROLS", CHOICE, "bo1_second_screen", 0, 0, 0, 0, kOffOn, 0, 2, ACT_NONE },
+#endif
     { "FRAME RATE LIMIT", CHOICE, "com_maxfps", 0, 0, 0, 0, kFpsNames, kFpsValues, 7, ACT_NONE },
     { "FPS COUNTER", CHOICE, "bo1_fpscounter", 0, 0, 0, 0, kCounter, 0, 4, ACT_NONE },
 #ifdef BO1_DXVK

@@ -59,6 +59,8 @@ extern "C" {
 void bo1_native_input_motion(int dx, int dy, int x, int y, int width, int height);
 void bo1_native_input_buttons(int mask);
 void bo1_native_input_focus(int active);
+// native_second_screen.cpp
+void bo1_native_second_screen_frame(GPadRawState *slot0);
 }
 std::vector<TestStep> s_test;
 std::vector<SDL_JoystickID> s_ignored;   // devices looked at once and found not to be game pads
@@ -424,6 +426,8 @@ extern "C" void bo1_native_gamepad_update(void)
             s.connected = true;
             MergeTouch(s);
         }
+        if (slot == 0)
+            bo1_native_second_screen_frame(&s);   // mod (native): the second screen's pads (native_second_screen.cpp)
         Publish(slot, s);
     }
 }

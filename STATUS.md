@@ -31,7 +31,7 @@ Vulkan renderer, the Zombies main menu, 1280x720, uncapped:
 
 ### Next
 
-- Second-screen controls: Steam Deck-style trackpads and grip buttons on a dual-screen device's second display, and a remapping screen. Branch `second-screen`.
+- Second-screen controls: Steam Deck-style trackpads and grip buttons on a dual-screen device's second display, and a remapping screen. Branch `second-screen`: built and unit-tested off-device (2026-10-29), APK on branch `second-screen-apk`, device test pending ([docs/second-screen.md](docs/second-screen.md)).
 - Picking the driver in the app instead of with `driver.txt`.
 
 ## What changed (diff to upstream 3401a66: 8 files, +331 −8)
