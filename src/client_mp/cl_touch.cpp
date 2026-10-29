@@ -12,6 +12,8 @@
 //   bo1_touch_opacity      0.05 .. 1, default 0.28.
 //   bo1_touch_autofire     0 / 1, default 1: a held FIRE keeps firing a weapon that fires once per pull.
 //   bo1_touch_autofire_rate  1 .. 8 pulls a second, default 5 (the weapon's own fire time still applies).
+//   bo1_second_screen      0 / 1, default 1: mod (native): the trackpads on a dual-screen device's second display
+//                          (src/native/native_second_screen.cpp, docs/second-screen.md).
 // Commands: touch_edit (move the controls with a finger; DONE saves to <fs_homepath>/touch_layout.txt, RESET
 // restores the defaults), touch_reset.
 //
@@ -51,11 +53,13 @@ void bo1_native_touch_weapon(int semiAuto, float pullsPerSecond);
 void bo1_native_touch_edit(int on);
 int bo1_native_touch_editing(void);
 void bo1_native_touch_reset(void);
+void bo1_native_second_screen_settings(int enabled, int ingame);
 }
 
 namespace
 {
 const dvar_t *bo1_touch;
+const dvar_t *bo1_second_screen;
 const dvar_t *bo1_touch_sensitivity;
 const dvar_t *bo1_touch_scale;
 const dvar_t *bo1_touch_opacity;
@@ -120,6 +124,8 @@ void CL_Touch_Draw()
         bo1_touch_opacity = _Dvar_RegisterFloat("bo1_touch_opacity", 0.28f, 0.05f, 1.0f, 1u, "mod (touch): opacity of the on-screen controls");
         bo1_touch_autofire = _Dvar_RegisterInt("bo1_touch_autofire", 1, 0, 1, 1u, "mod (touch): a held FIRE keeps firing weapons that fire once per pull");
         bo1_touch_autofire_rate = _Dvar_RegisterFloat("bo1_touch_autofire_rate", 5.0f, 1.0f, 8.0f, 1u, "mod (touch): trigger pulls per second of a held FIRE");
+        // mod (native): the second-screen controller (Settings > EXTRAS)
+        bo1_second_screen = _Dvar_RegisterInt("bo1_second_screen", 1, 0, 1, 1u, "mod (native): trackpads and grip buttons on a dual-screen device's second display");
         Cmd_AddCommandInternal("touch_edit", EditCommand, &s_editCmd);
         Cmd_AddCommandInternal("touch_reset", ResetCommand, &s_resetCmd);
     }
@@ -136,6 +142,7 @@ void CL_Touch_Draw()
     const bool ingame = state == CA_ACTIVE && !Com_IsSPFrontEndRunning() && ui && !ui->keyCatchers && !CL_JoinMenu_IsOpen() && !CL_Extras_IsOpen() && !CL_Play_IsOpen();
     bo1_native_touch_settings(bo1_touch->current.integer, ingame, bo1_touch_sensitivity->current.value,
         bo1_touch_scale->current.value, screenW / screenH);
+    bo1_native_second_screen_settings(bo1_second_screen->current.integer, ingame);   // mod (native)
     // the weapon in hand: full-automatic weapons (and the minigun) fire while the trigger is held; the others
     // once per pull
     int semiAuto = 0;
