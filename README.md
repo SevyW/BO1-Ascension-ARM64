@@ -152,6 +152,7 @@ bash tools/native/build-apk.sh
 - [docs/INSTALL-ANDROID.md](docs/INSTALL-ANDROID.md): installing and playing on Android
 - [docs/android-port.md](docs/android-port.md): how the Android version works, its settings, building it
 - [docs/controllers.md](docs/controllers.md): controllers, default layout, binds
+- [docs/second-screen.md](docs/second-screen.md): trackpads, grip buttons and remapping on a dual-screen device's second display (branch `second-screen`, in testing)
 - [docs/multiplayer.md](docs/multiplayer.md): co-op
 - [CLAUDE.md](CLAUDE.md): how the engine and the repo are organized
 - Windows and browser versions: [docs/building-windows.md](docs/building-windows.md), [docs/web-port.md](docs/web-port.md)
