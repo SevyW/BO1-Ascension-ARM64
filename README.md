@@ -102,13 +102,20 @@ Uncapped, at 1280x720. Kino der Toten has been played on v27, and v27 also holds
 
 ### ⚙️ Handy settings
 
-They're saved in `home/players/config.cfg` (Zombies) and `config_mp.cfg` (Multiplayer). Change them with the game closed.
+Everything that sets the frame rate is on one page: **Settings > Graphics**.
 
-| | |
+| Graphics setting | What it does |
 | --- | --- |
-| `seta r_mode "1920x1080"` | Render resolution. The port starts at 720p on every device. |
-| `seta com_maxfps "60"` | Frame cap. Locking to 60 saves battery and heat. |
-| Settings > EXTRAS > FPS COUNTER | The on-screen frame counter. |
+| **SCREEN REFRESH RATE** | How often the screen refreshes: 120 Hz or 60 Hz on the AYN Thor. |
+| **SYNC EVERY FRAME: YES** | The frame rate follows the refresh rate: 120 Hz gives 120 FPS, 60 Hz gives 60 FPS (saves battery). |
+| **SYNC EVERY FRAME: NO** | No cap: the game runs as fast as it can. |
+| **VIDEO MODE** | Render resolution. The port starts at 720p; 1920x1080 holds about 120 FPS on a Thor with Turnip v27. |
+| **ANTI-ALIASING: OFF** | Keep it off for now: with anti-aliasing on, the TV menu in the main menu room comes out blank, and it costs a lot of frame rate (8x: about 80 FPS instead of 128 at 1080p). |
+| **FPS COUNTER** | The on-screen frame counter. |
+
+Leave **Settings > EXTRAS > FRAME RATE LIMIT** on *no limit*, so it doesn't cap the game below what Graphics says.
+
+The settings are saved in `home/players/config.cfg` (Zombies) and `config_mp.cfg` (Multiplayer): `r_displayRefresh`, `r_vsync`, `r_mode`, `r_aaSamples` and `com_maxfps`.
 
 ## 🕹️ Second-screen controls
 
